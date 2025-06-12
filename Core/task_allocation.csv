@@ -1,0 +1,93 @@
+task_id,procedure_name,task_name,human_role,autonomy_role
+1,Line-up and Hold,Confirm takeoff clearance,perfomer,supporter
+2,Line-up and Hold,Align with runway centerline,performer,monitor
+3,Line-up and Hold,Check winds,performer,supporter
+4,Line-up and Hold,Hold brakes,performer,monitor
+5,Takeoff - Normal,Check CAS clear,monitor,performer
+6,Takeoff - Normal,"""Set thrust""",performer,monitor
+7,Takeoff - Normal,Set thrust,performer,monitor
+8,Takeoff - Normal,Check FADEC bug TO,monitor,performer
+9,Takeoff - Normal,Check engine spool evenly,monitor,performer
+10,Takeoff - Normal,"""Thrust set""",monitor,performer
+11,Takeoff - Normal,Check N1% matches command bug,monitor,performer
+12,Takeoff - Normal,Release brakes,performer,monitor
+13,Takeoff - Normal,"""Airspeed's alive""",monitor,performer
+14,Takeoff - Normal,"""70 kts""",monitor,performer
+15,Takeoff - Normal,"""V1""",monitor,performer
+16,Takeoff - Normal,"""Rotate""",monitor,performer
+17,Takeoff - Normal,Rotate,performer,monitor
+18,Takeoff - Normal,Maintain 10deg pitch,performer,monitor
+19,Takeoff - Normal,Scan slip/skid indicator,performer,supporter
+20,Takeoff - Normal,Check positive rate,monitor,performer
+21,Takeoff - Normal,"""Positive rate, gear up""",monitor,performer
+22,Takeoff - Normal,Gear up,performer,monitor
+23,Takeoff - Emergency,Apply rudder,performer,monitor
+24,Takeoff - Emergency,Trim rudder,performer,supporter
+25,Takeoff - Emergency,Announce alarm,monitor,performer
+26,Takeoff - Emergency,"""Reset Master Warning""",performer,monitor
+27,Takeoff - Emergency,Reset Master Warning,performer,monitor
+28,Takeoff - Emergency,Set FD TO Mode,monitor,performer
+29,Takeoff - Emergency,Maintain 10deg pitch after FD,performer,monitor
+30,Takeoff - Emergency,Check L/G up,monitor,performer
+31,Takeoff - Emergency,Check Airspeed V2,monitor,performer
+32,Takeoff - Emergency,"""Speed mode FLC V2 heading mode""",monitor,performer
+33,Takeoff - Emergency,"Set speed mode, heading mode",monitor,performer
+34,Takeoff - Emergency,Contact ATC to announce emergency,performer,supporter
+35,Takeoff - Emergency,Listen ATC,performer,monitor
+36,Takeoff - Emergency,"""700ft, engage autopilot""",monitor,performer
+37,Takeoff - Emergency,Engage autopilot,performer,supporter
+38,Takeoff - Emergency,Check V2+12,monitor,performer
+39,Takeoff - Emergency,"""Retract flaps""",monitor,performer
+40,Takeoff - Emergency,Retract flaps,performer,monitor
+41,Engine Fire Emergency Procedure,"""Affected thrust lever, confirm and idle""",monitor,performer
+42,Engine Fire Emergency Procedure,"""Idle""",performer,monitor
+43,Engine Fire Emergency Procedure,Throttle affected idle,performer,monitor
+44,Engine Fire Emergency Procedure,"""TOP""",monitor,performer
+45,Engine Fire Emergency Procedure,Start chrono,monitor,performer
+46,Engine Fire Emergency Procedure,Check light after 15 seconds,monitor,performer
+47,Engine Fire Emergency Procedure,ENG FIRE switch lift cover and push,performer,monitor
+48,Engine Fire Emergency Procedure,"""Affected thrust lever, confirm and cutoff""",monitor,performer
+49,Engine Fire Emergency Procedure,"""cutoff""",performer,monitor
+50,Engine Fire Emergency Procedure,"""Affected engine fuel boost confirm off then norm""",monitor,performer
+51,Engine Fire Emergency Procedure,"""off then norm""",performer,monitor
+52,Engine Fire Emergency Procedure,fuel boost off,performer,monitor
+53,Engine Fire Emergency Procedure,fuel boost norm,performer,monitor
+54,Engine Fire Emergency Procedure,Check light after 30 seconds,monitor,performer
+55,Engine Fire Emergency Procedure,"""30 seconds, light remains on, bottle discharge""",monitor,performer
+56,Engine Fire Emergency Procedure,"""discharge""",performer,monitor
+57,Engine Fire Emergency Procedure,Illuminated bottle armed switch push,performer,monitor
+58,Engine Fire Emergency Procedure,Turn rotary test knob,performer,monitor
+59,Engine Fire Emergency Procedure,Check engine fire lights both illuminate,performer,monitor
+60,Engine Fire Emergency Checklist,Order start checklist,monitor,performer
+61,Engine Fire Emergency Checklist,Allocate radio,performer,supporter
+62,Engine Fire Emergency Checklist,Retrieve checklist,monitor,performer
+63,Engine Fire Emergency Checklist,Check immediate action items done,performer,monitor
+64,Engine Fire Emergency Checklist,"""immediate action checked, current checklist completed, checklist to refer next : precautionary shutdown",performer,monitor
+65,Engine Fire Emergency Checklist,Contact ATC to announce emergency and request vector,performer,supporter
+66,Engine Fire Emergency Checklist,Listen ATC,performer,monitor
+67,Engine Fire Emergency Checklist,Acknowledge transmission,performer,monitor
+68,Engine Fire Emergency Checklist,Set heading accordingly,performer,supporter
+69,Engine Fire Emergency Checklist,Set FLC accordingly,performer,supporter
+70,After takeoff normal procedure,Announce start checklist,monitor,performer
+71,After takeoff normal procedure,Retrieve checklist,monitor,performer
+72,After takeoff normal procedure,Landing gear up,performer,monitor
+73,After takeoff normal procedure,Flap handle up,performer,monitor
+74,After takeoff normal procedure,Throttles CLB detent,performer,monitor
+75,After takeoff normal procedure,Yaw damper as desired,performer,supporter
+76,After takeoff normal procedure,Deice as required,performer,supporter
+77,After takeoff normal procedure,Pax safety switch as required,performer,supporter
+78,After takeoff normal procedure,Pressurization check,performer,supporter
+79,After takeoff normal procedure,Alti set STD,monitor,performer
+80,After takeoff normal procedure,Crosscheck alti,monitor,performer
+81,After takeoff normal procedure,Announce checklist completed,monitor,performer
+82,Engine failure/precautionary shutdown procedure and checklist,Announce start checklist,monitor,performer
+83,Engine failure/precautionary shutdown procedure and checklist,Retrieve checklist,monitor,performer
+84,Engine failure/precautionary shutdown procedure and checklist,Throttle affected engine cutoff,performer,monitor
+85,Engine failure/precautionary shutdown procedure and checklist,Caution text readout,monitor,performer
+86,Engine failure/precautionary shutdown procedure and checklist,Gen switch affected side OFF,performer,monitor
+87,Engine failure/precautionary shutdown procedure and checklist,Ignition switch affected side NORM,performer,monitor
+88,Engine failure/precautionary shutdown procedure and checklist,Electrical load reduce as required,performer,monitor
+89,Engine failure/precautionary shutdown procedure and checklist,Fuel transfer knob as required,performer,monitor
+90,Engine failure/precautionary shutdown procedure and checklist,Verify engine fire switch affected side is pushed,performer,monitor
+91,Engine failure/precautionary shutdown procedure and checklist,"Announce current checklist completed, checklist to refer next single engine approach and landing",monitor,performer
+,,,,

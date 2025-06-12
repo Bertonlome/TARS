@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplicat
     QRadioButton, QScrollArea, QScrollBar, QSizePolicy,
     QSlider, QSpacerItem, QStackedWidget, QTableWidget,
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget)
-from . resources_rc import *
+import resources_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -600,6 +600,7 @@ class Ui_MainWindow(object):
         font1 = QFont()
         font1.setFamilies([u"Segoe UI Semibold"])
         font1.setPointSize(12)
+        font1.setWeight(QFont.)
         font1.setItalic(False)
         self.titleLeftApp.setFont(font1)
         self.titleLeftApp.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignTop)
@@ -1079,6 +1080,11 @@ class Ui_MainWindow(object):
         self.tars_status_label.setObjectName(u"tars_status_label")
 
         self.tars_status_container.addWidget(self.tars_status_label)
+
+        self.role_label = QLabel(self.status_container_H)
+        self.role_label.setObjectName(u"role_label")
+
+        self.tars_status_container.addWidget(self.role_label)
 
 
         self.row_1_col_1_VBox.addWidget(self.status_container_H)
@@ -2083,6 +2089,7 @@ class Ui_MainWindow(object):
         self.closeAppBtn.setText("")
         self.tars_status_icon.setText("")
         self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"status_label", None))
+        self.role_label.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.tars_action_icon.setText("")
         self.tars_output_speech_label.setText(QCoreApplication.translate("MainWindow", u"Textspoken_label", None))
         self.tars_picture.setText(QCoreApplication.translate("MainWindow", u"TARS_picture", None))

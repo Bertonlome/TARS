@@ -17,6 +17,10 @@
 import sys
 import os
 import platform
+from PySide6 import QtWidgets, QtCore
+import signal
+from Core.agent import TarsAgent
+from Core.tts import shutdown
 
 # IMPORT / GUI AND MODULES AND WIDGETS
 # ///////////////////////////////////////////////////////////////
@@ -28,6 +32,40 @@ os.environ["QT_FONT_DPI"] = "96" # FIX Problem for High DPI and Scale above 100%
 # ///////////////////////////////////////////////////////////////
 widgets = None
 
+# FSM Worker
+# ///////////////////////////////////////////////////////////////
+class FSMWorker(QtCore.QObject):
+    state_changed = QtCore.Signal(str)
+
+    def __init__(self, agent: TarsAgent):
+        super().__init__()
+        self.agent = agent
+
+    @QtCore.Slot()
+    def run(self):
+        # Patch FSM to emit state changes
+        fsm = self.agent.fsm
+        while not self.agent.is_interrupted:
+            for t in fsm.transitions:
+                if t.from_state == fsm.current_state and t.condition():
+                    fsm.current_state = t.to_state
+                    self.state_changed.emit(fsm.current_state.name)
+                    if t.action:
+                        t.action()
+                    break
+            QtCore.QThread.msleep(500)  # adjust as needed
+
+# Agent Thread
+# ///////////////////////////////////////////////////////////////
+class AgentThread(QtCore.QThread):
+    def __init__(self, agent):
+        super().__init__()
+        self.agent = agent
+
+    def run(self):
+        self.agent.start()
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -36,17 +74,41 @@ class MainWindow(QMainWindow):
         # ///////////////////////////////////////////////////////////////
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        
+        self.agent = TarsAgent()
+        signal.signal(signal.SIGINT, self.agent.signal_handler)
+        self.ui.tars_status_label.setText(f"Agent: {self.agent.agent_name}")
+        
+        # Start the agent in a separate thread
+        self.agent_thread = AgentThread(self.agent)
+        self.agent_thread.start()
+        
+        
+        # FSM Worker in a thread
+        self.fsm_thread = QtCore.QThread()
+        self.fsm_worker = FSMWorker(self.agent)
+        self.fsm_worker.moveToThread(self.fsm_thread)
+        self.fsm_worker.state_changed.connect(self.update_state_label)
+        self.fsm_thread.started.connect(self.fsm_worker.run)
+        self.fsm_thread.start()
+
+
+        
         global widgets
         widgets = self.ui
 
         # USE CUSTOM TITLE BAR | USE AS "False" FOR MAC OR LINUX
         # ///////////////////////////////////////////////////////////////
-        Settings.ENABLE_CUSTOM_TITLE_BAR = True
+        #Settings.ENABLE_CUSTOM_TITLE_BAR = False
+        if platform.system() == "Darwin" or platform.system() == "Linux":
+            Settings.ENABLE_CUSTOM_TITLE_BAR = True
+        if platform.system() == "Windows":
+            Settings.ENABLE_CUSTOM_TITLE_BAR = True
 
         # APP NAME
         # ///////////////////////////////////////////////////////////////
-        title = "PyDracula - Modern GUI"
-        description = "PyDracula APP - Theme with colors based on Dracula for Python."
+        title = "TARS Interface"
+        description = "TARS Interface - Python GUI Framework"
         # APPLY TEXTS
         self.setWindowTitle(title)
         widgets.titleRightInfo.setText(description)
@@ -90,7 +152,7 @@ class MainWindow(QMainWindow):
         # SET CUSTOM THEME
         # ///////////////////////////////////////////////////////////////
         useCustomTheme = False
-        themeFile = "themes\py_dracula_light.qss"
+        themeFile = "themes/py_dracula_light.qss"
 
         # SET THEME AND HACKS
         if useCustomTheme:
@@ -104,8 +166,12 @@ class MainWindow(QMainWindow):
         # ///////////////////////////////////////////////////////////////
         widgets.stackedWidget.setCurrentWidget(widgets.home)
         widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet()))
-
-
+        widgets = self.ui
+    
+    @QtCore.Slot(str)
+    def update_state_label(self, state_name):
+        self.ui.tars_status_label.setText(f"TARS Status : {state_name}")
+    
     # BUTTONS CLICK
     # Post here your functions for clicked buttons
     # ///////////////////////////////////////////////////////////////
@@ -159,6 +225,13 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
+    # Add this to allow Ctrl+C to work
+    from PySide6.QtCore import QTimer
+    timer = QTimer()
+    timer.timeout.connect(lambda: None)
+    timer.start(100)
+
     app.setWindowIcon(QIcon("icon.ico"))
     window = MainWindow()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
