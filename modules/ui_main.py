@@ -1043,23 +1043,30 @@ class Ui_MainWindow(object):
         self.home.setObjectName(u"home")
         self.verticalLayout_22 = QVBoxLayout(self.home)
         self.verticalLayout_22.setObjectName(u"verticalLayout_22")
-        self.row_1_main_page = QHBoxLayout()
-        self.row_1_main_page.setObjectName(u"row_1_main_page")
-        self.row_1_col_1_container = QWidget(self.home)
-        self.row_1_col_1_container.setObjectName(u"row_1_col_1_container")
-        self.row_1_col_1_container.setStyleSheet(u"QWidget#row_1_col_1_container {\n"
+        self.row_1_container = QWidget(self.home)
+        self.row_1_container.setObjectName(u"row_1_container")
+        self.row_1_container.setStyleSheet(u"")
+        self.horizontalLayout_14 = QHBoxLayout(self.row_1_container)
+        self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
+        self.row_1_col_1_container_2 = QWidget(self.row_1_container)
+        self.row_1_col_1_container_2.setObjectName(u"row_1_col_1_container_2")
+        self.row_1_col_1_container_2.setStyleSheet(u"QWidget#row_1_col_1_container_2{\n"
 "    border: 2px solid rgba(51, 51, 51, 150);\n"
 "    border-radius: 10px;\n"
 "    background-color: rgba(51, 51, 51, 150);\n"
-"}\n"
-"")
-        self.row_1_col_1_HBox = QHBoxLayout(self.row_1_col_1_container)
-        self.row_1_col_1_HBox.setObjectName(u"row_1_col_1_HBox")
-        self.row_1_col_1_VBox = QVBoxLayout()
-        self.row_1_col_1_VBox.setObjectName(u"row_1_col_1_VBox")
-        self.row_1_col_1_VBox.setContentsMargins(50, -1, 50, -1)
-        self.status_container_H = QWidget(self.row_1_col_1_container)
+"}")
+        self.row_1_col_1_container = QVBoxLayout(self.row_1_col_1_container_2)
+        self.row_1_col_1_container.setSpacing(16)
+        self.row_1_col_1_container.setObjectName(u"row_1_col_1_container")
+        self.row_1_col_1_container.setContentsMargins(50, -1, 50, -1)
+        self.status_container_H = QWidget(self.row_1_col_1_container_2)
         self.status_container_H.setObjectName(u"status_container_H")
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy3.setHorizontalStretch(250)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.status_container_H.sizePolicy().hasHeightForWidth())
+        self.status_container_H.setSizePolicy(sizePolicy3)
+        self.status_container_H.setMinimumSize(QSize(0, 0))
         self.status_container_H.setStyleSheet(u"QWidget#status_container_H {\n"
 "    border: 2px solid #36DF71;\n"
 "    border-radius: 10px;\n"
@@ -1073,418 +1080,453 @@ class Ui_MainWindow(object):
         self.tars_status_icon.setObjectName(u"tars_status_icon")
         self.tars_status_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-check-circle.png"))
 
-        self.tars_status_container.addWidget(self.tars_status_icon)
+        self.tars_status_container.addWidget(self.tars_status_icon, 0, Qt.AlignmentFlag.AlignLeft)
 
         self.tars_status_label = QLabel(self.status_container_H)
         self.tars_status_label.setObjectName(u"tars_status_label")
+        self.tars_status_label.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
 
-        self.tars_status_container.addWidget(self.tars_status_label)
+        self.tars_status_container.addWidget(self.tars_status_label, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self.horizontalSpacer = QSpacerItem(220, 20, QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum)
+
+        self.tars_status_container.addItem(self.horizontalSpacer)
 
 
-        self.row_1_col_1_VBox.addWidget(self.status_container_H)
+        self.row_1_col_1_container.addWidget(self.status_container_H)
 
-        self.tars_action_icon = QLabel(self.row_1_col_1_container)
+        self.tars_action_icon = QLabel(self.row_1_col_1_container_2)
         self.tars_action_icon.setObjectName(u"tars_action_icon")
+        self.tars_action_icon.setMinimumSize(QSize(32, 32))
         self.tars_action_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-comment-bubble.png"))
 
-        self.row_1_col_1_VBox.addWidget(self.tars_action_icon, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.row_1_col_1_container.addWidget(self.tars_action_icon, 0, Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignVCenter)
 
-        self.tars_output_speech_label = QLabel(self.row_1_col_1_container)
+        self.tars_output_speech_label = QLabel(self.row_1_col_1_container_2)
         self.tars_output_speech_label.setObjectName(u"tars_output_speech_label")
+        font4 = QFont()
+        font4.setFamilies([u"JetBrains Mono"])
+        font4.setPointSize(12)
+        font4.setWeight(QFont.Medium)
+        font4.setItalic(False)
+        self.tars_output_speech_label.setFont(font4)
+        self.tars_output_speech_label.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
 
-        self.row_1_col_1_VBox.addWidget(self.tars_output_speech_label, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.row_1_col_1_container.addWidget(self.tars_output_speech_label, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self.tars_picture = QLabel(self.row_1_col_1_container)
+        self.tars_picture = QLabel(self.row_1_col_1_container_2)
         self.tars_picture.setObjectName(u"tars_picture")
+        self.tars_picture.setMaximumSize(QSize(300, 300))
+        self.tars_picture.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.tars_picture.setScaledContents(True)
 
-        self.row_1_col_1_VBox.addWidget(self.tars_picture, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.row_1_col_1_container.addWidget(self.tars_picture, 0, Qt.AlignmentFlag.AlignHCenter)
 
 
-        self.row_1_col_1_HBox.addLayout(self.row_1_col_1_VBox)
+        self.horizontalLayout_14.addWidget(self.row_1_col_1_container_2, 0, Qt.AlignmentFlag.AlignLeft)
 
-
-        self.row_1_main_page.addWidget(self.row_1_col_1_container)
-
-        self.row_1_col_2_container_H = QWidget(self.home)
-        self.row_1_col_2_container_H.setObjectName(u"row_1_col_2_container_H")
-        self.row_1_col_2_HBox = QHBoxLayout(self.row_1_col_2_container_H)
-        self.row_1_col_2_HBox.setObjectName(u"row_1_col_2_HBox")
-        self.row_1_col_2_container = QWidget(self.row_1_col_2_container_H)
+        self.row_1_col_2_container = QWidget(self.row_1_container)
         self.row_1_col_2_container.setObjectName(u"row_1_col_2_container")
-        self.row_1_col_2_container.setStyleSheet(u"QWidget#row_1_col_2_container {\n"
+        sizePolicy1.setHeightForWidth(self.row_1_col_2_container.sizePolicy().hasHeightForWidth())
+        self.row_1_col_2_container.setSizePolicy(sizePolicy1)
+        self.row_1_col_2_container.setStyleSheet(u"QWidget#row_1_col_2_container{\n"
 "    border: 2px solid rgba(51, 51, 51, 150);\n"
 "    border-radius: 10px;\n"
 "    background-color: rgba(51, 51, 51, 150);\n"
-"}")
-        self.row_1_col_2_VBox = QVBoxLayout(self.row_1_col_2_container)
-        self.row_1_col_2_VBox.setObjectName(u"row_1_col_2_VBox")
-        self.alert_container_2 = QWidget(self.row_1_col_2_container)
-        self.alert_container_2.setObjectName(u"alert_container_2")
-        self.alert_container_2.setStyleSheet(u"QWidget#alert_container_2 {\n"
-"    border: 2px solid rgba(248, 84, 84, 255);\n"
+"};")
+        self.row_1_col_2_VBox_2 = QVBoxLayout(self.row_1_col_2_container)
+        self.row_1_col_2_VBox_2.setObjectName(u"row_1_col_2_VBox_2")
+        self.alert_container_3 = QWidget(self.row_1_col_2_container)
+        self.alert_container_3.setObjectName(u"alert_container_3")
+        self.alert_container_3.setMaximumSize(QSize(16777215, 50))
+        self.alert_container_3.setStyleSheet(u"QWidget#alert_container_3 {\n"
+"    border: 2px solid #36DF71;\n"
 "    border-radius: 5px;\n"
-"    background-color: rgba(248, 84, 84, 255);\n"
+"    background-color: rgba(51, 51, 51, 150);\n"
 "}\n"
 "")
-        self.alert_container = QHBoxLayout(self.alert_container_2)
-        self.alert_container.setObjectName(u"alert_container")
-        self.alert_container.setContentsMargins(20, -1, 20, -1)
-        self.alert_icon = QLabel(self.alert_container_2)
-        self.alert_icon.setObjectName(u"alert_icon")
-        self.alert_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-speedometer.png"))
+        self.alert_container_4 = QHBoxLayout(self.alert_container_3)
+        self.alert_container_4.setObjectName(u"alert_container_4")
+        self.alert_container_4.setContentsMargins(20, -1, 75, -1)
+        self.alert_icon_2 = QLabel(self.alert_container_3)
+        self.alert_icon_2.setObjectName(u"alert_icon_2")
+        self.alert_icon_2.setPixmap(QPixmap(u":/icons/images/icons/cil-thumb-up.png"))
 
-        self.alert_container.addWidget(self.alert_icon)
+        self.alert_container_4.addWidget(self.alert_icon_2, 0, Qt.AlignmentFlag.AlignLeft)
 
-        self.alert_label = QLabel(self.alert_container_2)
-        self.alert_label.setObjectName(u"alert_label")
+        self.alert_label_2 = QLabel(self.alert_container_3)
+        self.alert_label_2.setObjectName(u"alert_label_2")
+        self.alert_label_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
 
-        self.alert_container.addWidget(self.alert_label)
+        self.alert_container_4.addWidget(self.alert_label_2)
 
 
-        self.row_1_col_2_VBox.addWidget(self.alert_container_2)
+        self.row_1_col_2_VBox_2.addWidget(self.alert_container_3)
 
-        self.previous_task_container_2 = QWidget(self.row_1_col_2_container)
-        self.previous_task_container_2.setObjectName(u"previous_task_container_2")
-        self.previous_task_container = QHBoxLayout(self.previous_task_container_2)
-        self.previous_task_container.setObjectName(u"previous_task_container")
-        self.previous_task_container.setContentsMargins(50, -1, -1, -1)
-        self.horizontalSpacer_2 = QSpacerItem(30, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.previous_task_container_4 = QWidget(self.row_1_col_2_container)
+        self.previous_task_container_4.setObjectName(u"previous_task_container_4")
+        self.previous_task_container_5 = QHBoxLayout(self.previous_task_container_4)
+        self.previous_task_container_5.setObjectName(u"previous_task_container_5")
+        self.previous_task_container_5.setContentsMargins(50, -1, -1, -1)
+        self.horizontalSpacer_3 = QSpacerItem(30, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
-        self.previous_task_container.addItem(self.horizontalSpacer_2)
+        self.previous_task_container_5.addItem(self.horizontalSpacer_3)
 
-        self.previous_task_container_3 = QWidget(self.previous_task_container_2)
-        self.previous_task_container_3.setObjectName(u"previous_task_container_3")
-        self.previous_task_container_3.setStyleSheet(u"QWidget#previous_task_container_3{\n"
+        self.previous_task_container_6 = QWidget(self.previous_task_container_4)
+        self.previous_task_container_6.setObjectName(u"previous_task_container_6")
+        self.previous_task_container_6.setStyleSheet(u"QWidget#previous_task_container_6{\n"
 "border: 2px solid rgba(0, 26, 56, 200);\n"
 "border-radius: 10px;\n"
 "background-color: rgba(0, 26, 56, 200);}")
-        self.horizontalLayout_7 = QHBoxLayout(self.previous_task_container_3)
-        self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
-        self.p_t_prog_widget = QLabel(self.previous_task_container_3)
-        self.p_t_prog_widget.setObjectName(u"p_t_prog_widget")
-
-        self.horizontalLayout_7.addWidget(self.p_t_prog_widget)
-
-        self.p_t_s_container = QVBoxLayout()
-        self.p_t_s_container.setObjectName(u"p_t_s_container")
-        self.p_t_s_value = QLabel(self.previous_task_container_3)
-        self.p_t_s_value.setObjectName(u"p_t_s_value")
-
-        self.p_t_s_container.addWidget(self.p_t_s_value)
-
-        self.p_t_s_unit = QLabel(self.previous_task_container_3)
-        self.p_t_s_unit.setObjectName(u"p_t_s_unit")
-
-        self.p_t_s_container.addWidget(self.p_t_s_unit)
-
-
-        self.horizontalLayout_7.addLayout(self.p_t_s_container)
-
-        self.p_t_m_container = QVBoxLayout()
-        self.p_t_m_container.setObjectName(u"p_t_m_container")
-        self.p_t_m_value = QLabel(self.previous_task_container_3)
-        self.p_t_m_value.setObjectName(u"p_t_m_value")
-
-        self.p_t_m_container.addWidget(self.p_t_m_value)
-
-        self.p_t_m_unit = QLabel(self.previous_task_container_3)
-        self.p_t_m_unit.setObjectName(u"p_t_m_unit")
-
-        self.p_t_m_container.addWidget(self.p_t_m_unit)
-
-
-        self.horizontalLayout_7.addLayout(self.p_t_m_container)
-
-        self.p_t_container = QVBoxLayout()
-        self.p_t_container.setObjectName(u"p_t_container")
-        self.p_t = QLabel(self.previous_task_container_3)
-        self.p_t.setObjectName(u"p_t")
-
-        self.p_t_container.addWidget(self.p_t)
-
-        self.p_g = QLabel(self.previous_task_container_3)
-        self.p_g.setObjectName(u"p_g")
-
-        self.p_t_container.addWidget(self.p_g)
-
-
-        self.horizontalLayout_7.addLayout(self.p_t_container)
-
-
-        self.previous_task_container.addWidget(self.previous_task_container_3)
-
-
-        self.row_1_col_2_VBox.addWidget(self.previous_task_container_2)
-
-        self.current_task_container_2 = QWidget(self.row_1_col_2_container)
-        self.current_task_container_2.setObjectName(u"current_task_container_2")
-        self.current_task_container_2.setStyleSheet(u"QWidget#current_task_container_2{\n"
-"    border: 2px solid rgba(19, 20, 23, 255);\n"
-"    border-radius: 10px;\n"
-"    background-color: rgba(19, 20, 23, 255);  /* The last value is alpha */\n"
-"}\n"
-"")
-        self.current_task_container = QHBoxLayout(self.current_task_container_2)
-        self.current_task_container.setObjectName(u"current_task_container")
-        self.current_task_container.setContentsMargins(10, -1, 10, -1)
-        self.c_t_prog_widget = QLabel(self.current_task_container_2)
-        self.c_t_prog_widget.setObjectName(u"c_t_prog_widget")
-
-        self.current_task_container.addWidget(self.c_t_prog_widget)
-
-        self.c_t_container = QVBoxLayout()
-        self.c_t_container.setObjectName(u"c_t_container")
-        self.c_t = QLabel(self.current_task_container_2)
-        self.c_t.setObjectName(u"c_t")
-
-        self.c_t_container.addWidget(self.c_t)
-
-        self.c_g = QLabel(self.current_task_container_2)
-        self.c_g.setObjectName(u"c_g")
-
-        self.c_t_container.addWidget(self.c_g)
-
-
-        self.current_task_container.addLayout(self.c_t_container)
-
-        self.cancel_task_button = QPushButton(self.current_task_container_2)
-        self.cancel_task_button.setObjectName(u"cancel_task_button")
-        self.cancel_task_button.setMinimumSize(QSize(0, 32))
-        self.cancel_task_button.setStyleSheet(u"    border: 2px solid #3399ff;\n"
-"    border-radius: 5px;\n"
-"    background-color: rgba(248, 84, 84, 255);\n"
-"")
-        icon4 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ProcessStop))
-        self.cancel_task_button.setIcon(icon4)
-
-        self.current_task_container.addWidget(self.cancel_task_button)
-
-        self.c_t_m_container = QVBoxLayout()
-        self.c_t_m_container.setObjectName(u"c_t_m_container")
-        self.c_t_m_value = QLabel(self.current_task_container_2)
-        self.c_t_m_value.setObjectName(u"c_t_m_value")
-
-        self.c_t_m_container.addWidget(self.c_t_m_value)
-
-        self.c_t_m_unit = QLabel(self.current_task_container_2)
-        self.c_t_m_unit.setObjectName(u"c_t_m_unit")
-
-        self.c_t_m_container.addWidget(self.c_t_m_unit)
-
-
-        self.current_task_container.addLayout(self.c_t_m_container)
-
-        self.c_t_s_container = QVBoxLayout()
-        self.c_t_s_container.setObjectName(u"c_t_s_container")
-        self.c_t_s_value = QLabel(self.current_task_container_2)
-        self.c_t_s_value.setObjectName(u"c_t_s_value")
-
-        self.c_t_s_container.addWidget(self.c_t_s_value)
-
-        self.c_t_s_unit = QLabel(self.current_task_container_2)
-        self.c_t_s_unit.setObjectName(u"c_t_s_unit")
-
-        self.c_t_s_container.addWidget(self.c_t_s_unit)
-
-
-        self.current_task_container.addLayout(self.c_t_s_container)
-
-
-        self.row_1_col_2_VBox.addWidget(self.current_task_container_2)
-
-        self.next_task_container_2 = QWidget(self.row_1_col_2_container)
-        self.next_task_container_2.setObjectName(u"next_task_container_2")
-        self.next_task_container = QHBoxLayout(self.next_task_container_2)
-        self.next_task_container.setObjectName(u"next_task_container")
-        self.next_task_container.setContentsMargins(50, -1, -1, -1)
-        self.horizontalSpacer = QSpacerItem(30, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
-
-        self.next_task_container.addItem(self.horizontalSpacer)
-
-        self.next_task_container_3 = QWidget(self.next_task_container_2)
-        self.next_task_container_3.setObjectName(u"next_task_container_3")
-        self.next_task_container_3.setStyleSheet(u"QWidget#next_task_container_3{\n"
-"border: 2px solid rgba(0, 26, 56, 200);\n"
-"border-radius: 10px;\n"
-"background-color: rgba(0, 26, 56, 200);}")
-        self.horizontalLayout_6 = QHBoxLayout(self.next_task_container_3)
-        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
-        self.n_t_prog_widget = QLabel(self.next_task_container_3)
-        self.n_t_prog_widget.setObjectName(u"n_t_prog_widget")
-
-        self.horizontalLayout_6.addWidget(self.n_t_prog_widget)
-
-        self.n_t_m_container = QVBoxLayout()
-        self.n_t_m_container.setObjectName(u"n_t_m_container")
-        self.n_t_m_value = QLabel(self.next_task_container_3)
-        self.n_t_m_value.setObjectName(u"n_t_m_value")
-
-        self.n_t_m_container.addWidget(self.n_t_m_value)
-
-        self.n_t_m_unit = QLabel(self.next_task_container_3)
-        self.n_t_m_unit.setObjectName(u"n_t_m_unit")
-
-        self.n_t_m_container.addWidget(self.n_t_m_unit)
-
-
-        self.horizontalLayout_6.addLayout(self.n_t_m_container)
-
-        self.n_t_s_container = QVBoxLayout()
-        self.n_t_s_container.setObjectName(u"n_t_s_container")
-        self.n_t_s_value = QLabel(self.next_task_container_3)
-        self.n_t_s_value.setObjectName(u"n_t_s_value")
-
-        self.n_t_s_container.addWidget(self.n_t_s_value)
-
-        self.n_t_s_unit = QLabel(self.next_task_container_3)
-        self.n_t_s_unit.setObjectName(u"n_t_s_unit")
-
-        self.n_t_s_container.addWidget(self.n_t_s_unit)
-
-
-        self.horizontalLayout_6.addLayout(self.n_t_s_container)
-
-        self.n_t_container = QVBoxLayout()
-        self.n_t_container.setObjectName(u"n_t_container")
-        self.n_t_label = QLabel(self.next_task_container_3)
-        self.n_t_label.setObjectName(u"n_t_label")
-
-        self.n_t_container.addWidget(self.n_t_label)
-
-        self.n_g_label = QLabel(self.next_task_container_3)
-        self.n_g_label.setObjectName(u"n_g_label")
-
-        self.n_t_container.addWidget(self.n_g_label)
-
-
-        self.horizontalLayout_6.addLayout(self.n_t_container)
-
-
-        self.next_task_container.addWidget(self.next_task_container_3)
-
-
-        self.row_1_col_2_VBox.addWidget(self.next_task_container_2)
-
-
-        self.row_1_col_2_HBox.addWidget(self.row_1_col_2_container)
-
-
-        self.row_1_main_page.addWidget(self.row_1_col_2_container_H)
-
-
-        self.verticalLayout_22.addLayout(self.row_1_main_page)
-
-        self.row_2_main_page = QHBoxLayout()
-        self.row_2_main_page.setObjectName(u"row_2_main_page")
-        self.settings_container_HBox = QHBoxLayout()
-        self.settings_container_HBox.setObjectName(u"settings_container_HBox")
-        self.settings_container = QWidget(self.home)
-        self.settings_container.setObjectName(u"settings_container")
-        self.settings_container.setStyleSheet(u"QWidget#settings_container{\n"
-"    border: 2px solid rgba(19, 20, 23, 255);\n"
-"    border-radius: 10px;\n"
-"    background-color: rgba(19, 20, 23, 255);  /* The last value is alpha */\n"
-"}\n"
-"")
-        self.settings_container_VBox = QVBoxLayout(self.settings_container)
-        self.settings_container_VBox.setObjectName(u"settings_container_VBox")
-        self.horizontalLayout_8 = QHBoxLayout()
-        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
-        self.horizontalLayout_8.setContentsMargins(25, -1, -1, -1)
-        self.settings_icon = QLabel(self.settings_container)
-        self.settings_icon.setObjectName(u"settings_icon")
-        self.settings_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-settings.png"))
-        self.settings_icon.setScaledContents(False)
-
-        self.horizontalLayout_8.addWidget(self.settings_icon, 0, Qt.AlignmentFlag.AlignLeft)
-
-
-        self.settings_container_VBox.addLayout(self.horizontalLayout_8)
-
-        self.settings_title = QLabel(self.settings_container)
-        self.settings_title.setObjectName(u"settings_title")
-
-        self.settings_container_VBox.addWidget(self.settings_title)
-
-        self.settings_text = QLabel(self.settings_container)
-        self.settings_text.setObjectName(u"settings_text")
-
-        self.settings_container_VBox.addWidget(self.settings_text)
-
-        self.settings_button = QPushButton(self.settings_container)
-        self.settings_button.setObjectName(u"settings_button")
-
-        self.settings_container_VBox.addWidget(self.settings_button)
-
-
-        self.settings_container_HBox.addWidget(self.settings_container)
-
-
-        self.row_2_main_page.addLayout(self.settings_container_HBox)
-
-        self.interaction_panel_container_HBox = QHBoxLayout()
-        self.interaction_panel_container_HBox.setObjectName(u"interaction_panel_container_HBox")
-        self.interaction_panel_container = QWidget(self.home)
-        self.interaction_panel_container.setObjectName(u"interaction_panel_container")
-        self.interaction_panel_container.setStyleSheet(u"QWidget#interaction_panel_container{\n"
-"    border: 2px solid rgba(19, 20, 23, 255);\n"
-"    border-radius: 10px;\n"
-"    background-color: rgba(19, 20, 23, 255);  /* The last value is alpha */\n"
-"}\n"
-"")
-        self.interaction_panel_container_VBox = QVBoxLayout(self.interaction_panel_container)
-        self.interaction_panel_container_VBox.setObjectName(u"interaction_panel_container_VBox")
-        self.horizontalLayout_10 = QHBoxLayout()
+        self.horizontalLayout_10 = QHBoxLayout(self.previous_task_container_6)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
-        self.horizontalLayout_10.setContentsMargins(25, -1, -1, -1)
-        self.interaction_panel_icon = QLabel(self.interaction_panel_container)
+        self.p_t_prog_widget_2 = QLabel(self.previous_task_container_6)
+        self.p_t_prog_widget_2.setObjectName(u"p_t_prog_widget_2")
+        self.p_t_prog_widget_2.setMaximumSize(QSize(40, 40))
+        self.p_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.p_t_prog_widget_2.setScaledContents(True)
+
+        self.horizontalLayout_10.addWidget(self.p_t_prog_widget_2)
+
+        self.previous_task_container = QWidget(self.previous_task_container_6)
+        self.previous_task_container.setObjectName(u"previous_task_container")
+        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
+        sizePolicy4.setHorizontalStretch(0)
+        sizePolicy4.setVerticalStretch(0)
+        sizePolicy4.setHeightForWidth(self.previous_task_container.sizePolicy().hasHeightForWidth())
+        self.previous_task_container.setSizePolicy(sizePolicy4)
+        self.previous_task_container.setMaximumSize(QSize(600, 16777215))
+        self.p_t_container_2 = QVBoxLayout(self.previous_task_container)
+        self.p_t_container_2.setObjectName(u"p_t_container_2")
+        self.p_t_2 = QLabel(self.previous_task_container)
+        self.p_t_2.setObjectName(u"p_t_2")
+        self.p_t_2.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
+        self.p_t_2.setWordWrap(True)
+
+        self.p_t_container_2.addWidget(self.p_t_2)
+
+        self.p_g_2 = QLabel(self.previous_task_container)
+        self.p_g_2.setObjectName(u"p_g_2")
+        self.p_g_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+        self.p_g_2.setWordWrap(True)
+
+        self.p_t_container_2.addWidget(self.p_g_2)
+
+
+        self.horizontalLayout_10.addWidget(self.previous_task_container)
+
+        self.p_t_m_container_2 = QVBoxLayout()
+        self.p_t_m_container_2.setObjectName(u"p_t_m_container_2")
+        self.p_t_m_value_2 = QLabel(self.previous_task_container_6)
+        self.p_t_m_value_2.setObjectName(u"p_t_m_value_2")
+        self.p_t_m_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.p_t_m_container_2.addWidget(self.p_t_m_value_2)
+
+        self.p_t_m_unit_2 = QLabel(self.previous_task_container_6)
+        self.p_t_m_unit_2.setObjectName(u"p_t_m_unit_2")
+        self.p_t_m_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.p_t_m_container_2.addWidget(self.p_t_m_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+        self.horizontalLayout_10.addLayout(self.p_t_m_container_2)
+
+        self.p_t_s_container_2 = QVBoxLayout()
+        self.p_t_s_container_2.setObjectName(u"p_t_s_container_2")
+        self.p_t_s_value_2 = QLabel(self.previous_task_container_6)
+        self.p_t_s_value_2.setObjectName(u"p_t_s_value_2")
+        self.p_t_s_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.p_t_s_container_2.addWidget(self.p_t_s_value_2)
+
+        self.p_t_s_unit_2 = QLabel(self.previous_task_container_6)
+        self.p_t_s_unit_2.setObjectName(u"p_t_s_unit_2")
+        self.p_t_s_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.p_t_s_container_2.addWidget(self.p_t_s_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+        self.horizontalLayout_10.addLayout(self.p_t_s_container_2)
+
+
+        self.previous_task_container_5.addWidget(self.previous_task_container_6)
+
+
+        self.row_1_col_2_VBox_2.addWidget(self.previous_task_container_4)
+
+        self.current_task_container_3 = QWidget(self.row_1_col_2_container)
+        self.current_task_container_3.setObjectName(u"current_task_container_3")
+        self.current_task_container_3.setStyleSheet(u"QWidget#current_task_container_3{\n"
+"    border: 2px solid rgba(19, 20, 23, 255);\n"
+"    border-radius: 10px;\n"
+"    background-color: rgba(19, 20, 23, 255);  /* The last value is alpha */\n"
+"}\n"
+"")
+        self.current_task_container_4 = QHBoxLayout(self.current_task_container_3)
+        self.current_task_container_4.setSpacing(12)
+        self.current_task_container_4.setObjectName(u"current_task_container_4")
+        self.current_task_container_4.setContentsMargins(10, -1, 10, -1)
+        self.c_t_prog_widget_2 = QLabel(self.current_task_container_3)
+        self.c_t_prog_widget_2.setObjectName(u"c_t_prog_widget_2")
+        self.c_t_prog_widget_2.setMaximumSize(QSize(50, 50))
+        self.c_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.c_t_prog_widget_2.setScaledContents(True)
+
+        self.current_task_container_4.addWidget(self.c_t_prog_widget_2)
+
+        self.current_task_container = QWidget(self.current_task_container_3)
+        self.current_task_container.setObjectName(u"current_task_container")
+        sizePolicy1.setHeightForWidth(self.current_task_container.sizePolicy().hasHeightForWidth())
+        self.current_task_container.setSizePolicy(sizePolicy1)
+        self.current_task_container.setMaximumSize(QSize(500, 16777215))
+        self.c_t_container_2 = QVBoxLayout(self.current_task_container)
+        self.c_t_container_2.setObjectName(u"c_t_container_2")
+        self.c_t_2 = QLabel(self.current_task_container)
+        self.c_t_2.setObjectName(u"c_t_2")
+        self.c_t_2.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
+        self.c_t_2.setTextFormat(Qt.TextFormat.AutoText)
+        self.c_t_2.setWordWrap(True)
+
+        self.c_t_container_2.addWidget(self.c_t_2)
+
+        self.c_g_2 = QLabel(self.current_task_container)
+        self.c_g_2.setObjectName(u"c_g_2")
+        self.c_g_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+        self.c_g_2.setWordWrap(True)
+
+        self.c_t_container_2.addWidget(self.c_g_2)
+
+
+        self.current_task_container_4.addWidget(self.current_task_container)
+
+        self.cancel_task_button_2 = QPushButton(self.current_task_container_3)
+        self.cancel_task_button_2.setObjectName(u"cancel_task_button_2")
+        self.cancel_task_button_2.setMinimumSize(QSize(0, 32))
+        self.cancel_task_button_2.setMaximumSize(QSize(150, 16777215))
+        self.cancel_task_button_2.setStyleSheet(u"    border: 2px solid #3399ff;\n"
+"    border-radius: 5px;\n"
+"    background-color: rgba(248, 84, 84, 255);\n"
+"font: 600 16pt \"JetBrains Mono\";")
+        icon4 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ProcessStop))
+        self.cancel_task_button_2.setIcon(icon4)
+
+        self.current_task_container_4.addWidget(self.cancel_task_button_2)
+
+        self.c_t_m_container_2 = QVBoxLayout()
+        self.c_t_m_container_2.setSpacing(6)
+        self.c_t_m_container_2.setObjectName(u"c_t_m_container_2")
+        self.c_t_m_value_2 = QLabel(self.current_task_container_3)
+        self.c_t_m_value_2.setObjectName(u"c_t_m_value_2")
+        self.c_t_m_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.c_t_m_container_2.addWidget(self.c_t_m_value_2)
+
+        self.c_t_m_unit_2 = QLabel(self.current_task_container_3)
+        self.c_t_m_unit_2.setObjectName(u"c_t_m_unit_2")
+        self.c_t_m_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.c_t_m_container_2.addWidget(self.c_t_m_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+        self.current_task_container_4.addLayout(self.c_t_m_container_2)
+
+        self.c_t_s_container_2 = QVBoxLayout()
+        self.c_t_s_container_2.setObjectName(u"c_t_s_container_2")
+        self.c_t_s_value_2 = QLabel(self.current_task_container_3)
+        self.c_t_s_value_2.setObjectName(u"c_t_s_value_2")
+        self.c_t_s_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.c_t_s_container_2.addWidget(self.c_t_s_value_2)
+
+        self.c_t_s_unit_2 = QLabel(self.current_task_container_3)
+        self.c_t_s_unit_2.setObjectName(u"c_t_s_unit_2")
+        self.c_t_s_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.c_t_s_container_2.addWidget(self.c_t_s_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+        self.current_task_container_4.addLayout(self.c_t_s_container_2)
+
+
+        self.row_1_col_2_VBox_2.addWidget(self.current_task_container_3)
+
+        self.next_task_container_4 = QWidget(self.row_1_col_2_container)
+        self.next_task_container_4.setObjectName(u"next_task_container_4")
+        self.next_task_container_5 = QHBoxLayout(self.next_task_container_4)
+        self.next_task_container_5.setObjectName(u"next_task_container_5")
+        self.next_task_container_5.setContentsMargins(50, -1, -1, -1)
+        self.horizontalSpacer_4 = QSpacerItem(30, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+
+        self.next_task_container_5.addItem(self.horizontalSpacer_4)
+
+        self.next_task_container_6 = QWidget(self.next_task_container_4)
+        self.next_task_container_6.setObjectName(u"next_task_container_6")
+        self.next_task_container_6.setStyleSheet(u"QWidget#next_task_container_6{\n"
+"border: 2px solid rgba(0, 26, 56, 200);\n"
+"border-radius: 10px;\n"
+"background-color: rgba(0, 26, 56, 200);}")
+        self.horizontalLayout_13 = QHBoxLayout(self.next_task_container_6)
+        self.horizontalLayout_13.setObjectName(u"horizontalLayout_13")
+        self.n_t_prog_widget_2 = QLabel(self.next_task_container_6)
+        self.n_t_prog_widget_2.setObjectName(u"n_t_prog_widget_2")
+        self.n_t_prog_widget_2.setMaximumSize(QSize(40, 40))
+        self.n_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.n_t_prog_widget_2.setScaledContents(True)
+
+        self.horizontalLayout_13.addWidget(self.n_t_prog_widget_2)
+
+        self.next_task_container = QWidget(self.next_task_container_6)
+        self.next_task_container.setObjectName(u"next_task_container")
+        sizePolicy4.setHeightForWidth(self.next_task_container.sizePolicy().hasHeightForWidth())
+        self.next_task_container.setSizePolicy(sizePolicy4)
+        self.next_task_container.setMaximumSize(QSize(600, 16777215))
+        self.n_t_container_2 = QVBoxLayout(self.next_task_container)
+        self.n_t_container_2.setObjectName(u"n_t_container_2")
+        self.n_t_label_2 = QLabel(self.next_task_container)
+        self.n_t_label_2.setObjectName(u"n_t_label_2")
+        self.n_t_label_2.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
+        self.n_t_label_2.setWordWrap(True)
+
+        self.n_t_container_2.addWidget(self.n_t_label_2)
+
+        self.n_g_label_2 = QLabel(self.next_task_container)
+        self.n_g_label_2.setObjectName(u"n_g_label_2")
+        self.n_g_label_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+        self.n_g_label_2.setWordWrap(True)
+
+        self.n_t_container_2.addWidget(self.n_g_label_2)
+
+
+        self.horizontalLayout_13.addWidget(self.next_task_container)
+
+        self.n_t_m_container_2 = QVBoxLayout()
+        self.n_t_m_container_2.setObjectName(u"n_t_m_container_2")
+        self.n_t_m_value_2 = QLabel(self.next_task_container_6)
+        self.n_t_m_value_2.setObjectName(u"n_t_m_value_2")
+        self.n_t_m_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.n_t_m_container_2.addWidget(self.n_t_m_value_2)
+
+        self.n_t_m_unit_2 = QLabel(self.next_task_container_6)
+        self.n_t_m_unit_2.setObjectName(u"n_t_m_unit_2")
+        self.n_t_m_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.n_t_m_container_2.addWidget(self.n_t_m_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+        self.horizontalLayout_13.addLayout(self.n_t_m_container_2)
+
+        self.n_t_s_container_2 = QVBoxLayout()
+        self.n_t_s_container_2.setObjectName(u"n_t_s_container_2")
+        self.n_t_s_value_2 = QLabel(self.next_task_container_6)
+        self.n_t_s_value_2.setObjectName(u"n_t_s_value_2")
+        self.n_t_s_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.n_t_s_container_2.addWidget(self.n_t_s_value_2)
+
+        self.n_t_s_unit_2 = QLabel(self.next_task_container_6)
+        self.n_t_s_unit_2.setObjectName(u"n_t_s_unit_2")
+        self.n_t_s_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.n_t_s_container_2.addWidget(self.n_t_s_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+        self.horizontalLayout_13.addLayout(self.n_t_s_container_2)
+
+
+        self.next_task_container_5.addWidget(self.next_task_container_6)
+
+
+        self.row_1_col_2_VBox_2.addWidget(self.next_task_container_4)
+
+
+        self.horizontalLayout_14.addWidget(self.row_1_col_2_container)
+
+
+        self.verticalLayout_22.addWidget(self.row_1_container)
+
+        self.interaction_container = QWidget(self.home)
+        self.interaction_container.setObjectName(u"interaction_container")
+        self.interaction_container.setStyleSheet(u"QWidget#interaction_container {\n"
+"    border: 2px solid rgba(51, 51, 51, 150);\n"
+"    border-radius: 10px;\n"
+"    background-color: rgba(51, 51, 51, 150);\n"
+"}\n"
+"")
+        self.verticalLayout_23 = QVBoxLayout(self.interaction_container)
+        self.verticalLayout_23.setObjectName(u"verticalLayout_23")
+        self.interaction_panel_icon = QLabel(self.interaction_container)
         self.interaction_panel_icon.setObjectName(u"interaction_panel_icon")
+        self.interaction_panel_icon.setMaximumSize(QSize(16777215, 50))
         self.interaction_panel_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-transfer.png"))
 
-        self.horizontalLayout_10.addWidget(self.interaction_panel_icon)
+        self.verticalLayout_23.addWidget(self.interaction_panel_icon)
 
-
-        self.interaction_panel_container_VBox.addLayout(self.horizontalLayout_10)
-
-        self.interaction_panel_title = QLabel(self.interaction_panel_container)
+        self.interaction_panel_title = QLabel(self.interaction_container)
         self.interaction_panel_title.setObjectName(u"interaction_panel_title")
+        self.interaction_panel_title.setStyleSheet(u"font: 500 20pt \"JetBrains Mono\";")
 
-        self.interaction_panel_container_VBox.addWidget(self.interaction_panel_title)
+        self.verticalLayout_23.addWidget(self.interaction_panel_title, 0, Qt.AlignmentFlag.AlignTop)
 
-        self.interaction_panel_text = QLabel(self.interaction_panel_container)
+        self.interaction_panel_text = QLabel(self.interaction_container)
         self.interaction_panel_text.setObjectName(u"interaction_panel_text")
+        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy5.setHorizontalStretch(0)
+        sizePolicy5.setVerticalStretch(1)
+        sizePolicy5.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
+        self.interaction_panel_text.setSizePolicy(sizePolicy5)
+        self.interaction_panel_text.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\";")
 
-        self.interaction_panel_container_VBox.addWidget(self.interaction_panel_text)
+        self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self.interaction_panel_button = QPushButton(self.interaction_panel_container)
-        self.interaction_panel_button.setObjectName(u"interaction_panel_button")
+        self.int_panel_button_container = QWidget(self.interaction_container)
+        self.int_panel_button_container.setObjectName(u"int_panel_button_container")
+        self.int_panel_button_container.setMinimumSize(QSize(0, 50))
+        self.horizontalLayout_15 = QHBoxLayout(self.int_panel_button_container)
+        self.horizontalLayout_15.setObjectName(u"horizontalLayout_15")
+        self.horizontalLayout_15.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self.cancel_button = QPushButton(self.int_panel_button_container)
+        self.cancel_button.setObjectName(u"cancel_button")
+        self.cancel_button.setMinimumSize(QSize(0, 50))
+        self.cancel_button.setStyleSheet(u"    border: 2px solid #3399ff;\n"
+"    border-radius: 5px;\n"
+"    background-color: rgba(248, 84, 84, 255);\n"
+"font: 600 16pt \"JetBrains Mono\";")
+        self.cancel_button.setIcon(icon4)
 
-        self.interaction_panel_container_VBox.addWidget(self.interaction_panel_button)
+        self.horizontalLayout_15.addWidget(self.cancel_button)
+
+        self.ack_button = QPushButton(self.int_panel_button_container)
+        self.ack_button.setObjectName(u"ack_button")
+        self.ack_button.setMinimumSize(QSize(0, 50))
+        self.ack_button.setStyleSheet(u"    border: 2px solid rgba(0, 168, 120, 255);\n"
+"    border-radius: 5px;\n"
+"    background-color: rgba(0, 168, 120, 255);\n"
+"font: 600 16pt \"JetBrains Mono\";")
+
+        self.horizontalLayout_15.addWidget(self.ack_button)
 
 
-        self.interaction_panel_container_HBox.addWidget(self.interaction_panel_container)
+        self.verticalLayout_23.addWidget(self.int_panel_button_container)
 
 
-        self.row_2_main_page.addLayout(self.interaction_panel_container_HBox)
+        self.verticalLayout_22.addWidget(self.interaction_container)
 
-
-        self.verticalLayout_22.addLayout(self.row_2_main_page)
-
-        self.row_3_main_page = QHBoxLayout()
-        self.row_3_main_page.setObjectName(u"row_3_main_page")
         self.jag_container = QWidget(self.home)
         self.jag_container.setObjectName(u"jag_container")
-        self.jag_container.setStyleSheet(u"QWidget#jag_container{\n"
-"    border: 2px solid rgba(19, 20, 23, 255);\n"
-"    border-radius: 10px;\n"
-"    background-color: rgba(19, 20, 23, 255);  /* The last value is alpha */\n"
-"}\n"
-"")
-        self.jag_container_VBox = QVBoxLayout(self.jag_container)
-        self.jag_container_VBox.setObjectName(u"jag_container_VBox")
-        self.jag_header_container = QHBoxLayout()
+        self.verticalLayout_24 = QVBoxLayout(self.jag_container)
+        self.verticalLayout_24.setObjectName(u"verticalLayout_24")
+        self.jag_header_container_2 = QWidget(self.jag_container)
+        self.jag_header_container_2.setObjectName(u"jag_header_container_2")
+        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy6.setHorizontalStretch(0)
+        sizePolicy6.setVerticalStretch(0)
+        sizePolicy6.setHeightForWidth(self.jag_header_container_2.sizePolicy().hasHeightForWidth())
+        self.jag_header_container_2.setSizePolicy(sizePolicy6)
+        self.jag_header_container = QHBoxLayout(self.jag_header_container_2)
         self.jag_header_container.setObjectName(u"jag_header_container")
-        self.jag_icon = QLabel(self.jag_container)
+        self.jag_icon = QLabel(self.jag_header_container_2)
         self.jag_icon.setObjectName(u"jag_icon")
         self.jag_icon.setMinimumSize(QSize(32, 32))
         self.jag_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-equalizer.png"))
@@ -1492,7 +1534,7 @@ class Ui_MainWindow(object):
 
         self.jag_header_container.addWidget(self.jag_icon, 0, Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignTop)
 
-        self.jag_extend_button = QPushButton(self.jag_container)
+        self.jag_extend_button = QPushButton(self.jag_header_container_2)
         self.jag_extend_button.setObjectName(u"jag_extend_button")
         icon5 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ViewFullscreen))
         self.jag_extend_button.setIcon(icon5)
@@ -1501,31 +1543,39 @@ class Ui_MainWindow(object):
         self.jag_header_container.addWidget(self.jag_extend_button, 0, Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTop)
 
 
-        self.jag_container_VBox.addLayout(self.jag_header_container)
+        self.verticalLayout_24.addWidget(self.jag_header_container_2)
 
-        self.jag_container_HBox = QHBoxLayout()
-        self.jag_container_HBox.setObjectName(u"jag_container_HBox")
-        self.jag_container_HBox.setSizeConstraint(QLayout.SizeConstraint.SetMaximumSize)
-        self.ordinate_label = QLabel(self.jag_container)
+        self.jag_content_container = QWidget(self.jag_container)
+        self.jag_content_container.setObjectName(u"jag_content_container")
+        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy7.setHorizontalStretch(0)
+        sizePolicy7.setVerticalStretch(1)
+        sizePolicy7.setHeightForWidth(self.jag_content_container.sizePolicy().hasHeightForWidth())
+        self.jag_content_container.setSizePolicy(sizePolicy7)
+        self.horizontalLayout_8 = QHBoxLayout(self.jag_content_container)
+        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
+        self.ordinate_label = QLabel(self.jag_content_container)
         self.ordinate_label.setObjectName(u"ordinate_label")
         self.ordinate_label.setPixmap(QPixmap(u":/icons/images/icons/cil-arrow-bottom-2.png"))
         self.ordinate_label.setScaledContents(True)
 
-        self.jag_container_HBox.addWidget(self.ordinate_label, 0, Qt.AlignmentFlag.AlignLeft)
+        self.horizontalLayout_8.addWidget(self.ordinate_label, 0, Qt.AlignmentFlag.AlignLeft)
 
-        self.jag = QLabel(self.jag_container)
-        self.jag.setObjectName(u"jag")
+        self.label_2 = QLabel(self.jag_content_container)
+        self.label_2.setObjectName(u"label_2")
+        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy8.setHorizontalStretch(1)
+        sizePolicy8.setVerticalStretch(0)
+        sizePolicy8.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
+        self.label_2.setSizePolicy(sizePolicy8)
 
-        self.jag_container_HBox.addWidget(self.jag)
+        self.horizontalLayout_8.addWidget(self.label_2)
 
 
-        self.jag_container_VBox.addLayout(self.jag_container_HBox)
+        self.verticalLayout_24.addWidget(self.jag_content_container)
 
 
-        self.row_3_main_page.addWidget(self.jag_container)
-
-
-        self.verticalLayout_22.addLayout(self.row_3_main_page)
+        self.verticalLayout_22.addWidget(self.jag_container)
 
         self.stackedWidget.addWidget(self.home)
         self.widgets = QWidget()
@@ -1758,10 +1808,10 @@ class Ui_MainWindow(object):
         self.tableWidget.setHorizontalHeaderItem(3, __qtablewidgetitem3)
         if (self.tableWidget.rowCount() < 16):
             self.tableWidget.setRowCount(16)
-        font4 = QFont()
-        font4.setFamilies([u"Segoe UI"])
+        font5 = QFont()
+        font5.setFamilies([u"Segoe UI"])
         __qtablewidgetitem4 = QTableWidgetItem()
-        __qtablewidgetitem4.setFont(font4);
+        __qtablewidgetitem4.setFont(font5);
         self.tableWidget.setVerticalHeaderItem(0, __qtablewidgetitem4)
         __qtablewidgetitem5 = QTableWidgetItem()
         self.tableWidget.setVerticalHeaderItem(1, __qtablewidgetitem5)
@@ -1802,11 +1852,11 @@ class Ui_MainWindow(object):
         __qtablewidgetitem23 = QTableWidgetItem()
         self.tableWidget.setItem(0, 3, __qtablewidgetitem23)
         self.tableWidget.setObjectName(u"tableWidget")
-        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy3.setHorizontalStretch(0)
-        sizePolicy3.setVerticalStretch(0)
-        sizePolicy3.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
-        self.tableWidget.setSizePolicy(sizePolicy3)
+        sizePolicy9 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy9.setHorizontalStretch(0)
+        sizePolicy9.setVerticalStretch(0)
+        sizePolicy9.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicy9)
         palette = QPalette()
         brush = QBrush(QColor(221, 221, 221, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -1982,11 +2032,11 @@ class Ui_MainWindow(object):
         self.creditsLabel = QLabel(self.bottomBar)
         self.creditsLabel.setObjectName(u"creditsLabel")
         self.creditsLabel.setMaximumSize(QSize(16777215, 16))
-        font5 = QFont()
-        font5.setFamilies([u"Segoe UI"])
-        font5.setBold(False)
-        font5.setItalic(False)
-        self.creditsLabel.setFont(font5)
+        font6 = QFont()
+        font6.setFamilies([u"Segoe UI"])
+        font6.setBold(False)
+        font6.setItalic(False)
+        self.creditsLabel.setFont(font6)
         self.creditsLabel.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
 
         self.horizontalLayout_5.addWidget(self.creditsLabel)
@@ -2084,44 +2134,41 @@ class Ui_MainWindow(object):
         self.tars_status_icon.setText("")
         self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"status_label", None))
         self.tars_action_icon.setText("")
-        self.tars_output_speech_label.setText(QCoreApplication.translate("MainWindow", u"Textspoken_label", None))
-        self.tars_picture.setText(QCoreApplication.translate("MainWindow", u"TARS_picture", None))
-        self.alert_icon.setText("")
-        self.alert_label.setText(QCoreApplication.translate("MainWindow", u"alert_label", None))
-        self.p_t_prog_widget.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.p_t_s_value.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.p_t_s_unit.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.p_t_m_value.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.p_t_m_unit.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.p_t.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.p_g.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.c_t_prog_widget.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.c_t.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.c_g.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.cancel_task_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL", None))
-        self.c_t_m_value.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.c_t_m_unit.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.c_t_s_value.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.c_t_s_unit.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_t_prog_widget.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_t_m_value.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_t_m_unit.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_t_s_value.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_t_s_unit.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_t_label.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_g_label.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.settings_icon.setText("")
-        self.settings_title.setText(QCoreApplication.translate("MainWindow", u"TARS Settings", None))
-        self.settings_text.setText(QCoreApplication.translate("MainWindow", u"Adjust settings (audios, theme, autonomy's parameter)", None))
-        self.settings_button.setText(QCoreApplication.translate("MainWindow", u"GO to settings", None))
+        self.tars_output_speech_label.setText("")
+        self.tars_picture.setText("")
+        self.alert_icon_2.setText("")
+        self.alert_label_2.setText(QCoreApplication.translate("MainWindow", u"No alert", None))
+        self.p_t_prog_widget_2.setText("")
+        self.p_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.p_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.p_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
+        self.p_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
+        self.p_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
+        self.p_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
+        self.c_t_prog_widget_2.setText("")
+        self.c_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.c_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.cancel_task_button_2.setText(QCoreApplication.translate("MainWindow", u"CANCEL", None))
+        self.c_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
+        self.c_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
+        self.c_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.c_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
+        self.n_t_prog_widget_2.setText("")
+        self.n_t_label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.n_g_label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.n_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
+        self.n_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
+        self.n_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
+        self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
         self.interaction_panel_icon.setText("")
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
-        self.interaction_panel_button.setText(QCoreApplication.translate("MainWindow", u"Ask TARS for a recap", None))
+        self.cancel_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
+        self.ack_button.setText(QCoreApplication.translate("MainWindow", u"Ask TARS for a recap", None))
         self.jag_icon.setText("")
         self.jag_extend_button.setText("")
         self.ordinate_label.setText("")
-        self.jag.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))
         self.lineEdit.setText("")
         self.lineEdit.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type here", None))

@@ -18,9 +18,11 @@ import sys
 import os
 import platform
 from PySide6 import QtWidgets, QtCore
+from PySide6.QtWidgets import QGraphicsOpacityEffect
+from PySide6.QtGui import QFont, QFontDatabase
 import signal
 from Core.agent import TarsAgent
-from Core.tts import shutdown
+from Core.tts import shutdown, register_speak_callback
 
 # IMPORT / GUI AND MODULES AND WIDGETS
 # ///////////////////////////////////////////////////////////////
@@ -67,6 +69,8 @@ class AgentThread(QtCore.QThread):
 
 
 class MainWindow(QMainWindow):
+    tts_speak_signal = QtCore.Signal(str)
+
     def __init__(self):
         QMainWindow.__init__(self)
 
@@ -77,7 +81,7 @@ class MainWindow(QMainWindow):
         
         self.agent = TarsAgent()
         signal.signal(signal.SIGINT, self.agent.signal_handler)
-        self.ui.tars_status_label.setText(f"Agent: {self.agent.agent_name}")
+        self.ui.tars_status_label.setText(f"{self.agent.agent_name} Connected.")
         
         # Start the agent in a separate thread
         self.agent_thread = AgentThread(self.agent)
@@ -88,12 +92,31 @@ class MainWindow(QMainWindow):
         self.fsm_thread = QtCore.QThread()
         self.fsm_worker = FSMWorker(self.agent)
         self.fsm_worker.moveToThread(self.fsm_thread)
-        self.fsm_worker.state_changed.connect(self.update_state_label)
+        self.fsm_worker.state_changed.connect(self.update_state)
         self.fsm_thread.started.connect(self.fsm_worker.run)
         self.fsm_thread.start()
 
+        self.current_state = None
+        self.previous_state = None
+        self.next_state = None
 
+        self.tts_speak_signal.connect(self.on_tts_speak)
+        register_speak_callback(self.tts_callback)
+        self.ui.current_task_container_3.setObjectName("currentTaskContainer")
+
+        #countdown timer for current task
+        self.current_countdown_timer = QtCore.QTimer(self)
+        self.current_countdown_timer.setInterval(1000)
+        self.current_countdown_timer.timeout.connect(self.update_current_countdown)
+        self.current_countdown_value = 0
         
+
+        #countdown timer for next task
+        self.next_countdown_timer = QtCore.QTimer(self)
+        self.next_countdown_timer.setInterval(1000)
+        self.next_countdown_timer.timeout.connect(self.update_next_countdown)
+        self.next_countdown_value = 0
+
         global widgets
         widgets = self.ui
 
@@ -167,11 +190,281 @@ class MainWindow(QMainWindow):
         widgets.stackedWidget.setCurrentWidget(widgets.home)
         widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet()))
         widgets = self.ui
+
+    def hide_label(self, label):
+        opacity_effect = label.graphicsEffect()
+        if not isinstance(opacity_effect, QGraphicsOpacityEffect):
+            opacity_effect = QGraphicsOpacityEffect(label)
+            label.setGraphicsEffect(opacity_effect)
+        opacity_effect.setOpacity(0.0)
     
+    def show_label(self, label):
+        opacity_effect = label.graphicsEffect()
+        if not isinstance(opacity_effect, QGraphicsOpacityEffect):
+            opacity_effect = QGraphicsOpacityEffect(label)
+            label.setGraphicsEffect(opacity_effect)
+        opacity_effect.setOpacity(0.99)
+        label.show()
+    
+    def update_current_countdown(self):
+        if self.current_countdown_value > 0:
+            self.ui.c_t_s_value_2.setText(str(self.current_countdown_value))
+            self.current_countdown_value -= 1
+        else:
+            self.ui.c_t_s_value_2.setText("0")
+            self.current_countdown_timer.stop()
+
+    def update_next_countdown(self):
+        if self.next_countdown_value > 0:
+            self.ui.n_t_s_value_2.setText(str(self.next_countdown_value))
+            self.next_countdown_value -= 1
+        else:
+            self.ui.n_t_s_value_2.setText("0")
+            self.next_countdown_timer.stop()
+
+    def tts_callback(self, text):
+        self.tts_speak_signal.emit(text)
+
+    def start_glow_effect(self, widget):
+        # Flicker parameters: border width and color alpha
+        self._glow_steps = [
+            (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
+            (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff"), (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
+            (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff")
+        ]
+        self._glow_index = 0
+        self._glow_timer = getattr(self, "_glow_timer", None)
+        if self._glow_timer is None:
+            self._glow_timer = QtCore.QTimer(self)
+            self._glow_timer.timeout.connect(lambda: self._glow_tick(widget))
+            self._glow_timer.setSingleShot(False)
+        self._glow_timer.start(30)  # Flicker speed
+
+    def _glow_tick(self, widget):
+        width, color = self._glow_steps[self._glow_index]
+        widget.setStyleSheet(f"""
+            #currentTaskContainer {{
+            border: {width}px solid {color};
+            border-radius: 8px;
+            background-color: rgba(19, 20, 23, 255);
+            }}
+        """)
+        self._glow_index += 1
+        if self._glow_index >= len(self._glow_steps):
+            # Stabilize to a steady glow after flicker
+            self._glow_timer.stop()
+            widget.setStyleSheet(f"""
+                #currentTaskContainer {{
+                border: 4px solid #3399ff;
+                border-radius: 8px;
+                background-color: rgba(19, 20, 23, 255)
+                }}
+            """)
+        else:
+            self._glow_timer.start(60)
+    
+    def remove_glow(self, widget):
+        widget.setStyleSheet(f"""
+                #currentTaskContainer {{
+                    border: 2px solid rgba(19, 20, 23, 255);
+                    border-radius: 10px;
+                    background-color: rgba(19, 20, 23, 255);
+                }}
+                """)
+
     @QtCore.Slot(str)
-    def update_state_label(self, state_name):
-        self.ui.tars_status_label.setText(f"TARS Status : {state_name}")
-    
+    def on_tts_speak(self, text):
+        self.ui.tars_action_icon.show()
+        self.ui.tars_output_speech_label.show()
+        self.ui.tars_output_speech_label.setText(f"\"{text}\"")
+
+
+    @QtCore.Slot(str)
+    def update_state(self, state_name):
+        self.current_state = state_name
+        fsm = self.agent.fsm
+        self.next_state = None
+        previous_task = None
+        previous_procedure = None
+        
+
+        for t in fsm.transitions:
+            if t.from_state.name == state_name:
+                self.next_state = t.to_state.name
+                break
+        
+        if self.previous_state is not None:
+            previous_task = next(
+            (task for task in self.agent.tasks if task.get("task_name", "") == self.previous_state),
+            None
+            )
+        current_task = next(
+            (task for task in self.agent.tasks if task.get("task_name", "") == self.current_state),
+        None
+        )
+        next_task = next(
+            (task for task in self.agent.tasks if task.get("task_name", "") == self.next_state),
+        None
+        )
+        if previous_task is not None:
+            previous_procedure = previous_task["procedure_name"]
+        current_procedure = current_task["procedure_name"] if current_task is not None else ""
+        next_procedure = next_task["procedure_name"] if next_task is not None else ""
+        
+        self.ui.p_g_2.setText(f"{previous_procedure if previous_procedure else ''}")
+        self.ui.p_t_2.setText(f"{self.previous_state if self.previous_state else ''}")
+        self.ui.c_g_2.setText(f"{current_procedure if current_procedure else ''}")
+        self.ui.c_t_2.setText(f"{self.current_state}")
+        self.ui.n_g_label_2.setText(f"{next_procedure if next_procedure else ''}")
+        self.ui.n_t_label_2.setText(f"{self.next_state if self.next_state else ''}")
+        self.ui.alert_label_2.setText(f"Current procedure : {current_procedure}")
+        
+        if previous_task is not None:
+            if previous_task["autonomy_role"] != "performer":
+                self.hide_label(self.ui.p_t_prog_widget_2)
+            else:
+                self.show_label(self.ui.p_t_prog_widget_2)
+        else:
+            self.ui.p_t_prog_widget_2.hide()
+
+        if current_task["autonomy_role"] != "performer":
+            self.hide_label(self.ui.c_t_prog_widget_2)
+            self.remove_glow(self.ui.current_task_container_3)
+        else:
+            self.show_label(self.ui.c_t_prog_widget_2)
+            self.start_glow_effect(self.ui.current_task_container_3)
+
+        if next_task["autonomy_role"] != "performer":
+            self.hide_label(self.ui.n_t_prog_widget_2)
+        else:
+            self.show_label(self.ui.n_t_prog_widget_2)
+        
+        # For current task counter
+        try:
+            seconds = int(current_task["time_init_action"])  
+            self.current_countdown_value = seconds
+            self.ui.c_t_s_value_2.setText(str(self.current_countdown_value))
+            self.current_countdown_timer.start()
+        except (KeyError, ValueError, TypeError):
+            seconds = "0"
+            self.ui.c_t_s_value_2.setText(seconds)
+        # For next task counter
+        try:
+            seconds = int(current_task["time_end_action"]) 
+            self.next_countdown_value = seconds
+            self.ui.n_t_s_value_2.setText(str(self.next_countdown_value))
+            self.next_countdown_timer.start()
+        except (KeyError, ValueError, TypeError):
+            seconds = "N/A"
+            self.ui.n_t_s_value_2.setText(seconds)
+
+        if current_task["interaction"] is not None:
+            self.ui.ack_button.hide()
+            self.ui.cancel_button.hide()
+            self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
+            match current_task["interaction"]:
+                case "display_winds_and_ack":
+                    self.ui.interaction_panel_text.setText("Winds: ")
+                    self.ui.ack_button.setText("Acknowledge")
+                case "display_cas":
+                    self.ui.interaction_panel_text.setText("CAS: ")
+                case "display_fadec":
+                    self.ui.interaction_panel_text.setText("FADEC: ")
+                case "display_eng_spool_evenly":
+                    self.ui.interaction_panel_text.setText("Engines Spool Evenly: ")
+                case "display_n1_matches_command_bug":
+                    self.ui.interaction_panel_text.setText("N1 Matches Command Bug: ")
+                case "display_trim_rudder":
+                    self.ui.interaction_panel_text.setText("Current trim : 0%")
+                case "display_alarm":
+                    self.ui.interaction_panel_text.setText("Alarm: ")
+                case "display_l/g":
+                    self.ui.interaction_panel_text.setText("Landing Gear: ")
+                case "display_airspeed":
+                    self.ui.interaction_panel_text.setText("Airspeed: ")
+                case "display_set_speed":
+                    self.ui.interaction_panel_text.setText("Set Speed: ")
+                case "display_ATC_msg_and_buttons_mayday":
+                    self.ui.interaction_panel_text.setText("ATC Message: Mayday")
+                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
+                    self.ui.cancel_button.hide()
+                    self.ui.ack_button.setText("Allow TARS to send Mayday")
+                case "display_engage_autopilot":
+                    self.ui.interaction_panel_text.setText("Engage Autopilot: ")
+                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
+                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
+                    self.ui.ack_button.setText("Engage")
+                    self.ui.cancel_button.setText("CANCEL")
+                case "display_check_v2_plus_12":
+                    self.ui.interaction_panel_text.setText("Check V2 + 12 : ")
+                case "display_start_chrono":
+                    self.ui.interaction_panel_text.setText("Start chrono")
+                case "display_chrono_15_s":
+                    self.ui.interaction_panel_text.setText("15 s")
+                case "display_chrono_30_s":
+                    self.ui.interaction_panel_text.setText("30 s")
+                case "display_checklist_emer_eng_fire_continue":
+                    self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
+                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
+                    self.ui.ack_button.setText("Continue")
+                case "display_allocate_radio":
+                    self.ui.interaction_panel_text.setText("Allocate radio : ")
+                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
+                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
+                    self.ui.ack_button.setText("TARS does the radio")
+                    self.ui.cancel_button.setText("Captain does the radio")
+                case "display_checklist_emer_eng_fire":
+                    self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
+                case "display_imm_act_check":
+                    self.ui.interaction_panel_text.setText("Immediate action intem : ")
+                case "display_ATC_msg_and_buttons_panpan":
+                    self.ui.interaction_panel_text.setText("ATC Message: Panpan")
+                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
+                    self.ui.cancel_button.hide()
+                    self.ui.ack_button.setText("Allow TARS to send Panpan")
+                case "display_set_heading":
+                    self.ui.interaction_panel_text.setText("Set heading : ")
+                case "display_set_flc":
+                    self.ui.interaction_panel_text.setText("Set FLC : ")
+                case "display_checklist_aft_takeoff_continue":
+                    self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
+                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
+                    self.ui.ack_button.setText("Continue")
+                case "display_checklist_aft_takeoff":
+                    self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
+                case "display_yaw_damper_prop":
+                    self.ui.interaction_panel_text.setText("Yaw damper : ")
+                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
+                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
+                    self.ui.ack_button.setText("Accept")
+                    self.ui.cancel_button.setText("Refuse")
+                case "display_deice_prop":
+                    self.ui.interaction_panel_text.setText("De-ice : ")
+                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
+                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
+                    self.ui.ack_button.setText("Accept")
+                    self.ui.cancel_button.setText("Refuse")
+                case "display_pax_safety_prop":
+                    self.ui.interaction_panel_text.setText("Pax safety: ")
+                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
+                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
+                    self.ui.ack_button.setText("Accept")
+                    self.ui.cancel_button.setText("Refuse")
+                case "display_alti_set_std":
+                    self.ui.interaction_panel_text.setText("Alti set STD: ")
+                case "display_checklist_eng_fail_proc_continue":
+                    self.ui.interaction_panel_text.setText("Engine Failure Procedure")
+                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
+                    self.ui.ack_button.setText("Continue")
+                case "display_checklist_eng_fail_proc":
+                    self.ui.interaction_panel_text.setText("Engine Failure Procedure")
+                case "display_caution_text":
+                    self.ui.interaction_panel_text.setText("Caution text")
+                case "display_checklist_sing_eng_app":
+                    self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
+        
+        self.previous_state = self.current_state
+    # ///////////////////////////////////////////////////////////////
     # BUTTONS CLICK
     # Post here your functions for clicked buttons
     # ///////////////////////////////////////////////////////////////
@@ -222,6 +515,7 @@ class MainWindow(QMainWindow):
             print('Mouse click: LEFT CLICK')
         if event.buttons() == Qt.RightButton:
             print('Mouse click: RIGHT CLICK')
+    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

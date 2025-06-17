@@ -22,6 +22,7 @@ class FiniteStateMachine:
     def __init__(self, initial_state):
         self.current_state = initial_state
         self.transitions = []
+        self.state_action_performed = {}
 
     def add_transition(self, transition):
         self.transitions.append(transition)
@@ -31,13 +32,14 @@ class FiniteStateMachine:
         while True:
             transitioned = False
             for t in self.transitions:
-                if t.from_state == self.current_state and t.condition():
-                    print(f"Transition: {t.from_state} -> {t.to_state}")
-                    if t.action:
-                        t.action()
-                    self.current_state = t.to_state
-                    transitioned = True
-                    break
+                if t.from_state == self.current_state and t.condition() and not self.state_action_performed.get(self.current_state, False):
+                        self.state_action_performed[self.current_state] = True
+                        print(f"Transition: {t.from_state} -> {t.to_state}")
+                        if t.action:
+                            t.action()
+                        self.current_state = t.to_state
+                        transitioned = True
+                        break
             if not transitioned:
                 print(f"No transition from {self.current_state}, stopping.")
                 time.sleep(3)

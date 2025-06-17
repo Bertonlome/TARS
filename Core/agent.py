@@ -47,7 +47,7 @@ class TarsAgent:
         self.check_lg_up = State("Check L/G up")
         self.check_airspeed_v2 = State("Check Airspeed V2")
         self.say_speed_mode_flc_v2_heading_mode = State("\"Speed mode FLC V2 heading mode\"")
-        self.speed_mode_flc_v2_heading_mode = State("Speed mode FLC V2, heading mode")
+        self.speed_mode_flc_v2_heading_mode = State("Set speed mode, heading mode")
         self.contact_atc_emergency = State("Contact ATC to announce emergency")
         self.listen_atc = State("Listen ATC")
         self.seven_hundred_ft_engage_ap = State("\"700ft, engage autopilot\"")
@@ -141,8 +141,8 @@ class TarsAgent:
         self.fsm.add_transition(Transition(self.set_fd_to_mode, self.maintain_pitch_after_fd, self.can_start, self.on_maintain_pitch_after_fd))
         self.fsm.add_transition(Transition(self.maintain_pitch_after_fd, self.check_lg_up, self.can_start, self.on_check_lg_up))
         self.fsm.add_transition(Transition(self.check_lg_up, self.check_airspeed_v2, self.can_start, self.on_check_airspeed_v2))
-        self.fsm.add_transition(Transition(self.check_airspeed_v2, self.say_speed_mode_flc_v2_heading_mode, self.can_start, self.on_speed_mode_flc_v2_heading_mode))
-        self.fsm.add_transition(Transition(self.say_speed_mode_flc_v2_heading_mode, self.speed_mode_flc_v2_heading_mode, self.can_start, self.on_speed_mode_flc_v2_heading_mode))
+        self.fsm.add_transition(Transition(self.check_airspeed_v2, self.say_speed_mode_flc_v2_heading_mode, self.can_start, self.on_say_speed_mode_flc_v2_heading_mode))
+        self.fsm.add_transition(Transition(self.say_speed_mode_flc_v2_heading_mode, self.speed_mode_flc_v2_heading_mode, self.can_start, self.on_set_speed_mode_heading_mode))
         self.fsm.add_transition(Transition(self.speed_mode_flc_v2_heading_mode, self.contact_atc_emergency, self.can_start, self.on_contact_atc_emergency))
         self.fsm.add_transition(Transition(self.contact_atc_emergency, self.listen_atc, self.can_start, self.on_listen_atc))
         self.fsm.add_transition(Transition(self.listen_atc, self.seven_hundred_ft_engage_ap, self.can_start, self.on_seven_hundred_ft_engage_ap))
@@ -233,348 +233,403 @@ class TarsAgent:
         else:
             print(f"No task found for state: {current_state_name}")
         time.sleep(3)  # Simulate some startup delay
+        
+    def get_time_init_action_for_state(self, state_name):
+        seconds = 0
+        task = next((task for task in self.tasks if task.get("task_name", "").strip() == state_name.name), None)
+        if task is not None:
+            try:
+                seconds = int(task.get("time_init_action")) +1 
+            except (TypeError, ValueError):
+                seconds = 2
+        print(seconds)
+        return seconds
+
+    def get_time_end_action_for_state(self, state_name):
+        seconds = 0
+        task = next((task for task in self.tasks if task.get("task_name", "").strip() == state_name.name), None)
+        if task is not None:
+            try:
+                seconds = int(task.get("time_end_action")) +1 
+            except(TypeError, ValueError):
+                seconds = 2
+        print(seconds)
+        return seconds
 
     def on_confirm_takeoff_clearance(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Confirming takeoff clearance...")
-        speak("Confirming takeoff clearance")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_ali_run_cen(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Aligning with runway centerline...")
-        speak("Aligning with runway centerline")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_winds(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking winds...")
-        speak("Checking winds")
-        time.sleep(2)
+        speak("wind report")
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_hold_brakes(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Holding brakes...")
-        speak("Holding brakes")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_cas_clear(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking CAS clear...")
         speak("Checking CAS clear")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_set_thrust(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting thrust...")
-        speak("Setting thrust")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_fadec_bug_to(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking FADEC bug TO...")
-        speak("Checking FADEC bug TO")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_engine_spool_evenly(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking engine spool evenly...")
-        speak("Checking engine spool evenly")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_thrust_set(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Thrust set...")
-        speak("Thrust set")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_n1_percent(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking N1% matches command bug...")
-        speak("Checking N1% matches command bug")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_release_brakes(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Releasing brakes...")
-        speak("Releasing brakes")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_airspeed_alive(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Airspeed's alive...")
         speak("Airspeed's alive")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_seventy_kts(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Seventy knots...")
         speak("Seventy knots")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_v1(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: V1...")
         speak("V1")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_rotate(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Rotate...")
         speak("Rotate")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_maintain_pitch(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Maintaining 10 degrees pitch...")
-        speak("Maintaining 10 degrees pitch")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_scan_slip_skid(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Scanning slip/skid indicator...")
-        speak("Scanning slip/skid indicator")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_positive_rate(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking positive rate...")
-        speak("Checking positive rate")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_positive_rate_gear_up(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Positive rate, gear up...")
         speak("Positive rate, gear up")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_gear_up(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Gear up...")
-        speak("Gear up")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_apply_rudder(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Applying rudder...")
-        speak("Applying rudder")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_trim_rudder(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Trimming rudder...")
         speak("Trimming rudder")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_announce_alarm(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announcing alarm...")
-        speak("Announcing alarm")
-        time.sleep(2)
+        speak("Alarm")
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_reset_master_warning(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Resetting Master Warning...")
-        speak("Resetting Master Warning")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_set_fd_to_mode(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting FD TO Mode...")
-        speak("Setting FD TO Mode")
-        time.sleep(2)
+        speak("Flight Director set to Takeoff mode")
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_maintain_pitch_after_fd(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Maintaining 10 degrees pitch after FD...")
-        speak("Maintaining 10 degrees pitch after FD")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_lg_up(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking Landing Gear up...")
-        speak("Checking Landing Gear up")
-        time.sleep(2)
-    def on_check_airspeed_v2(self): 
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+    def on_check_airspeed_v2(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking Airspeed V2...")
-        speak("Checking Airspeed V2")
-        time.sleep(2)
-    def on_speed_mode_flc_v2_heading_mode(self):
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+    def on_say_speed_mode_flc_v2_heading_mode(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Speed mode FLC V2, heading mode...")
         speak("Speed mode FLC V2, heading mode")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+    def on_set_speed_mode_heading_mode(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        print("Action: Set speed mode, heading mode...")
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_contact_atc_emergency(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Contacting ATC to announce emergency...")
-        speak("Contacting ATC to announce emergency")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_listen_atc(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Listening ATC...")
-        speak("Listening ATC")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_seven_hundred_ft_engage_ap(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Seven hundred feet, engage autopilot...")
         speak("Seven hundred feet, engage autopilot")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_engage_autopilot(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Engaging autopilot...")
-        speak("Engaging autopilot")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_v2_plus_twelve(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking V2+12...")
-        speak("Checking V2+12")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_say_retract_flaps(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retract flaps...")
         speak("Retract flaps")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retract_flaps(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retracting flaps...")
-        speak("Retracting flaps")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_affected_thrust_lever_confirm_idle(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Affected thrust lever, confirm and idle...")
         speak("Affected thrust lever, confirm and idle")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_throttle_affected_idle(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Throttle affected idle...")
-        speak("Throttle affected idle")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_top(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: TOP...")
         speak("TOP")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_start_chrono(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Starting chrono...")
-        speak("Starting chrono")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_light_after_15_seconds(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking light after 15 seconds...")
-        speak("Checking light after 15 seconds")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_eng_fire_switch_lift_cover_push(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: ENG FIRE switch lift cover and push...")
         speak("ENG FIRE switch lift cover and push")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_affected_thrust_lever_confirm_cutoff(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Affected thrust lever, confirm and cutoff...")
         speak("Affected thrust lever, confirm and cutoff")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_cutoff(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Cutoff...")
-        speak("Cutoff")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_affected_engine_fuel_boost_confirm_off_then_norm(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Affected engine fuel boost confirm off then norm...")
         speak("Affected engine fuel boost confirm off then norm")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_off_then_norm(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Off then norm...")
         speak("Off then norm")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_fuel_boost_off(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Fuel boost off...")
         speak("Fuel boost off")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_fuel_boost_norm(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Fuel boost norm...")
         speak("Fuel boost norm")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_light_after_30_seconds(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking light after 30 seconds...")
-        speak("Checking light after 30 seconds")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_thirty_seconds_light_remains_on_bottle_discharge(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Thirty seconds, light remains on, bottle discharge...")
         speak("Thirty seconds, light remains on, bottle discharge")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_discharge(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Discharge...")
-        speak("Discharge")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_illuminated_bottle_armed_switch_push(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Illuminated bottle armed switch push...")
-        speak("Illuminated bottle armed switch push")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_turn_rotary_test_knob(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Turning rotary test knob...")
-        speak("Turning rotary test knob")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_engine_fire_lights(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking engine fire lights both illuminate...")
-        speak("Checking engine fire lights both illuminate")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_order_start_checklist(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Ordering start checklist...")
-        speak("Ordering start checklist")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_allocate_radio(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Allocating radio...")
-        speak("Allocating radio")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retrieve_checklist(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retrieving checklist...")
-        speak("Retrieving checklist")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_immediate_action_items_done(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking immediate action items done...")
-        speak("Checking immediate action items done")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_immediate_action_checked(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Immediate action checked, Current checklist completed, Checklist to refer next: precautionary shutdown")
         speak("Immediate action checked, Current checklist completed, Checklist to refer next: precautionary shutdown")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_contact_atc_vector(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Contacting ATC to announce emergency and request vector...")
-        speak("Contacting ATC to announce emergency and request vector")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_listen_atc_vector(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Listening ATC for vector...")
-        speak("Listening ATC for vector")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_acknowledge_transmission(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Acknowledging transmission...")
-        speak("Acknowledging transmission")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_set_heading_accordingly(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting heading accordingly...")
-        speak("Setting heading accordingly")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_set_flc_accordingly(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting FLC accordingly...")
-        speak("Setting FLC accordingly")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_announce_start_checklist(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announcing start checklist...")
-        speak("Announcing start checklist")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retrieve_checklist_start(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retrieving start checklist...")
-        speak("Retrieving start checklist")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_landing_gear_up(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Landing gear up...")
-        speak("Landing gear up")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_flap_handle_up(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Flap handle up...")
-        speak("Flap handle up")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_throttles_clb_detent(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Throttles CLB detent...")
-        speak("Throttles CLB detent")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_yaw_damper_as_desired(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Yaw damper as desired...")
-        speak("Yaw damper as desired")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_deice_as_required(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Deice as required...")
-        speak("Deice as required")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_pax_safety_switch_as_required(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Pax safety switch as required...")
-        speak("Pax safety switch as required")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_pressurization_check(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Pressurization check...")
-        speak("Pressurization check")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_alti_set_std(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Alti set STD...")
-        speak("Alti set STD")
-        time.sleep(2)
+        speak("Alti set Standard")
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_crosscheck_alti(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Crosscheck alti...")
-        speak("Crosscheck alti")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_announce_checklist_completed(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announce checklist completed...")
-        speak("Announce checklist completed")
-        time.sleep(2)
+        speak("checklist completed")
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_announce_start_checklist_retrieve(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announce start checklist retrieve...")
-        speak("Announce start checklist retrieve")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retrieve_checklist_start_checklist(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retrieve checklist start checklist...")
-        speak("Retrieve checklist start checklist")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_throttle_affected_engine_cutoff(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Throttle affected engine cutoff...")
         speak("Throttle affected engine cutoff")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_caution_text_readout(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Caution text readout...")
-        speak("Caution text readout")
     def on_gen_switch_affected_side_off(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Gen switch affected side OFF...")
         speak("Gen switch affected side OFF")
     def on_ignition_switch_affected_side_norm(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Ignition switch affected side NORM...")
         speak("Ignition switch affected side NORM")
     def on_electrical_load_reduce_as_required(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Electrical load reduce as required...")
-        speak("Electrical load reduce as required")
     def on_fuel_transfer_knob_as_required(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Fuel transfer knob as required...")
-        speak("Fuel transfer knob as required")
     def on_verify_engine_fire_switch_affected_side(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Verify engine fire switch affected side is pushed...")
-        speak("Verify engine fire switch affected side is pushed")
     def on_announce_current_checklist_completed(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announce current checklist completed, Checklist to refer next: single engine approach and landing")
-        speak("Announce current checklist completed, Checklist to refer next: single engine approach and landing")
+        speak("checklist completed, Checklist to refer next: single engine approach and landing")
     def on_finished(self):
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Finished...")
-        speak("Finished")
-        time.sleep(2)
+        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
 
     # Ingescape callbacks
     def signal_handler(self, signal_received, frame):
@@ -765,8 +820,6 @@ class TarsAgent:
         # Loop to advance FSM every 3 seconds
         print(f"Current state: {self.fsm.current_state.name}")
         self.should_run[0] = True
-        self.fsm.run()
-        print("FSM finished.")
 # Example usage
 if __name__ == "__main__":
     agent = TarsAgent()

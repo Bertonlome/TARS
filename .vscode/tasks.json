@@ -5,10 +5,20 @@
         {
             "label": "Generate UI Python from main.ui",
             "type": "shell",
-            "command": "cd TARS_GUI && pyside6-uic main.ui -o modules/ui_main.py",
+            "command": "pyside6-uic main.ui -o modules/ui_main.py",
             "group": {
                 "kind": "build",
                 "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate python resource file from resources.qrc",
+            "type": "shell",
+            "command": "pyside6-rcc resources.qrc -o modules/resources_rc.py",
+            "group": {
+                "kind": "build",
+                "isDefault": false
             },
             "problemMatcher": []
         }

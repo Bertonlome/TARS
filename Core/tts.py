@@ -22,9 +22,16 @@ def _tts_worker():
 
 _thread = threading.Thread(target=_tts_worker, daemon=True)
 _thread.start()
+# Add at the top
+_speak_callbacks = []
+
+def register_speak_callback(cb):
+    _speak_callbacks.append(cb)
 
 def speak(text: str):
     """Queue text to be spoken."""
+    for cb in _speak_callbacks:
+        cb(text)
     _speech_queue.put(text)
 
 def shutdown():
