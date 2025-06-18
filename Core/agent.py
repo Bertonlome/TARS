@@ -14,6 +14,8 @@ class TarsAgent:
         self.verbose = verbose
         self.is_interrupted = False
         self.impulsion_count = 0
+        self.state_entry_time = time.monotonic()
+        self.task_done_human = [False]
 
         # FSM setup
         self.idle = State("Idle")
@@ -112,94 +114,79 @@ class TarsAgent:
         self.should_finish = [False]
 
         self.fsm = FiniteStateMachine(self.idle)
-        self.fsm.add_transition(Transition(self.idle, self.confirm_takeoff_clearance, self.can_start, self.on_confirm_takeoff_clearance))
-        self.fsm.add_transition(Transition(self.confirm_takeoff_clearance, self.ali_run_cen, self.can_start, self.on_ali_run_cen))
-        self.fsm.add_transition(Transition(self.ali_run_cen, self.check_winds, self.can_start, self.on_check_winds))
-        self.fsm.add_transition(Transition(self.check_winds, self.hold_brakes, self.can_start, self.on_hold_brakes))
-        self.fsm.add_transition(Transition(self.hold_brakes, self.check_cas_clear, self.can_start, self.on_check_cas_clear))
-        self.fsm.add_transition(Transition(self.check_cas_clear, self.say_set_thrust, self.can_start, self.on_set_thrust))
-        self.fsm.add_transition(Transition(self.say_set_thrust, self.set_thrust, self.can_start, self.on_set_thrust))
-        self.fsm.add_transition(Transition(self.set_thrust, self.check_fadec_bug_to, self.can_start, self.on_check_fadec_bug_to))
-        self.fsm.add_transition(Transition(self.check_fadec_bug_to, self.check_engine_spool_evenly, self.can_start, self.on_check_engine_spool_evenly))
-        self.fsm.add_transition(Transition(self.check_engine_spool_evenly, self.thrust_set, self.can_start, self.on_thrust_set))
-        self.fsm.add_transition(Transition(self.thrust_set, self.check_n1_percent, self.can_start, self.on_check_n1_percent))
-        self.fsm.add_transition(Transition(self.check_n1_percent, self.release_brakes, self.can_start, self.on_release_brakes))
-        self.fsm.add_transition(Transition(self.release_brakes, self.airspeed_alive, self.can_start, self.on_airspeed_alive))
-        self.fsm.add_transition(Transition(self.airspeed_alive, self.seventy_kts, self.can_start, self.on_seventy_kts))
-        self.fsm.add_transition(Transition(self.seventy_kts, self.v1, self.can_start, self.on_v1))
-        self.fsm.add_transition(Transition(self.v1, self.rotate, self.can_start, self.on_rotate))
-        self.fsm.add_transition(Transition(self.rotate, self.maintain_pitch, self.can_start, self.on_maintain_pitch))
-        self.fsm.add_transition(Transition(self.maintain_pitch, self.scan_slip_skid, self.can_start, self.on_scan_slip_skid))
-        self.fsm.add_transition(Transition(self.scan_slip_skid, self.check_positive_rate, self.can_start, self.on_check_positive_rate))
-        self.fsm.add_transition(Transition(self.check_positive_rate, self.positive_rate_gear_up, self.can_start, self.on_positive_rate_gear_up))
-        self.fsm.add_transition(Transition(self.positive_rate_gear_up, self.gear_up, self.can_start, self.on_gear_up))
-        self.fsm.add_transition(Transition(self.gear_up, self.apply_rudder, self.can_start, self.on_apply_rudder))
-        self.fsm.add_transition(Transition(self.apply_rudder, self.trim_rudder, self.can_start, self.on_trim_rudder))
-        self.fsm.add_transition(Transition(self.trim_rudder, self.announce_alarm, self.can_start, self.on_announce_alarm))
-        self.fsm.add_transition(Transition(self.announce_alarm, self.reset_master_warning, self.can_start, self.on_reset_master_warning))
-        self.fsm.add_transition(Transition(self.reset_master_warning, self.set_fd_to_mode, self.can_start, self.on_set_fd_to_mode))
-        self.fsm.add_transition(Transition(self.set_fd_to_mode, self.maintain_pitch_after_fd, self.can_start, self.on_maintain_pitch_after_fd))
-        self.fsm.add_transition(Transition(self.maintain_pitch_after_fd, self.check_lg_up, self.can_start, self.on_check_lg_up))
-        self.fsm.add_transition(Transition(self.check_lg_up, self.check_airspeed_v2, self.can_start, self.on_check_airspeed_v2))
-        self.fsm.add_transition(Transition(self.check_airspeed_v2, self.say_speed_mode_flc_v2_heading_mode, self.can_start, self.on_say_speed_mode_flc_v2_heading_mode))
-        self.fsm.add_transition(Transition(self.say_speed_mode_flc_v2_heading_mode, self.speed_mode_flc_v2_heading_mode, self.can_start, self.on_set_speed_mode_heading_mode))
-        self.fsm.add_transition(Transition(self.speed_mode_flc_v2_heading_mode, self.contact_atc_emergency, self.can_start, self.on_contact_atc_emergency))
-        self.fsm.add_transition(Transition(self.contact_atc_emergency, self.listen_atc, self.can_start, self.on_listen_atc))
-        self.fsm.add_transition(Transition(self.listen_atc, self.seven_hundred_ft_engage_ap, self.can_start, self.on_seven_hundred_ft_engage_ap))
-        self.fsm.add_transition(Transition(self.seven_hundred_ft_engage_ap, self.engage_autopilot, self.can_start, self.on_engage_autopilot))
-        self.fsm.add_transition(Transition(self.engage_autopilot, self.check_v2_plus_twelve, self.can_start, self.on_check_v2_plus_twelve))
-        self.fsm.add_transition(Transition(self.check_v2_plus_twelve, self.say_retract_flaps, self.can_start, self.on_say_retract_flaps))
-        self.fsm.add_transition(Transition(self.say_retract_flaps, self.retract_flaps, self.can_start, self.on_retract_flaps))
-        self.fsm.add_transition(Transition(self.retract_flaps, self.affected_thrust_lever_confirm_idle, self.can_start, self.on_affected_thrust_lever_confirm_idle))
-        self.fsm.add_transition(Transition(self.affected_thrust_lever_confirm_idle, self.throttle_affected_idle, self.can_start, self.on_throttle_affected_idle))
-        self.fsm.add_transition(Transition(self.throttle_affected_idle, self.top, self.can_start, self.on_top))
-        self.fsm.add_transition(Transition(self.top, self.start_chrono, self.can_start, self.on_start_chrono))
-        self.fsm.add_transition(Transition(self.start_chrono, self.check_light_after_15_seconds, self.can_start, self.on_check_light_after_15_seconds))
-        self.fsm.add_transition(Transition(self.check_light_after_15_seconds, self.eng_fire_switch_lift_cover_push, self.can_start, self.on_eng_fire_switch_lift_cover_push))
-        self.fsm.add_transition(Transition(self.eng_fire_switch_lift_cover_push, self.affected_thrust_lever_confirm_cutoff, self.can_start, self.on_affected_thrust_lever_confirm_cutoff))
-        self.fsm.add_transition(Transition(self.affected_thrust_lever_confirm_cutoff, self.cutoff, self.can_start, self.on_cutoff))
-        self.fsm.add_transition(Transition(self.cutoff, self.affected_engine_fuel_boost_confirm_off_then_norm, self.can_start, self.on_affected_engine_fuel_boost_confirm_off_then_norm))
-        self.fsm.add_transition(Transition(self.affected_engine_fuel_boost_confirm_off_then_norm, self.fuel_boost_off, self.can_start, self.on_fuel_boost_off))
-        self.fsm.add_transition(Transition(self.fuel_boost_off, self.fuel_boost_norm, self.can_start, self.on_fuel_boost_norm))
-        self.fsm.add_transition(Transition(self.fuel_boost_norm, self.check_light_after_30_seconds, self.can_start, self.on_check_light_after_30_seconds))
-        self.fsm.add_transition(Transition(self.check_light_after_30_seconds, self.thirty_seconds_light_remains_on_bottle_discharge, self.can_start, self.on_thirty_seconds_light_remains_on_bottle_discharge))
-        self.fsm.add_transition(Transition(self.thirty_seconds_light_remains_on_bottle_discharge, self.discharge, self.can_start, self.on_discharge))
-        self.fsm.add_transition(Transition(self.discharge, self.illuminated_bottle_armed_switch_push, self.can_start, self.on_illuminated_bottle_armed_switch_push))
-        self.fsm.add_transition(Transition(self.illuminated_bottle_armed_switch_push, self.turn_rotary_test_knob, self.can_start, self.on_turn_rotary_test_knob))
-        self.fsm.add_transition(Transition(self.turn_rotary_test_knob, self.check_engine_fire_lights, self.can_start, self.on_check_engine_fire_lights))
-        self.fsm.add_transition(Transition(self.check_engine_fire_lights, self.order_start_checklist, self.can_start, self.on_order_start_checklist))
-        self.fsm.add_transition(Transition(self.order_start_checklist, self.allocate_radio, self.can_start, self.on_allocate_radio))
-        self.fsm.add_transition(Transition(self.allocate_radio, self.retrieve_checklist, self.can_start, self.on_retrieve_checklist))
-        self.fsm.add_transition(Transition(self.retrieve_checklist, self.check_immediate_action_items_done, self.can_start, self.on_check_immediate_action_items_done))
-        self.fsm.add_transition(Transition(self.check_immediate_action_items_done, self.immediate_action_checked, self.can_start, self.on_immediate_action_checked))
-        self.fsm.add_transition(Transition(self.immediate_action_checked, self.contact_atc_vector, self.can_start, self.on_contact_atc_vector))
-        self.fsm.add_transition(Transition(self.contact_atc_vector, self.listen_atc_vector, self.can_start, self.on_listen_atc_vector))
-        self.fsm.add_transition(Transition(self.listen_atc_vector, self.acknowledge_transmission, self.can_start, self.on_acknowledge_transmission))
-        self.fsm.add_transition(Transition(self.acknowledge_transmission, self.set_heading_accordingly, self.can_start, self.on_set_heading_accordingly))
-        self.fsm.add_transition(Transition(self.set_heading_accordingly, self.set_flc_accordingly, self.can_start, self.on_set_flc_accordingly))
-        self.fsm.add_transition(Transition(self.set_flc_accordingly, self.announce_start_checklist, self.can_start, self.on_announce_start_checklist))
-        self.fsm.add_transition(Transition(self.announce_start_checklist, self.retrieve_checklist_start, self.can_start, self.on_retrieve_checklist_start))
-        self.fsm.add_transition(Transition(self.retrieve_checklist_start, self.landing_gear_up, self.can_start, self.on_landing_gear_up))
-        self.fsm.add_transition(Transition(self.landing_gear_up, self.flap_handle_up, self.can_start, self.on_flap_handle_up))
-        self.fsm.add_transition(Transition(self.flap_handle_up, self.throttles_clb_detent, self.can_start, self.on_throttles_clb_detent))
-        self.fsm.add_transition(Transition(self.throttles_clb_detent, self.yaw_damper_as_desired, self.can_start, self.on_yaw_damper_as_desired))
-        self.fsm.add_transition(Transition(self.yaw_damper_as_desired, self.deice_as_required, self.can_start, self.on_deice_as_required))
-        self.fsm.add_transition(Transition(self.deice_as_required, self.pax_safety_switch_as_required, self.can_start, self.on_pax_safety_switch_as_required))
-        self.fsm.add_transition(Transition(self.pax_safety_switch_as_required, self.pressurization_check, self.can_start, self.on_pressurization_check))
-        self.fsm.add_transition(Transition(self.pressurization_check, self.alti_set_std, self.can_start, self.on_alti_set_std))
-        self.fsm.add_transition(Transition(self.alti_set_std, self.crosscheck_alti, self.can_start, self.on_crosscheck_alti))
-        self.fsm.add_transition(Transition(self.crosscheck_alti, self.announce_checklist_completed, self.can_start, self.on_announce_checklist_completed))
-        self.fsm.add_transition(Transition(self.announce_checklist_completed, self.announce_start_checklist_retrieve, self.can_start, self.on_announce_start_checklist_retrieve))
-        self.fsm.add_transition(Transition(self.announce_start_checklist_retrieve, self.retrieve_checklist_start_checklist, self.can_start, self.on_retrieve_checklist_start_checklist))
-        self.fsm.add_transition(Transition(self.retrieve_checklist_start_checklist, self.throttle_affected_engine_cutoff, self.can_start, self.on_throttle_affected_engine_cutoff))
-        self.fsm.add_transition(Transition(self.throttle_affected_engine_cutoff, self.caution_text_readout, self.can_start, self.on_caution_text_readout))
-        self.fsm.add_transition(Transition(self.caution_text_readout, self.gen_switch_affected_side_off, self.can_start, self.on_gen_switch_affected_side_off))
-        self.fsm.add_transition(Transition(self.gen_switch_affected_side_off, self.ignition_switch_affected_side_norm, self.can_start, self.on_ignition_switch_affected_side_norm))
-        self.fsm.add_transition(Transition(self.ignition_switch_affected_side_norm, self.electrical_load_reduce_as_required, self.can_start, self.on_electrical_load_reduce_as_required))
-        self.fsm.add_transition(Transition(self.electrical_load_reduce_as_required, self.fuel_transfer_knob_as_required, self.can_start, self.on_fuel_transfer_knob_as_required))
-        self.fsm.add_transition(Transition(self.fuel_transfer_knob_as_required, self.verify_engine_fire_switch_affected_side, self.can_start, self.on_verify_engine_fire_switch_affected_side))
-        self.fsm.add_transition(Transition(self.verify_engine_fire_switch_affected_side, self.announce_current_checklist_completed, self.can_start, self.on_announce_current_checklist_completed))
-        self.fsm.add_transition(Transition(self.announce_current_checklist_completed, self.finished, self.can_start, self.on_finished))
+        self.fsm.add_transition(Transition(self.idle, self.confirm_takeoff_clearance, self.can_start_timeout, self.on_confirm_takeoff_clearance))
+        self.fsm.add_transition(Transition(self.confirm_takeoff_clearance, self.ali_run_cen, self.can_start_timeout, self.on_ali_run_cen))
+        self.fsm.add_transition(Transition(self.ali_run_cen, self.check_winds, self.can_start_timeout, self.on_check_winds))
+        self.fsm.add_transition(Transition(self.check_winds, self.hold_brakes, self.is_acked, self.on_hold_brakes))
+        self.fsm.add_transition(Transition(self.hold_brakes, self.check_cas_clear, self.can_start_timeout, self.on_check_cas_clear))
+        self.fsm.add_transition(Transition(self.check_cas_clear, self.set_thrust, self.can_start_timeout, self.on_set_thrust))
+        self.fsm.add_transition(Transition(self.set_thrust, self.check_fadec_bug_to, self.is_thrust_sensed, self.on_check_fadec_bug_to))
+        self.fsm.add_transition(Transition(self.check_fadec_bug_to, self.check_engine_spool_evenly, self.can_start_timeout, self.on_check_engine_spool_evenly))
+        self.fsm.add_transition(Transition(self.check_engine_spool_evenly, self.check_n1_percent, self.can_start_timeout, self.on_thrust_set))
+        self.fsm.add_transition(Transition(self.check_n1_percent, self.release_brakes, self.can_start_timeout, self.on_release_brakes))
+        self.fsm.add_transition(Transition(self.release_brakes, self.airspeed_alive, self.is_brake_released_sensed, self.on_airspeed_alive))
+        self.fsm.add_transition(Transition(self.airspeed_alive, self.seventy_kts, self.is_airspeed_alive, self.on_seventy_kts))
+        self.fsm.add_transition(Transition(self.seventy_kts, self.v1, self.is_seventy_kts, self.on_v1))
+        self.fsm.add_transition(Transition(self.v1, self.rotate, self.is_v_one , self.on_rotate))
+        self.fsm.add_transition(Transition(self.rotate, self.maintain_pitch, self.is_v_rotate , self.on_maintain_pitch))
+        self.fsm.add_transition(Transition(self.maintain_pitch, self.check_positive_rate, self.is_pitch_maintained, self.on_check_positive_rate))
+        #self.fsm.add_transition(Transition(self.scan_slip_skid, self.check_positive_rate, self.can_start_timeout, self.on_check_positive_rate))
+        self.fsm.add_transition(Transition(self.check_positive_rate, self.gear_up, self.is_positive_rate, self.on_positive_rate_gear_up))
+        self.fsm.add_transition(Transition(self.gear_up, self.announce_alarm, self.is_alarm, self.on_announce_alarm))
+        #self.fsm.add_transition(Transition(self.apply_rudder, self.trim_rudder, self.can_start_timeout, self.on_trim_rudder))
+        #self.fsm.add_transition(Transition(self.trim_rudder, self.announce_alarm, self.can_start_timeout, self.on_announce_alarm))
+        self.fsm.add_transition(Transition(self.announce_alarm, self.reset_master_warning, self.can_start_timeout, self.on_reset_master_warning))
+        self.fsm.add_transition(Transition(self.reset_master_warning, self.set_fd_to_mode, self.is_master_warning_reset, self.on_set_fd_to_mode))
+        self.fsm.add_transition(Transition(self.set_fd_to_mode, self.check_lg_up, self.can_start_timeout, self.on_maintain_pitch_after_fd))
+        self.fsm.add_transition(Transition(self.check_lg_up, self.check_airspeed_v2, self.is_gear_up, self.on_check_airspeed_v2))
+        self.fsm.add_transition(Transition(self.check_airspeed_v2, self.speed_mode_flc_v2_heading_mode, self.is_airspeed_v_two, self.on_say_speed_mode_flc_v2_heading_mode))
+        self.fsm.add_transition(Transition(self.speed_mode_flc_v2_heading_mode, self.contact_atc_emergency, self.can_start_timeout, self.on_contact_atc_emergency))
+        self.fsm.add_transition(Transition(self.contact_atc_emergency, self.listen_atc, self.is_acked, self.on_listen_atc))
+        self.fsm.add_transition(Transition(self.listen_atc, self.engage_autopilot, self.is_ap_altitude, self.on_seven_hundred_ft_engage_ap))
+        self.fsm.add_transition(Transition(self.engage_autopilot, self.check_v2_plus_twelve, self.is_v2_plus_12 , self.on_check_v2_plus_twelve))
+        self.fsm.add_transition(Transition(self.check_v2_plus_twelve, self.retract_flaps, self.can_start_timeout, self.on_say_retract_flaps))
+        self.fsm.add_transition(Transition(self.retract_flaps, self.throttle_affected_idle, self.is_flaps_retracted, self.on_affected_thrust_lever_confirm_idle))
+        self.fsm.add_transition(Transition(self.throttle_affected_idle, self.start_chrono, self.is_throttle_idle, self.on_top))
+        self.fsm.add_transition(Transition(self.start_chrono, self.check_light_after_15_seconds, self.can_start_timeout, self.on_check_light_after_15_seconds))
+        self.fsm.add_transition(Transition(self.check_light_after_15_seconds, self.eng_fire_switch_lift_cover_push, self.can_start_timeout, self.on_eng_fire_switch_lift_cover_push))
+        self.fsm.add_transition(Transition(self.eng_fire_switch_lift_cover_push, self.cutoff, self.can_start_timeout, self.on_affected_thrust_lever_confirm_cutoff))
+        self.fsm.add_transition(Transition(self.cutoff, self.affected_engine_fuel_boost_confirm_off_then_norm, self.is_throttle_cutoff, self.on_affected_engine_fuel_boost_confirm_off_then_norm))
+        self.fsm.add_transition(Transition(self.affected_engine_fuel_boost_confirm_off_then_norm, self.fuel_boost_off, self.can_start_timeout, self.on_fuel_boost_off))
+        self.fsm.add_transition(Transition(self.fuel_boost_off, self.fuel_boost_norm, self.is_fuel_boost_off, self.on_fuel_boost_norm))
+        self.fsm.add_transition(Transition(self.fuel_boost_norm, self.check_light_after_30_seconds, self.is_fuel_boost_norm, self.on_check_light_after_30_seconds))
+        self.fsm.add_transition(Transition(self.check_light_after_30_seconds, self.thirty_seconds_light_remains_on_bottle_discharge, self.can_start_timeout, self.on_thirty_seconds_light_remains_on_bottle_discharge))
+        self.fsm.add_transition(Transition(self.thirty_seconds_light_remains_on_bottle_discharge, self.discharge, self.can_start_timeout, self.on_discharge))
+        self.fsm.add_transition(Transition(self.discharge, self.illuminated_bottle_armed_switch_push, self.can_start_timeout, self.on_illuminated_bottle_armed_switch_push))
+        self.fsm.add_transition(Transition(self.illuminated_bottle_armed_switch_push, self.turn_rotary_test_knob, self.can_start_timeout, self.on_turn_rotary_test_knob))
+        self.fsm.add_transition(Transition(self.turn_rotary_test_knob, self.check_engine_fire_lights, self.is_test_knob_turned, self.on_check_engine_fire_lights))
+        self.fsm.add_transition(Transition(self.check_engine_fire_lights, self.order_start_checklist, self.can_start_timeout, self.on_order_start_checklist))
+        self.fsm.add_transition(Transition(self.order_start_checklist, self.allocate_radio, self.can_start_timeout, self.on_allocate_radio))
+        self.fsm.add_transition(Transition(self.allocate_radio, self.retrieve_checklist, self.can_start_timeout, self.on_retrieve_checklist))
+        self.fsm.add_transition(Transition(self.retrieve_checklist, self.check_immediate_action_items_done, self.can_start_timeout, self.on_check_immediate_action_items_done))
+        self.fsm.add_transition(Transition(self.check_immediate_action_items_done, self.contact_atc_vector, self.can_start_timeout, self.on_immediate_action_checked))
+        self.fsm.add_transition(Transition(self.contact_atc_vector, self.announce_start_checklist, self.can_start_timeout, self.on_listen_atc_vector))
+        self.fsm.add_transition(Transition(self.announce_start_checklist, self.retrieve_checklist_start, self.can_start_timeout, self.on_retrieve_checklist_start))
+        self.fsm.add_transition(Transition(self.retrieve_checklist_start, self.landing_gear_up, self.is_gear_up, self.on_landing_gear_up))
+        self.fsm.add_transition(Transition(self.landing_gear_up, self.flap_handle_up, self.is_flaps_retracted, self.on_flap_handle_up))
+        self.fsm.add_transition(Transition(self.flap_handle_up, self.throttles_clb_detent, self.is_throttle_clb, self.on_throttles_clb_detent))
+        self.fsm.add_transition(Transition(self.throttles_clb_detent, self.yaw_damper_as_desired, self.can_start_timeout, self.on_yaw_damper_as_desired))
+        self.fsm.add_transition(Transition(self.yaw_damper_as_desired, self.deice_as_required, self.can_start_timeout, self.on_deice_as_required))
+        self.fsm.add_transition(Transition(self.deice_as_required, self.pax_safety_switch_as_required, self.can_start_timeout, self.on_pax_safety_switch_as_required))
+        self.fsm.add_transition(Transition(self.pax_safety_switch_as_required, self.pressurization_check, self.can_start_timeout, self.on_pressurization_check))
+        self.fsm.add_transition(Transition(self.pressurization_check, self.alti_set_std, self.can_start_timeout, self.on_alti_set_std))
+        self.fsm.add_transition(Transition(self.alti_set_std, self.crosscheck_alti, self.can_start_timeout, self.on_crosscheck_alti))
+        self.fsm.add_transition(Transition(self.crosscheck_alti, self.announce_checklist_completed, self.can_start_timeout, self.on_announce_checklist_completed))
+        self.fsm.add_transition(Transition(self.announce_checklist_completed, self.announce_start_checklist_retrieve, self.can_start_timeout, self.on_announce_start_checklist_retrieve))
+        self.fsm.add_transition(Transition(self.announce_start_checklist_retrieve, self.retrieve_checklist_start_checklist, self.can_start_timeout, self.on_retrieve_checklist_start_checklist))
+        self.fsm.add_transition(Transition(self.retrieve_checklist_start_checklist, self.throttle_affected_engine_cutoff, self.can_start_timeout, self.on_throttle_affected_engine_cutoff))
+        self.fsm.add_transition(Transition(self.throttle_affected_engine_cutoff, self.caution_text_readout, self.is_throttle_cutoff, self.on_caution_text_readout))
+        self.fsm.add_transition(Transition(self.caution_text_readout, self.gen_switch_affected_side_off, self.can_start_timeout, self.on_gen_switch_affected_side_off))
+        self.fsm.add_transition(Transition(self.gen_switch_affected_side_off, self.ignition_switch_affected_side_norm, self.is_gen_switch_off, self.on_ignition_switch_affected_side_norm))
+        self.fsm.add_transition(Transition(self.ignition_switch_affected_side_norm, self.electrical_load_reduce_as_required, self.is_ignition_switch_norm, self.on_electrical_load_reduce_as_required))
+        self.fsm.add_transition(Transition(self.electrical_load_reduce_as_required, self.fuel_transfer_knob_as_required, self.can_start_timeout, self.on_fuel_transfer_knob_as_required))
+        self.fsm.add_transition(Transition(self.fuel_transfer_knob_as_required, self.verify_engine_fire_switch_affected_side, self.can_start_timeout, self.on_verify_engine_fire_switch_affected_side))
+        self.fsm.add_transition(Transition(self.verify_engine_fire_switch_affected_side, self.announce_current_checklist_completed, self.can_start_timeout, self.on_announce_current_checklist_completed))
+        self.fsm.add_transition(Transition(self.announce_current_checklist_completed, self.finished, self.can_start_timeout, self.on_finished))
         
         # Echo agent
         self.agent = Echo()
@@ -216,8 +203,144 @@ class TarsAgent:
                 tasks.append(row)
         return tasks
     # FSM conditions and actions
-    def can_start(self):
-        return True
+    def can_start_timeout(self):
+        if self.state_entry_time is None:
+            return False #Not ready yet
+        required = self.get_time_end_action_for_state(self.fsm.current_state)
+        elapsed = time.monotonic() - self.state_entry_time
+        return elapsed >= required
+    
+    def is_acked(self):
+        if self.task_done_human[0]:
+            self.task_done_human[0] = False
+            return True
+        return False
+
+    def is_thrust_sensed(self):
+        if self.agent.control_throttle_i is not None and self.agent.control_throttle_i == 1:
+            return True
+        return False
+
+    def is_brake_released_sensed(self):
+        if self.agent.park_brakes_i is not None and self.agent.park_brakes_i == 0:
+            return True
+        return False
+
+    def is_airspeed_alive(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i > 30:
+            speak("Airspeed's alive")
+            return True
+        return False
+
+    def is_seventy_kts(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 70:
+            speak("Seventy Knots")
+            return True
+        return False
+
+    def is_v_one(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 90:
+            speak("Rotate")
+            return True
+        return False
+
+    def is_v_rotate(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 91:
+            return True
+        return False
+
+    def is_pitch_maintained(self):
+        if self.agent.pitch_i is not None and self.agent.pitch_i >= 7:
+            time.sleep(1)  # Simulate time to maintain pitch
+            if self.agent.pitch_i >= 8:
+                return True
+        return False
+
+    def is_positive_rate(self):
+        if self.agent.vertical_sped_i is not None and self.agent.vertical_sped_i > 100:
+            return True
+        return False
+
+    def is_gear_up(self):
+        if self.agent.control_gear_i is not None and self.agent.control_gear_i == 0:
+            return True
+        return False
+
+    def is_alarm(self):
+        if self.agent.master_warning_i is not None and self.agent.master_warning_i == 1:
+            return True
+        return False
+    
+    def is_master_warning_reset(self):
+        print("Resetting Master Warning")
+        if self.agent.master_warning_i is not None and self.agent.master_warning_i == 0:
+            return True
+        return False
+    
+    def is_airspeed_v_two(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 120:
+            return True
+        return False
+    
+    def is_ap_altitude(self):
+        if self.agent.altitude_i is not None and self.agent.altitude_i >= 700:
+            return True
+        return False
+    
+    def is_v2_plus_12(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 132:
+            return True
+        return False
+    
+    def is_flaps_retracted(self):
+        if self.agent.control_flaps_i is not None and self.agent.control_flaps_i == 0:
+            return True
+        return False
+    
+    def is_throttle_cutoff(self):
+        if self.agent.l_throttle_i == 0 or self.agent.r_throttle_i == 0:
+            return True
+        return False
+    
+    def is_fuel_boost_off(self):
+        print(f"Checking if fuel boost is off - Left: {self.agent.fuel_boost_l_i}, Right: {self.agent.fuel_boost_r_i}")
+        if self.agent.fuel_boost_l_i == 1 or self.agent.fuel_boost_r_i == 1:
+            return True
+        return False
+    
+    def is_fuel_boost_norm(self):
+        if self.agent.fuel_boost_l_i == 0 and self.agent.fuel_boost_r_i == 0:
+            return True
+        return False
+    
+    def is_test_knob_turned(self):
+        print(f"Checking if test knob is turned - Value: {self.agent.test_knob_i}")
+        if self.agent.test_knob_i is not None and self.agent.test_knob_i == 1:
+            return True
+        return False
+    
+    def is_throttle_clb(self):
+        if self.agent.control_throttle_i is not None and self.agent.control_throttle_i > 0.5:
+            return True
+        return False
+    
+    
+    def is_throttle_idle(self):
+        if self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0 or self.agent.r_throttle_i == 0:
+            return True
+        return False
+    
+    def is_gen_switch_off(self):
+        if self.agent.l_gen_switch_i == 0 or self.agent.r_gen_switch_i == 0:
+            return True
+        return False
+    
+    def is_ignition_switch_norm(self):
+        if self.agent.l_ign_switch_i == 1 or self.agent.r_ign_switch_i == 1:
+            return True
+        return False
+
+
 
     def can_finish(self):
         return self.should_finish[0]
@@ -241,8 +364,8 @@ class TarsAgent:
             try:
                 seconds = int(task.get("time_init_action")) +1 
             except (TypeError, ValueError):
-                seconds = 2
-        print(seconds)
+                seconds = 0
+        #print(seconds)
         return seconds
 
     def get_time_end_action_for_state(self, state_name):
@@ -253,383 +376,390 @@ class TarsAgent:
                 seconds = int(task.get("time_end_action")) +1 
             except(TypeError, ValueError):
                 seconds = 2
-        print(seconds)
+                if task.get("time_end_action") in ("ack", "sense", "until_new"):
+                    seconds = 1000
+        #print(seconds)
         return seconds
 
     def on_confirm_takeoff_clearance(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Confirming takeoff clearance...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_ali_run_cen(self):
+        self.state_entry_time = time.monotonic()
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Aligning with runway centerline...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_winds(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking winds...")
-        speak("wind report")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        speak("wind report Wind calm  zero two 6 degrees at 3 knots")
     def on_hold_brakes(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Holding brakes...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_cas_clear(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking CAS clear...")
-        speak("Checking CAS clear")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        speak("CAS is clear")
     def on_set_thrust(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting thrust...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_fadec_bug_to(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking FADEC bug TO...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_engine_spool_evenly(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking engine spool evenly...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_thrust_set(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Thrust set...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_n1_percent(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking N1% matches command bug...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_release_brakes(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Releasing brakes...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_airspeed_alive(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Airspeed's alive...")
-        speak("Airspeed's alive")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_seventy_kts(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Seventy knots...")
-        speak("Seventy knots")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_v1(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: V1...")
-        speak("V1")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_rotate(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Rotate...")
-        speak("Rotate")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_maintain_pitch(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Maintaining 10 degrees pitch...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_scan_slip_skid(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Scanning slip/skid indicator...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_positive_rate(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking positive rate...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_positive_rate_gear_up(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Positive rate, gear up...")
         speak("Positive rate, gear up")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_gear_up(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Gear up...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_apply_rudder(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Applying rudder...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_trim_rudder(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Trimming rudder...")
         speak("Trimming rudder")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_announce_alarm(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announcing alarm...")
-        speak("Alarm")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        speak("Alarm Engine fire, Low oil pressure")
     def on_reset_master_warning(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Resetting Master Warning...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_set_fd_to_mode(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting FD TO Mode...")
-        speak("Flight Director set to Takeoff mode")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        #speak("Flight Director set to Takeoff mode")
     def on_maintain_pitch_after_fd(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Maintaining 10 degrees pitch after FD...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_lg_up(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking Landing Gear up...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_airspeed_v2(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking Airspeed V2...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_say_speed_mode_flc_v2_heading_mode(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Speed mode FLC V2, heading mode...")
-        speak("Speed mode FLC V2, heading mode")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        #speak("Speed mode FLC V2, heading mode")
     def on_set_speed_mode_heading_mode(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Set speed mode, heading mode...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_contact_atc_emergency(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Contacting ATC to announce emergency...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_listen_atc(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Listening ATC...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_seven_hundred_ft_engage_ap(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Seven hundred feet, engage autopilot...")
         speak("Seven hundred feet, engage autopilot")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_engage_autopilot(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Engaging autopilot...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_v2_plus_twelve(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking V2+12...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_say_retract_flaps(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retract flaps...")
         speak("Retract flaps")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retract_flaps(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retracting flaps...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_affected_thrust_lever_confirm_idle(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Affected thrust lever, confirm and idle...")
         speak("Affected thrust lever, confirm and idle")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_throttle_affected_idle(self):
+        self.state_entry_time = time.monotonic()
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Throttle affected idle...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_top(self):
+        self.state_entry_time = time.monotonic()
+        speak("TOP")
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: TOP...")
-        speak("TOP")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_start_chrono(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Starting chrono...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_light_after_15_seconds(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking light after 15 seconds...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_eng_fire_switch_lift_cover_push(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: ENG FIRE switch lift cover and push...")
         speak("ENG FIRE switch lift cover and push")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: ENG FIRE switch lift cover and push...")
     def on_affected_thrust_lever_confirm_cutoff(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Affected thrust lever, confirm and cutoff...")
         speak("Affected thrust lever, confirm and cutoff")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Affected thrust lever, confirm and cutoff...")
     def on_cutoff(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Cutoff...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_affected_engine_fuel_boost_confirm_off_then_norm(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Affected engine fuel boost confirm off then norm...")
         speak("Affected engine fuel boost confirm off then norm")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Affected engine fuel boost confirm off then norm...")
     def on_off_then_norm(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Off then norm...")
         speak("Off then norm")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Off then norm...")
     def on_fuel_boost_off(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Fuel boost off...")
         speak("Fuel boost off")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Fuel boost off...")
     def on_fuel_boost_norm(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Fuel boost norm...")
         speak("Fuel boost norm")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Fuel boost norm...")
     def on_check_light_after_30_seconds(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking light after 30 seconds...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_thirty_seconds_light_remains_on_bottle_discharge(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Thirty seconds, light remains on, bottle discharge...")
         speak("Thirty seconds, light remains on, bottle discharge")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Thirty seconds, light remains on, bottle discharge...")
     def on_discharge(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Discharge...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_illuminated_bottle_armed_switch_push(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Illuminated bottle armed switch push...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_turn_rotary_test_knob(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Turning rotary test knob...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_engine_fire_lights(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking engine fire lights both illuminate...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_order_start_checklist(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Ordering start checklist...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_allocate_radio(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Allocating radio...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retrieve_checklist(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retrieving checklist...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_check_immediate_action_items_done(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking immediate action items done...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_immediate_action_checked(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Immediate action checked, Current checklist completed, Checklist to refer next: precautionary shutdown")
         speak("Immediate action checked, Current checklist completed, Checklist to refer next: precautionary shutdown")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_contact_atc_vector(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Contacting ATC to announce emergency and request vector...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_listen_atc_vector(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Listening ATC for vector...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_acknowledge_transmission(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Acknowledging transmission...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_set_heading_accordingly(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting heading accordingly...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_set_flc_accordingly(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Setting FLC accordingly...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_announce_start_checklist(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announcing start checklist...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retrieve_checklist_start(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retrieving start checklist...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_landing_gear_up(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Landing gear up...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_flap_handle_up(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Flap handle up...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_throttles_clb_detent(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Throttles CLB detent...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_yaw_damper_as_desired(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Yaw damper as desired...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_deice_as_required(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Deice as required...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_pax_safety_switch_as_required(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Pax safety switch as required...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_pressurization_check(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Pressurization check...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_alti_set_std(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Alti set STD...")
         speak("Alti set Standard")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Alti set STD...")
     def on_crosscheck_alti(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Crosscheck alti...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_announce_checklist_completed(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Announce checklist completed...")
         speak("checklist completed")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Announce checklist completed...")
     def on_announce_start_checklist_retrieve(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announce start checklist retrieve...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_retrieve_checklist_start_checklist(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retrieve checklist start checklist...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
     def on_throttle_affected_engine_cutoff(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Throttle affected engine cutoff...")
         speak("Throttle affected engine cutoff")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
+        print("Action: Throttle affected engine cutoff...")
     def on_caution_text_readout(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Caution text readout...")
     def on_gen_switch_affected_side_off(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Gen switch affected side OFF...")
         speak("Gen switch affected side OFF")
+        print("Action: Gen switch affected side OFF...")
     def on_ignition_switch_affected_side_norm(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Ignition switch affected side NORM...")
         speak("Ignition switch affected side NORM")
+        print("Action: Ignition switch affected side NORM...")
     def on_electrical_load_reduce_as_required(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Electrical load reduce as required...")
     def on_fuel_transfer_knob_as_required(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Fuel transfer knob as required...")
     def on_verify_engine_fire_switch_affected_side(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Verify engine fire switch affected side is pushed...")
     def on_announce_current_checklist_completed(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        print("Action: Announce current checklist completed, Checklist to refer next: single engine approach and landing")
         speak("checklist completed, Checklist to refer next: single engine approach and landing")
+        print("Action: Announce current checklist completed, Checklist to refer next: single engine approach and landing")
     def on_finished(self):
+        self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Finished...")
-        time.sleep(self.get_time_end_action_for_state(self.fsm.current_state))
 
     # Ingescape callbacks
     def signal_handler(self, signal_received, frame):
@@ -664,9 +794,80 @@ class TarsAgent:
         assert isinstance(agent_object, Echo)
 
     def double_input_callback(self, io_type, name, value_type, value, my_data):
-        igs.info(f"Input {name} written to {value}")
+        #igs.info(f"Input {name} written to {value}")
         agent_object = my_data
         assert isinstance(agent_object, Echo)
+        if name == "airspeed":
+            agent_object.airspeed_i = value
+        elif name == "pitch":
+            agent_object.pitch_i = value
+        elif name == "roll":
+            agent_object.roll_i = value
+        elif name == "heading":
+            agent_object.heading_i = value
+        elif name == "verticalSpeed":
+            agent_object.vertical_sped_i = value
+        elif name == "altitude":
+            agent_object.altitude_i = value
+        elif name == "controlThrottle":
+            agent_object.control_throttle_i = value
+        elif name == "controlFlaps":
+            agent_object.control_flaps_i = value
+        elif name == "controlGear":
+            agent_object.control_gear_i = value
+        elif name == "speedBrakes":
+            agent_object.speed_brakes_i = value
+        elif name == "parkBrake":
+            agent_object.park_brakes_i = value
+        elif name == "l_throttle":
+            agent_object.l_throttle_i = value
+        elif name == "r_throttle":
+            agent_object.r_throttle_i = value
+        elif name == "cas":
+            agent_object.cas_i = value
+        elif name == "n1_match_bug":
+            agent_object.n1_match_bug_i = value
+        elif name == "n1_percent":
+            agent_object.n1_percent_i = value
+        elif name == "slip":
+            agent_object.slip_i = value
+        elif name == "engine_fires":
+            agent_object.engine_fires_i = value
+        elif name == "test_knob":
+            agent_object.test_knob_i = value
+        elif name == "l_gen_switch":    
+            agent_object.l_gen_switch_i = value
+        elif name == "r_gen_switch":
+            agent_object.r_gen_switch_i = value
+        elif name == "l_ign_switch":
+            agent_object.l_ign_switch_i = value
+        elif name == "r_ign_switch":
+            agent_object.r_ign_switch_i = value
+        elif name == "fuel_boost_l":
+            agent_object.fuel_boost_l_i = value
+        elif name == "fuel_boost_r":
+            agent_object.fuel_boost_r_i = value
+        elif name == "master_warning":
+            agent_object.master_warning_i = value
+        elif name == "master_caution":
+            agent_object.master_caution_i = value
+        elif name == "yaw_damper":
+            agent_object.yaw_damper_i = value
+        elif name == "autopilot_master":
+            agent_object.autopilot_master_i = value
+        elif name == "autopilot_heading_set":
+            agent_object.autopilot_heading_set_i = value
+        elif name == "autopilot_state":
+            agent_object.autopilot_state_i = value
+        elif name == "pax_safety":
+            agent_object.pax_safety_i = value
+        elif name == "flight_director":
+            agent_object.flight_director_i = value
+        elif name == "speed_mode":
+            agent_object.speed_mode_i = value
+        elif name == "heading_mode":
+            agent_object.heading_mode_i = value
+        
 
     def string_input_callback(self, io_type, name, value_type, value, my_data):
         igs.info(f"Input {name} written to {value}")

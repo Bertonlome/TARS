@@ -1819,8 +1819,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
                               <widget class="QLabel" name="tars_action_icon">
                                <property name="minimumSize">
                                 <size>
-                                 <width>32</width>
-                                 <height>32</height>
+                                 <width>64</width>
+                                 <height>64</height>
                                 </size>
                                </property>
                                <property name="text">
@@ -1829,10 +1829,19 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                <property name="pixmap">
                                 <pixmap resource="resources.qrc">:/icons/images/icons/cil-comment-bubble.png</pixmap>
                                </property>
+                               <property name="scaledContents">
+                                <bool>true</bool>
+                               </property>
                               </widget>
                              </item>
                              <item alignment="Qt::AlignmentFlag::AlignHCenter">
                               <widget class="QLabel" name="tars_output_speech_label">
+                               <property name="minimumSize">
+                                <size>
+                                 <width>500</width>
+                                 <height>75</height>
+                                </size>
+                               </property>
                                <property name="font">
                                 <font>
                                  <family>JetBrains Mono</family>
@@ -1847,14 +1856,17 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                <property name="text">
                                 <string/>
                                </property>
+                               <property name="wordWrap">
+                                <bool>true</bool>
+                               </property>
                               </widget>
                              </item>
                              <item alignment="Qt::AlignmentFlag::AlignHCenter">
                               <widget class="QLabel" name="tars_picture">
                                <property name="maximumSize">
                                 <size>
-                                 <width>300</width>
-                                 <height>300</height>
+                                 <width>200</width>
+                                 <height>200</height>
                                 </size>
                                </property>
                                <property name="text">
@@ -2171,7 +2183,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                  <widget class="QPushButton" name="cancel_task_button_2">
                                   <property name="minimumSize">
                                    <size>
-                                    <width>0</width>
+                                    <width>128</width>
                                     <height>32</height>
                                    </size>
                                   </property>
@@ -2192,6 +2204,22 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                   </property>
                                   <property name="icon">
                                    <iconset theme="QIcon::ThemeIcon::ProcessStop"/>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QPushButton" name="task_done_button">
+                                  <property name="styleSheet">
+                                   <string notr="true">    border: 2px solid #3399ff;
+    border-radius: 5px;
+    background-color: rgba(0, 168, 120, 255);
+font: 600 16pt &quot;JetBrains Mono&quot;;</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>TASK DONE</string>
+                                  </property>
+                                  <property name="icon">
+                                   <iconset theme="QIcon::ThemeIcon::MailReplySender"/>
                                   </property>
                                  </widget>
                                 </item>
@@ -2506,97 +2534,6 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                </property>
                                <property name="text">
                                 <string>Ask TARS for a recap</string>
-                               </property>
-                              </widget>
-                             </item>
-                            </layout>
-                           </widget>
-                          </item>
-                         </layout>
-                        </widget>
-                       </item>
-                       <item>
-                        <widget class="QWidget" name="jag_container" native="true">
-                         <layout class="QVBoxLayout" name="verticalLayout_24">
-                          <item>
-                           <widget class="QWidget" name="jag_header_container_2" native="true">
-                            <property name="sizePolicy">
-                             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                              <horstretch>0</horstretch>
-                              <verstretch>0</verstretch>
-                             </sizepolicy>
-                            </property>
-                            <layout class="QHBoxLayout" name="jag_header_container">
-                             <item alignment="Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop">
-                              <widget class="QLabel" name="jag_icon">
-                               <property name="minimumSize">
-                                <size>
-                                 <width>32</width>
-                                 <height>32</height>
-                                </size>
-                               </property>
-                               <property name="text">
-                                <string/>
-                               </property>
-                               <property name="pixmap">
-                                <pixmap resource="resources.qrc">:/icons/images/icons/cil-equalizer.png</pixmap>
-                               </property>
-                               <property name="scaledContents">
-                                <bool>true</bool>
-                               </property>
-                              </widget>
-                             </item>
-                             <item alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTop">
-                              <widget class="QPushButton" name="jag_extend_button">
-                               <property name="text">
-                                <string/>
-                               </property>
-                               <property name="icon">
-                                <iconset theme="QIcon::ThemeIcon::ViewFullscreen"/>
-                               </property>
-                               <property name="iconSize">
-                                <size>
-                                 <width>32</width>
-                                 <height>32</height>
-                                </size>
-                               </property>
-                              </widget>
-                             </item>
-                            </layout>
-                           </widget>
-                          </item>
-                          <item>
-                           <widget class="QWidget" name="jag_content_container" native="true">
-                            <property name="sizePolicy">
-                             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                              <horstretch>0</horstretch>
-                              <verstretch>1</verstretch>
-                             </sizepolicy>
-                            </property>
-                            <layout class="QHBoxLayout" name="horizontalLayout_8">
-                             <item alignment="Qt::AlignmentFlag::AlignLeft">
-                              <widget class="QLabel" name="ordinate_label">
-                               <property name="text">
-                                <string/>
-                               </property>
-                               <property name="pixmap">
-                                <pixmap resource="resources.qrc">:/icons/images/icons/cil-arrow-bottom-2.png</pixmap>
-                               </property>
-                               <property name="scaledContents">
-                                <bool>true</bool>
-                               </property>
-                              </widget>
-                             </item>
-                             <item>
-                              <widget class="QLabel" name="label_2">
-                               <property name="sizePolicy">
-                                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                                 <horstretch>1</horstretch>
-                                 <verstretch>0</verstretch>
-                                </sizepolicy>
-                               </property>
-                               <property name="text">
-                                <string>TextLabel</string>
                                </property>
                               </widget>
                              </item>

@@ -1050,13 +1050,15 @@ class Ui_MainWindow(object):
 
         self.tars_action_icon = QLabel(self.row_1_col_1_container_2)
         self.tars_action_icon.setObjectName(u"tars_action_icon")
-        self.tars_action_icon.setMinimumSize(QSize(32, 32))
+        self.tars_action_icon.setMinimumSize(QSize(64, 64))
         self.tars_action_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-comment-bubble.png"))
+        self.tars_action_icon.setScaledContents(True)
 
         self.row_1_col_1_container.addWidget(self.tars_action_icon, 0, Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignVCenter)
 
         self.tars_output_speech_label = QLabel(self.row_1_col_1_container_2)
         self.tars_output_speech_label.setObjectName(u"tars_output_speech_label")
+        self.tars_output_speech_label.setMinimumSize(QSize(500, 75))
         font4 = QFont()
         font4.setFamilies([u"JetBrains Mono"])
         font4.setPointSize(12)
@@ -1064,12 +1066,13 @@ class Ui_MainWindow(object):
         font4.setItalic(False)
         self.tars_output_speech_label.setFont(font4)
         self.tars_output_speech_label.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
+        self.tars_output_speech_label.setWordWrap(True)
 
         self.row_1_col_1_container.addWidget(self.tars_output_speech_label, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.tars_picture = QLabel(self.row_1_col_1_container_2)
         self.tars_picture.setObjectName(u"tars_picture")
-        self.tars_picture.setMaximumSize(QSize(300, 300))
+        self.tars_picture.setMaximumSize(QSize(200, 200))
         self.tars_picture.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
         self.tars_picture.setScaledContents(True)
 
@@ -1255,7 +1258,7 @@ class Ui_MainWindow(object):
 
         self.cancel_task_button_2 = QPushButton(self.current_task_container_3)
         self.cancel_task_button_2.setObjectName(u"cancel_task_button_2")
-        self.cancel_task_button_2.setMinimumSize(QSize(0, 32))
+        self.cancel_task_button_2.setMinimumSize(QSize(128, 32))
         self.cancel_task_button_2.setMaximumSize(QSize(150, 16777215))
         self.cancel_task_button_2.setStyleSheet(u"    border: 2px solid #3399ff;\n"
 "    border-radius: 5px;\n"
@@ -1265,6 +1268,17 @@ class Ui_MainWindow(object):
         self.cancel_task_button_2.setIcon(icon4)
 
         self.current_task_container_4.addWidget(self.cancel_task_button_2)
+
+        self.task_done_button = QPushButton(self.current_task_container_3)
+        self.task_done_button.setObjectName(u"task_done_button")
+        self.task_done_button.setStyleSheet(u"    border: 2px solid #3399ff;\n"
+"    border-radius: 5px;\n"
+"    background-color: rgba(0, 168, 120, 255);\n"
+"font: 600 16pt \"JetBrains Mono\";")
+        icon5 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.MailReplySender))
+        self.task_done_button.setIcon(icon5)
+
+        self.current_task_container_4.addWidget(self.task_done_button)
 
         self.c_t_m_container_2 = QVBoxLayout()
         self.c_t_m_container_2.setSpacing(6)
@@ -1465,70 +1479,6 @@ class Ui_MainWindow(object):
 
 
         self.verticalLayout_22.addWidget(self.interaction_container)
-
-        self.jag_container = QWidget(self.home)
-        self.jag_container.setObjectName(u"jag_container")
-        self.verticalLayout_24 = QVBoxLayout(self.jag_container)
-        self.verticalLayout_24.setObjectName(u"verticalLayout_24")
-        self.jag_header_container_2 = QWidget(self.jag_container)
-        self.jag_header_container_2.setObjectName(u"jag_header_container_2")
-        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-        sizePolicy6.setHorizontalStretch(0)
-        sizePolicy6.setVerticalStretch(0)
-        sizePolicy6.setHeightForWidth(self.jag_header_container_2.sizePolicy().hasHeightForWidth())
-        self.jag_header_container_2.setSizePolicy(sizePolicy6)
-        self.jag_header_container = QHBoxLayout(self.jag_header_container_2)
-        self.jag_header_container.setObjectName(u"jag_header_container")
-        self.jag_icon = QLabel(self.jag_header_container_2)
-        self.jag_icon.setObjectName(u"jag_icon")
-        self.jag_icon.setMinimumSize(QSize(32, 32))
-        self.jag_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-equalizer.png"))
-        self.jag_icon.setScaledContents(True)
-
-        self.jag_header_container.addWidget(self.jag_icon, 0, Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignTop)
-
-        self.jag_extend_button = QPushButton(self.jag_header_container_2)
-        self.jag_extend_button.setObjectName(u"jag_extend_button")
-        icon5 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ViewFullscreen))
-        self.jag_extend_button.setIcon(icon5)
-        self.jag_extend_button.setIconSize(QSize(32, 32))
-
-        self.jag_header_container.addWidget(self.jag_extend_button, 0, Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTop)
-
-
-        self.verticalLayout_24.addWidget(self.jag_header_container_2)
-
-        self.jag_content_container = QWidget(self.jag_container)
-        self.jag_content_container.setObjectName(u"jag_content_container")
-        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-        sizePolicy7.setHorizontalStretch(0)
-        sizePolicy7.setVerticalStretch(1)
-        sizePolicy7.setHeightForWidth(self.jag_content_container.sizePolicy().hasHeightForWidth())
-        self.jag_content_container.setSizePolicy(sizePolicy7)
-        self.horizontalLayout_8 = QHBoxLayout(self.jag_content_container)
-        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
-        self.ordinate_label = QLabel(self.jag_content_container)
-        self.ordinate_label.setObjectName(u"ordinate_label")
-        self.ordinate_label.setPixmap(QPixmap(u":/icons/images/icons/cil-arrow-bottom-2.png"))
-        self.ordinate_label.setScaledContents(True)
-
-        self.horizontalLayout_8.addWidget(self.ordinate_label, 0, Qt.AlignmentFlag.AlignLeft)
-
-        self.label_2 = QLabel(self.jag_content_container)
-        self.label_2.setObjectName(u"label_2")
-        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-        sizePolicy8.setHorizontalStretch(1)
-        sizePolicy8.setVerticalStretch(0)
-        sizePolicy8.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
-        self.label_2.setSizePolicy(sizePolicy8)
-
-        self.horizontalLayout_8.addWidget(self.label_2)
-
-
-        self.verticalLayout_24.addWidget(self.jag_content_container)
-
-
-        self.verticalLayout_22.addWidget(self.jag_container)
 
         self.stackedWidget.addWidget(self.home)
         self.widgets = QWidget()
@@ -1805,11 +1755,11 @@ class Ui_MainWindow(object):
         __qtablewidgetitem23 = QTableWidgetItem()
         self.tableWidget.setItem(0, 3, __qtablewidgetitem23)
         self.tableWidget.setObjectName(u"tableWidget")
-        sizePolicy9 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy9.setHorizontalStretch(0)
-        sizePolicy9.setVerticalStretch(0)
-        sizePolicy9.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
-        self.tableWidget.setSizePolicy(sizePolicy9)
+        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy6.setHorizontalStretch(0)
+        sizePolicy6.setVerticalStretch(0)
+        sizePolicy6.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicy6)
         palette = QPalette()
         brush = QBrush(QColor(221, 221, 221, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -2098,6 +2048,7 @@ class Ui_MainWindow(object):
         self.c_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.c_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.cancel_task_button_2.setText(QCoreApplication.translate("MainWindow", u"CANCEL", None))
+        self.task_done_button.setText(QCoreApplication.translate("MainWindow", u"TASK DONE", None))
         self.c_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.c_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
         self.c_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
@@ -2114,10 +2065,6 @@ class Ui_MainWindow(object):
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
         self.cancel_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
         self.ack_button.setText(QCoreApplication.translate("MainWindow", u"Ask TARS for a recap", None))
-        self.jag_icon.setText("")
-        self.jag_extend_button.setText("")
-        self.ordinate_label.setText("")
-        self.label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))
         self.lineEdit.setText("")
         self.lineEdit.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type here", None))

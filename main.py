@@ -150,12 +150,12 @@ class MainWindow(QMainWindow):
 
         # BUTTONS CLICK
         # ///////////////////////////////////////////////////////////////
-
+        widgets.task_done_button.clicked.connect(self.task_done_clicked)
+        widgets.ack_button.clicked.connect(self.task_done_clicked)
+        widgets.cancel_task_button_2.clicked.connect(self.task_cancel_clicked)
+        widgets.cancel_button.clicked.connect(self.task_cancel_clicked)
         # LEFT MENUS
         widgets.btn_home.clicked.connect(self.buttonClick)
-        widgets.btn_widgets.clicked.connect(self.buttonClick)
-        widgets.btn_new.clicked.connect(self.buttonClick)
-        widgets.btn_save.clicked.connect(self.buttonClick)
 
         # EXTRA LEFT BOX
         def openCloseLeftBox():
@@ -330,9 +330,27 @@ class MainWindow(QMainWindow):
         if current_task["autonomy_role"] != "performer":
             self.hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
+            self.ui.cancel_task_button_2.hide()
+            self.ui.task_done_button.show()
+            self.ui.task_done_button.setStyleSheet(
+                """
+                border: 2px solid #3399ff;
+                border-radius: 5px;
+                background-color: rgba(0, 168, 120, 255);
+                font: 600 16pt "JetBrains Mono";
+                """)
         else:
             self.show_label(self.ui.c_t_prog_widget_2)
             self.start_glow_effect(self.ui.current_task_container_3)
+            self.ui.task_done_button.hide()
+            self.ui.cancel_task_button_2.show()            
+            self.ui.task_done_button.setStyleSheet(
+                """
+                border: 2px solid #3399ff;
+                border-radius: 5px;
+                background-color: rgba(208, 04, 04, 255);
+                font: 600 16pt "JetBrains Mono";
+                """)
 
         if next_task["autonomy_role"] != "performer":
             self.hide_label(self.ui.n_t_prog_widget_2)
@@ -364,31 +382,32 @@ class MainWindow(QMainWindow):
             self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
             match current_task["interaction"]:
                 case "display_winds_and_ack":
-                    self.ui.interaction_panel_text.setText("Winds: ")
+                    self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
+                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
                     self.ui.ack_button.setText("Acknowledge")
                 case "display_cas":
-                    self.ui.interaction_panel_text.setText("CAS: ")
+                    self.ui.interaction_panel_text.setText("CAS: CLEAR")
                 case "display_fadec":
-                    self.ui.interaction_panel_text.setText("FADEC: ")
+                    self.ui.interaction_panel_text.setText("Clear")
                 case "display_eng_spool_evenly":
-                    self.ui.interaction_panel_text.setText("Engines Spool Evenly: ")
+                    self.ui.interaction_panel_text.setText("Clear")
                 case "display_n1_matches_command_bug":
-                    self.ui.interaction_panel_text.setText("N1 Matches Command Bug: ")
+                    self.ui.interaction_panel_text.setText("Clear")
                 case "display_trim_rudder":
                     self.ui.interaction_panel_text.setText("Current trim : 0%")
                 case "display_alarm":
-                    self.ui.interaction_panel_text.setText("Alarm: ")
+                    self.ui.interaction_panel_text.setText("Alarm: Engine Fire")
                 case "display_l/g":
-                    self.ui.interaction_panel_text.setText("Landing Gear: ")
+                    self.ui.interaction_panel_text.setText("Landing Gear: up")
                 case "display_airspeed":
-                    self.ui.interaction_panel_text.setText("Airspeed: ")
+                    self.ui.interaction_panel_text.setText("Airspeed: V2")
                 case "display_set_speed":
-                    self.ui.interaction_panel_text.setText("Set Speed: ")
+                    self.ui.interaction_panel_text.setText("Set Speed mode: FLC heading mode")
                 case "display_ATC_msg_and_buttons_mayday":
-                    self.ui.interaction_panel_text.setText("ATC Message: Mayday")
+                    self.ui.interaction_panel_text.setText("ATC Message: Mayday, Mayday, Mayday, Montreal Tower, from Papa Oscar Lima Yankee, engine fire after takeoff due to bird strike")
                     if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
                     self.ui.cancel_button.hide()
-                    self.ui.ack_button.setText("Allow TARS to send Mayday")
+                    self.ui.ack_button.setText("Allow TARS to send Mayday message to ATC")
                 case "display_engage_autopilot":
                     self.ui.interaction_panel_text.setText("Engage Autopilot: ")
                     if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
@@ -396,13 +415,13 @@ class MainWindow(QMainWindow):
                     self.ui.ack_button.setText("Engage")
                     self.ui.cancel_button.setText("CANCEL")
                 case "display_check_v2_plus_12":
-                    self.ui.interaction_panel_text.setText("Check V2 + 12 : ")
+                    self.ui.interaction_panel_text.setText("")
                 case "display_start_chrono":
                     self.ui.interaction_panel_text.setText("Start chrono")
                 case "display_chrono_15_s":
-                    self.ui.interaction_panel_text.setText("15 s")
+                    self.ui.interaction_panel_text.setText("Check the emergency fire light in 15 s")
                 case "display_chrono_30_s":
-                    self.ui.interaction_panel_text.setText("30 s")
+                    self.ui.interaction_panel_text.setText("Check the emergency fire light in 30 s")
                 case "display_checklist_emer_eng_fire_continue":
                     self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
                     if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
@@ -416,12 +435,12 @@ class MainWindow(QMainWindow):
                 case "display_checklist_emer_eng_fire":
                     self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
                 case "display_imm_act_check":
-                    self.ui.interaction_panel_text.setText("Immediate action intem : ")
+                    self.ui.interaction_panel_text.setText("Immediate action item : Throttle affected engine IDLE\nIlluminated ENGINE FIRE Switch LIFT COVER AND PUSH")
                 case "display_ATC_msg_and_buttons_panpan":
-                    self.ui.interaction_panel_text.setText("ATC Message: Panpan")
+                    self.ui.interaction_panel_text.setText("ATC Message: PanpanPan-Pan, Pan-Pan, Pan-Pan, Montreal Tower, from Papa Oscar Lima Yankee, request vectors to return for landing with one engine.")
                     if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
                     self.ui.cancel_button.hide()
-                    self.ui.ack_button.setText("Allow TARS to send Panpan")
+                    self.ui.ack_button.setText("Allow TARS to send Panpan message to ATC")
                 case "display_set_heading":
                     self.ui.interaction_panel_text.setText("Set heading : ")
                 case "display_set_flc":
@@ -433,25 +452,25 @@ class MainWindow(QMainWindow):
                 case "display_checklist_aft_takeoff":
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
                 case "display_yaw_damper_prop":
-                    self.ui.interaction_panel_text.setText("Yaw damper : ")
+                    self.ui.interaction_panel_text.setText("Yaw damper : TARS suggest ON")
                     if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
                     if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
                     self.ui.ack_button.setText("Accept")
                     self.ui.cancel_button.setText("Refuse")
                 case "display_deice_prop":
-                    self.ui.interaction_panel_text.setText("De-ice : ")
+                    self.ui.interaction_panel_text.setText("De-ice : TARS suggest OFF")
                     if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
                     if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
                     self.ui.ack_button.setText("Accept")
                     self.ui.cancel_button.setText("Refuse")
                 case "display_pax_safety_prop":
-                    self.ui.interaction_panel_text.setText("Pax safety: ")
+                    self.ui.interaction_panel_text.setText("Pax safety: TARS suggest ON")
                     if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
                     if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
                     self.ui.ack_button.setText("Accept")
                     self.ui.cancel_button.setText("Refuse")
                 case "display_alti_set_std":
-                    self.ui.interaction_panel_text.setText("Alti set STD: ")
+                    self.ui.interaction_panel_text.setText("Setting altimeter to STD")
                 case "display_checklist_eng_fail_proc_continue":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
                     if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
@@ -459,7 +478,7 @@ class MainWindow(QMainWindow):
                 case "display_checklist_eng_fail_proc":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
                 case "display_caution_text":
-                    self.ui.interaction_panel_text.setText("Caution text")
+                    self.ui.interaction_panel_text.setText("Caution text \nIf possible, the engines should remain at idle for a minimum of two minutes prior to shutdown to allow the engine inter-turbine temperature to stabilize and avoid turbine blade rub.\nIf the engine windmills for more than 15 minutes without a positive indication of oil pressure, a notation is required in the engine logbook and the engine must be inspected in accordance with the Pratt & Whitney engine maintenance manual.\nIf the engine windmills for more than 30 minutes with the firewall shutoff closed or the boost pump turned off, the engine fuel pump must be inspected in accordance with the Pratt & Whitney engine maintenance manual.")
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
         
@@ -498,6 +517,24 @@ class MainWindow(QMainWindow):
         print(f'Button "{btnName}" pressed!')
 
 
+    def task_done_clicked(self):
+        btn = self.sender()
+        btn.setStyleSheet(f"""
+                    border: 2px solid #3399ff;
+                    border-radius: 5px;
+                    background-color: rgba(0, 48, 20, 255);
+                    font: 600 16pt "JetBrains Mono";
+                """)
+        self.agent.task_done_human[0] = True
+        
+    def task_cancel_clicked(self):
+        btn = self.sender()
+        btn.setStyleSheet(f"""
+                    border: 2px solid #3399ff;
+                    border-radius: 5px;
+                    background-color: rgba(108, 04, 04, 255);
+                    font: 600 16pt "JetBrains Mono";
+                """)
     # RESIZE EVENTS
     # ///////////////////////////////////////////////////////////////
     def resizeEvent(self, event):
