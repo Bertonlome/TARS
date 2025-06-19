@@ -151,9 +151,9 @@ class MainWindow(QMainWindow):
         # BUTTONS CLICK
         # ///////////////////////////////////////////////////////////////
         widgets.task_done_button.clicked.connect(self.task_done_clicked)
-        widgets.ack_button.clicked.connect(self.task_done_clicked)
+        widgets.int_panel_right_button.clicked.connect(self.task_done_clicked)
         widgets.cancel_task_button_2.clicked.connect(self.task_cancel_clicked)
-        widgets.cancel_button.clicked.connect(self.task_cancel_clicked)
+        widgets.int_panel_left_button.clicked.connect(self.task_cancel_clicked)
         # LEFT MENUS
         widgets.btn_home.clicked.connect(self.buttonClick)
 
@@ -377,14 +377,14 @@ class MainWindow(QMainWindow):
             self.ui.n_t_s_value_2.setText(seconds)
 
         if current_task["interaction"] is not None:
-            self.ui.ack_button.hide()
-            self.ui.cancel_button.hide()
+            self.ui.int_panel_right_button.hide()
+            self.ui.int_panel_left_button.hide()
             self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
             match current_task["interaction"]:
                 case "display_winds_and_ack":
                     self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
-                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
-                    self.ui.ack_button.setText("Acknowledge")
+                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("Acknowledge")
                 case "display_cas":
                     self.ui.interaction_panel_text.setText("CAS: CLEAR")
                 case "display_fadec":
@@ -405,15 +405,15 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Set Speed mode: FLC heading mode")
                 case "display_ATC_msg_and_buttons_mayday":
                     self.ui.interaction_panel_text.setText("ATC Message: Mayday, Mayday, Mayday, Montreal Tower, from Papa Oscar Lima Yankee, engine fire after takeoff due to bird strike")
-                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
-                    self.ui.cancel_button.hide()
-                    self.ui.ack_button.setText("Allow TARS to send Mayday message to ATC")
+                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.hide()
+                    self.ui.int_panel_right_button.setText("Allow TARS to send Mayday message to ATC")
                 case "display_engage_autopilot":
                     self.ui.interaction_panel_text.setText("Engage Autopilot: ")
-                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
-                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
-                    self.ui.ack_button.setText("Engage")
-                    self.ui.cancel_button.setText("CANCEL")
+                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    self.ui.int_panel_right_button.setText("Engage")
+                    self.ui.int_panel_left_button.setText("CANCEL")
                 case "display_check_v2_plus_12":
                     self.ui.interaction_panel_text.setText("")
                 case "display_start_chrono":
@@ -424,57 +424,57 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Check the emergency fire light in 30 s")
                 case "display_checklist_emer_eng_fire_continue":
                     self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
-                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
-                    self.ui.ack_button.setText("Continue")
+                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("Continue")
                 case "display_allocate_radio":
                     self.ui.interaction_panel_text.setText("Allocate radio : ")
-                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
-                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
-                    self.ui.ack_button.setText("TARS does the radio")
-                    self.ui.cancel_button.setText("Captain does the radio")
+                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    self.ui.int_panel_right_button.setText("TARS does the radio")
+                    self.ui.int_panel_left_button.setText("Captain does the radio")
                 case "display_checklist_emer_eng_fire":
                     self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
                 case "display_imm_act_check":
                     self.ui.interaction_panel_text.setText("Immediate action item : Throttle affected engine IDLE\nIlluminated ENGINE FIRE Switch LIFT COVER AND PUSH")
                 case "display_ATC_msg_and_buttons_panpan":
                     self.ui.interaction_panel_text.setText("ATC Message: PanpanPan-Pan, Pan-Pan, Pan-Pan, Montreal Tower, from Papa Oscar Lima Yankee, request vectors to return for landing with one engine.")
-                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
-                    self.ui.cancel_button.hide()
-                    self.ui.ack_button.setText("Allow TARS to send Panpan message to ATC")
+                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.hide()
+                    self.ui.int_panel_right_button.setText("Allow TARS to send Panpan message to ATC")
                 case "display_set_heading":
                     self.ui.interaction_panel_text.setText("Set heading : ")
                 case "display_set_flc":
                     self.ui.interaction_panel_text.setText("Set FLC : ")
                 case "display_checklist_aft_takeoff_continue":
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
-                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
-                    self.ui.ack_button.setText("Continue")
+                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("Continue")
                 case "display_checklist_aft_takeoff":
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
                 case "display_yaw_damper_prop":
                     self.ui.interaction_panel_text.setText("Yaw damper : TARS suggest ON")
-                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
-                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
-                    self.ui.ack_button.setText("Accept")
-                    self.ui.cancel_button.setText("Refuse")
+                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    self.ui.int_panel_right_button.setText("Accept")
+                    self.ui.int_panel_left_button.setText("Refuse")
                 case "display_deice_prop":
                     self.ui.interaction_panel_text.setText("De-ice : TARS suggest OFF")
-                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
-                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
-                    self.ui.ack_button.setText("Accept")
-                    self.ui.cancel_button.setText("Refuse")
+                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    self.ui.int_panel_right_button.setText("Accept")
+                    self.ui.int_panel_left_button.setText("Refuse")
                 case "display_pax_safety_prop":
                     self.ui.interaction_panel_text.setText("Pax safety: TARS suggest ON")
-                    if not self.ui.ack_button.isVisible() : self.ui.ack_button.show()
-                    if not self.ui.cancel_button.isVisible() : self.ui.cancel_button.show()
-                    self.ui.ack_button.setText("Accept")
-                    self.ui.cancel_button.setText("Refuse")
+                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    self.ui.int_panel_right_button.setText("Accept")
+                    self.ui.int_panel_left_button.setText("Refuse")
                 case "display_alti_set_std":
                     self.ui.interaction_panel_text.setText("Setting altimeter to STD")
                 case "display_checklist_eng_fail_proc_continue":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
-                    if not self.ui.ack_button.isVisible(): self.ui.ack_button.show()
-                    self.ui.ack_button.setText("Continue")
+                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("Continue")
                 case "display_checklist_eng_fail_proc":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
                 case "display_caution_text":
@@ -535,6 +535,27 @@ class MainWindow(QMainWindow):
                     background-color: rgba(108, 04, 04, 255);
                     font: 600 16pt "JetBrains Mono";
                 """)
+
+    def show_button(self, button, color):
+        if color == "green":
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid #3399ff;
+                    border-radius: 5px;
+                    background-color: rgba(0, 168, 120, 255);
+                    font: 600 16pt "JetBrains Mono";
+                }
+            """)
+        elif color == "red":
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid #3399ff;
+                    border-radius: 5px;
+                    background-color: rgba(208, 04, 04, 255);
+                    font: 600 16pt "JetBrains Mono";
+                }
+            """)
+        button.show()
     # RESIZE EVENTS
     # ///////////////////////////////////////////////////////////////
     def resizeEvent(self, event):

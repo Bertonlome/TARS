@@ -1452,26 +1452,26 @@ class Ui_MainWindow(object):
         self.horizontalLayout_15 = QHBoxLayout(self.int_panel_button_container)
         self.horizontalLayout_15.setObjectName(u"horizontalLayout_15")
         self.horizontalLayout_15.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
-        self.cancel_button = QPushButton(self.int_panel_button_container)
-        self.cancel_button.setObjectName(u"cancel_button")
-        self.cancel_button.setMinimumSize(QSize(0, 50))
-        self.cancel_button.setStyleSheet(u"    border: 2px solid #3399ff;\n"
+        self.int_panel_left_button = QPushButton(self.int_panel_button_container)
+        self.int_panel_left_button.setObjectName(u"int_panel_left_button")
+        self.int_panel_left_button.setMinimumSize(QSize(0, 50))
+        self.int_panel_left_button.setStyleSheet(u"    border: 2px solid #3399ff;\n"
 "    border-radius: 5px;\n"
 "    background-color: rgba(248, 84, 84, 255);\n"
 "font: 600 16pt \"JetBrains Mono\";")
-        self.cancel_button.setIcon(icon4)
+        self.int_panel_left_button.setIcon(icon4)
 
-        self.horizontalLayout_15.addWidget(self.cancel_button)
+        self.horizontalLayout_15.addWidget(self.int_panel_left_button)
 
-        self.ack_button = QPushButton(self.int_panel_button_container)
-        self.ack_button.setObjectName(u"ack_button")
-        self.ack_button.setMinimumSize(QSize(0, 50))
-        self.ack_button.setStyleSheet(u"    border: 2px solid rgba(0, 168, 120, 255);\n"
+        self.int_panel_right_button = QPushButton(self.int_panel_button_container)
+        self.int_panel_right_button.setObjectName(u"int_panel_right_button")
+        self.int_panel_right_button.setMinimumSize(QSize(0, 50))
+        self.int_panel_right_button.setStyleSheet(u"    border: 2px solid rgba(0, 168, 120, 255);\n"
 "    border-radius: 5px;\n"
 "    background-color: rgba(0, 168, 120, 255);\n"
 "font: 600 16pt \"JetBrains Mono\";")
 
-        self.horizontalLayout_15.addWidget(self.ack_button)
+        self.horizontalLayout_15.addWidget(self.int_panel_right_button)
 
 
         self.verticalLayout_23.addWidget(self.int_panel_button_container)
@@ -2062,8 +2062,8 @@ class Ui_MainWindow(object):
         self.interaction_panel_icon.setText("")
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
-        self.cancel_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
-        self.ack_button.setText(QCoreApplication.translate("MainWindow", u"Ask TARS for a recap", None))
+        self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
+        self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"Ask TARS for a recap", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))
         self.lineEdit.setText("")
         self.lineEdit.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type here", None))

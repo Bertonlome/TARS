@@ -27,6 +27,7 @@ class Singleton(type):
 class Echo(metaclass=Singleton):
     def __init__(self):
         # inputs
+        self.is_on_off_i = None
         self.airspeed_i = None
         self.altitude_i = None
         self.pitch_i = None

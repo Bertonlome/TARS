@@ -61,7 +61,7 @@ task_id,procedure_name,task_name,human_role,autonomy_role,interaction,time_init_
 82,Engine failure/precautionary shutdown procedure and checklist,Announce start checklist,monitor,performer,display_checklist_eng_fail_proc_continue,,5
 83,Engine failure/precautionary shutdown procedure and checklist,Retrieve checklist,monitor,performer,display_checklist_eng_fail_proc,,5
 84,Engine failure/precautionary shutdown procedure and checklist,Throttle affected engine cutoff,performer,monitor, ,,sense
-85,Engine failure/precautionary shutdown procedure and checklist,Caution text readout,monitor,performer,display_caution_text,,3
+85,Engine failure/precautionary shutdown procedure and checklist,Caution text readout,monitor,performer,display_caution_text,,15
 86,Engine failure/precautionary shutdown procedure and checklist,Gen switch affected side OFF,performer,monitor,,,sense
 87,Engine failure/precautionary shutdown procedure and checklist,Ignition switch affected side NORM,performer,monitor,,,sense
 88,Engine failure/precautionary shutdown procedure and checklist,Electrical load reduce as required,performer,monitor,,,5

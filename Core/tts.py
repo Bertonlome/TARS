@@ -28,7 +28,7 @@ _speak_callbacks = []
 def register_speak_callback(cb):
     _speak_callbacks.append(cb)
 
-def speak(text: str):
+def speak_wait(text: str):
     """Queue text to be spoken."""
     for cb in _speak_callbacks:
         cb(text)

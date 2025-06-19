@@ -2,12 +2,12 @@ import time
 import signal
 from Core.echo import *
 from Core.fsm import FiniteStateMachine, State, Transition
-from Core.tts import speak
+from Core.tts import speak_wait
 import csv
 
 # Agent Class
 class TarsAgent:
-    def __init__(self, agent_name="TARS Agent", device="wlo1", port=5670, verbose=False):
+    def __init__(self, agent_name="TARS Agent", device="Wi-Fi", port=5670, verbose=False):
         self.agent_name = agent_name
         self.device = device
         self.port = port
@@ -110,11 +110,12 @@ class TarsAgent:
         self.finished = State("Finished")
 
         #conditions
+        self.is_on_off = [False]
         self.should_run = [False]
         self.should_finish = [False]
 
         self.fsm = FiniteStateMachine(self.idle)
-        self.fsm.add_transition(Transition(self.idle, self.confirm_takeoff_clearance, self.can_start_timeout, self.on_confirm_takeoff_clearance))
+        self.fsm.add_transition(Transition(self.idle, self.confirm_takeoff_clearance, self.is_started, self.on_confirm_takeoff_clearance))
         self.fsm.add_transition(Transition(self.confirm_takeoff_clearance, self.ali_run_cen, self.can_start_timeout, self.on_ali_run_cen))
         self.fsm.add_transition(Transition(self.ali_run_cen, self.check_winds, self.can_start_timeout, self.on_check_winds))
         self.fsm.add_transition(Transition(self.check_winds, self.hold_brakes, self.is_acked, self.on_hold_brakes))
@@ -160,7 +161,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(self.illuminated_bottle_armed_switch_push, self.turn_rotary_test_knob, self.can_start_timeout, self.on_turn_rotary_test_knob))
         self.fsm.add_transition(Transition(self.turn_rotary_test_knob, self.check_engine_fire_lights, self.is_test_knob_turned, self.on_check_engine_fire_lights))
         self.fsm.add_transition(Transition(self.check_engine_fire_lights, self.order_start_checklist, self.can_start_timeout, self.on_order_start_checklist))
-        self.fsm.add_transition(Transition(self.order_start_checklist, self.allocate_radio, self.can_start_timeout, self.on_allocate_radio))
+        self.fsm.add_transition(Transition(self.order_start_checklist, self.allocate_radio, self.is_acked, self.on_allocate_radio))
         self.fsm.add_transition(Transition(self.allocate_radio, self.retrieve_checklist, self.can_start_timeout, self.on_retrieve_checklist))
         self.fsm.add_transition(Transition(self.retrieve_checklist, self.check_immediate_action_items_done, self.can_start_timeout, self.on_check_immediate_action_items_done))
         self.fsm.add_transition(Transition(self.check_immediate_action_items_done, self.contact_atc_vector, self.can_start_timeout, self.on_immediate_action_checked))
@@ -203,6 +204,13 @@ class TarsAgent:
                 tasks.append(row)
         return tasks
     # FSM conditions and actions
+    
+    def is_started(self):
+        if self.is_on_off[0]:
+            return True
+        return False
+    
+    
     def can_start_timeout(self):
         if self.state_entry_time is None:
             return False #Not ready yet
@@ -227,25 +235,25 @@ class TarsAgent:
         return False
 
     def is_airspeed_alive(self):
-        if self.agent.airspeed_i is not None and self.agent.airspeed_i > 30:
-            speak("Airspeed's alive")
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i > 10:
+            speak_wait("Airspeed's alive")
             return True
         return False
 
     def is_seventy_kts(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 70:
-            speak("Seventy Knots")
+            speak_wait("Seventy Knots")
             return True
         return False
 
     def is_v_one(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 90:
-            speak("Rotate")
+            speak_wait("Rotate")
             return True
         return False
 
     def is_v_rotate(self):
-        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 91:
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 100:
             return True
         return False
 
@@ -272,7 +280,6 @@ class TarsAgent:
         return False
     
     def is_master_warning_reset(self):
-        print("Resetting Master Warning")
         if self.agent.master_warning_i is not None and self.agent.master_warning_i == 0:
             return True
         return False
@@ -314,7 +321,6 @@ class TarsAgent:
         return False
     
     def is_test_knob_turned(self):
-        print(f"Checking if test knob is turned - Value: {self.agent.test_knob_i}")
         if self.agent.test_knob_i is not None and self.agent.test_knob_i == 1:
             return True
         return False
@@ -352,19 +358,19 @@ class TarsAgent:
             (task for task in self.tasks if task.get("task_name") == current_state_name), None
         )
         if self.current_task:
-            speak(f"{self.current_task['task_name']}")
+            speak_wait(f"{self.current_task['task_name']}")
         else:
             print(f"No task found for state: {current_state_name}")
         time.sleep(3)  # Simulate some startup delay
         
     def get_time_init_action_for_state(self, state_name):
-        seconds = 0
+        seconds = 1
         task = next((task for task in self.tasks if task.get("task_name", "").strip() == state_name.name), None)
         if task is not None:
             try:
                 seconds = int(task.get("time_init_action")) +1 
             except (TypeError, ValueError):
-                seconds = 0
+                seconds = 1
         #print(seconds)
         return seconds
 
@@ -392,18 +398,18 @@ class TarsAgent:
         print("Action: Aligning with runway centerline...")
     def on_check_winds(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking winds...")
-        speak("wind report Wind calm  zero two 6 degrees at 3 knots")
+        speak_wait("wind report, Wind calm, zero two 6 degrees at 3 knots")
+        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
     def on_hold_brakes(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Holding brakes...")
     def on_check_cas_clear(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking CAS clear...")
-        speak("CAS is clear")
+        speak_wait("C.A.S. is clear")
     def on_set_thrust(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -426,59 +432,59 @@ class TarsAgent:
         print("Action: Checking N1% matches command bug...")
     def on_release_brakes(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Releasing brakes...")
     def on_airspeed_alive(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Airspeed's alive...")
     def on_seventy_kts(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Seventy knots...")
     def on_v1(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: V1...")
     def on_rotate(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Rotate...")
     def on_maintain_pitch(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Maintaining 10 degrees pitch...")
     def on_scan_slip_skid(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Scanning slip/skid indicator...")
     def on_check_positive_rate(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Checking positive rate...")
     def on_positive_rate_gear_up(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Positive rate, gear up...")
-        speak("Positive rate, gear up")
+        speak_wait("Positive rate, gear up")
     def on_gear_up(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Gear up...")
     def on_apply_rudder(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Applying rudder...")
     def on_trim_rudder(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Trimming rudder...")
-        speak("Trimming rudder")
+        speak_wait("Trimming rudder")
     def on_announce_alarm(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announcing alarm...")
-        speak("Alarm Engine fire, Low oil pressure")
+        speak_wait("Alarm Engine fire, Low oil pressure")
     def on_reset_master_warning(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -521,7 +527,7 @@ class TarsAgent:
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Seven hundred feet, engage autopilot...")
-        speak("Seven hundred feet, engage autopilot")
+        speak_wait("Seven hundred feet, engage autopilot")
     def on_engage_autopilot(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -534,7 +540,7 @@ class TarsAgent:
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Retract flaps...")
-        speak("Retract flaps")
+        speak_wait("Retract flaps")
     def on_retract_flaps(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -543,7 +549,7 @@ class TarsAgent:
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Affected thrust lever, confirm and idle...")
-        speak("Affected thrust lever, confirm and idle")
+        speak_wait("Affected thrust lever, confirm and idle")
     def on_throttle_affected_idle(self):
         self.state_entry_time = time.monotonic()
         self.state_entry_time = time.monotonic()
@@ -551,7 +557,7 @@ class TarsAgent:
         print("Action: Throttle affected idle...")
     def on_top(self):
         self.state_entry_time = time.monotonic()
-        speak("TOP")
+        speak_wait("TOP")
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: TOP...")
     def on_start_chrono(self):
@@ -565,12 +571,12 @@ class TarsAgent:
     def on_eng_fire_switch_lift_cover_push(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("ENG FIRE switch lift cover and push")
+        speak_wait("ENG FIRE switch lift cover and push")
         print("Action: ENG FIRE switch lift cover and push...")
     def on_affected_thrust_lever_confirm_cutoff(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Affected thrust lever, confirm and cutoff")
+        speak_wait("Affected thrust lever, confirm and cutoff")
         print("Action: Affected thrust lever, confirm and cutoff...")
     def on_cutoff(self):
         self.state_entry_time = time.monotonic()
@@ -579,22 +585,22 @@ class TarsAgent:
     def on_affected_engine_fuel_boost_confirm_off_then_norm(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Affected engine fuel boost confirm off then norm")
+        speak_wait("Affected engine fuel boost confirm off then norm")
         print("Action: Affected engine fuel boost confirm off then norm...")
     def on_off_then_norm(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Off then norm")
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        speak_wait("Off then norm")
         print("Action: Off then norm...")
     def on_fuel_boost_off(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Fuel boost off")
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        speak_wait("Fuel boost off")
         print("Action: Fuel boost off...")
     def on_fuel_boost_norm(self):
         self.state_entry_time = time.monotonic()
-        time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Fuel boost norm")
+        #time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
+        speak_wait("Fuel boost norm")
         print("Action: Fuel boost norm...")
     def on_check_light_after_30_seconds(self):
         self.state_entry_time = time.monotonic()
@@ -603,7 +609,7 @@ class TarsAgent:
     def on_thirty_seconds_light_remains_on_bottle_discharge(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Thirty seconds, light remains on, bottle discharge")
+        speak_wait("Thirty seconds, light remains on, bottle discharge")
         print("Action: Thirty seconds, light remains on, bottle discharge...")
     def on_discharge(self):
         self.state_entry_time = time.monotonic()
@@ -625,6 +631,7 @@ class TarsAgent:
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Ordering start checklist...")
+        speak_wait("Start checklist : Engine fire emergency Checklist")
     def on_allocate_radio(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -641,7 +648,7 @@ class TarsAgent:
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Immediate action checked, Current checklist completed, Checklist to refer next: precautionary shutdown")
-        speak("Immediate action checked, Current checklist completed, Checklist to refer next: precautionary shutdown")
+        speak_wait("Immediate action checked, Current checklist completed, Checklist to refer next: precautionary shutdown")
     def on_contact_atc_vector(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -666,6 +673,7 @@ class TarsAgent:
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announcing start checklist...")
+        speak_wait("Start checklist : After takeoff normal checklist")
     def on_retrieve_checklist_start(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -701,7 +709,7 @@ class TarsAgent:
     def on_alti_set_std(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Alti set Standard")
+        speak_wait("Alti set Standard")
         print("Action: Alti set STD...")
     def on_crosscheck_alti(self):
         self.state_entry_time = time.monotonic()
@@ -710,12 +718,13 @@ class TarsAgent:
     def on_announce_checklist_completed(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("checklist completed")
+        speak_wait("checklist completed")
         print("Action: Announce checklist completed...")
     def on_announce_start_checklist_retrieve(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print("Action: Announce start checklist retrieve...")
+        speak_wait("Start checklist : Engine failure precautionary shutdown checklist")
     def on_retrieve_checklist_start_checklist(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
@@ -723,7 +732,7 @@ class TarsAgent:
     def on_throttle_affected_engine_cutoff(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Throttle affected engine cutoff")
+        speak_wait("Throttle affected engine cutoff")
         print("Action: Throttle affected engine cutoff...")
     def on_caution_text_readout(self):
         self.state_entry_time = time.monotonic()
@@ -732,12 +741,12 @@ class TarsAgent:
     def on_gen_switch_affected_side_off(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Gen switch affected side OFF")
+        speak_wait("Gen switch affected side OFF")
         print("Action: Gen switch affected side OFF...")
     def on_ignition_switch_affected_side_norm(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("Ignition switch affected side NORM")
+        speak_wait("Ignition switch affected side NORM")
         print("Action: Ignition switch affected side NORM...")
     def on_electrical_load_reduce_as_required(self):
         self.state_entry_time = time.monotonic()
@@ -754,7 +763,7 @@ class TarsAgent:
     def on_announce_current_checklist_completed(self):
         self.state_entry_time = time.monotonic()
         time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
-        speak("checklist completed, Checklist to refer next: single engine approach and landing")
+        speak_wait("checklist completed, Checklist to refer next: single engine approach and landing")
         print("Action: Announce current checklist completed, Checklist to refer next: single engine approach and landing")
     def on_finished(self):
         self.state_entry_time = time.monotonic()
@@ -785,6 +794,8 @@ class TarsAgent:
 
     def bool_input_callback(self, io_type, name, value_type, value, my_data):
         igs.info(f"Input {name} written to {value}")
+        if name == "On_Off":
+            self.is_on_off[0] = value
         agent_object = my_data
         assert isinstance(agent_object, Echo)
 
@@ -936,6 +947,7 @@ class TarsAgent:
         igs.output_create("autopilot_state", igs.DOUBLE_T, None)  # need to understand this seems to be an integer that represents the state of the autopilot
         igs.output_create("yaw_damper", igs.DOUBLE_T, None)  # 0 is off, 1 is on
 
+        igs.input_create("On_Off", igs.BOOL_T, None)
         igs.input_create("airspeed", igs.DOUBLE_T, None)
         igs.input_create("pitch", igs.DOUBLE_T, None)
         igs.input_create("roll", igs.DOUBLE_T, None)
@@ -974,7 +986,7 @@ class TarsAgent:
         igs.input_create("r_gen_switch", igs.DOUBLE_T, None)  # 0 is reset, 1 is off 2 is on
         igs.input_create("transfer_knob", igs.DOUBLE_T, None)  # 0 is left, 1 is off 2 is right
 
-
+        igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("airspeed", self.double_input_callback, self.agent)
         igs.observe_input("pitch", self.double_input_callback, self.agent)
         igs.observe_input("roll", self.double_input_callback, self.agent)
