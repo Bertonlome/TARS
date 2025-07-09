@@ -2464,7 +2464,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                              <string notr="true">font: 500 20pt &quot;JetBrains Mono&quot;;</string>
                             </property>
                             <property name="text">
-                             <string>Interaction Panel</string>
+                             <string>Interaction Panel title</string>
                             </property>
                            </widget>
                           </item>

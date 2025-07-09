@@ -5,8 +5,15 @@ import time
 
 
 class State:
-    def __init__(self, name):
+    def __init__(self, name, procedure_name, delay_before_action):
+        """ Initializes a state in the FSM.
+        :param name: Name of the state
+        :param procedure_name: Optional name of the procedure associated with this state
+        :param delay_before_action: Optional delay before performing the action associated with this state
+        """
         self.name = name
+        self.procedure_name = procedure_name  # name of the procedure associated with this state
+        self.delay_before_action = delay_before_action  # seconds before action is performed
 
     def __repr__(self):
         return f"State({self.name})"

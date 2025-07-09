@@ -17,7 +17,9 @@ class TarsAgent:
         self.state_entry_time = time.monotonic()
         self.task_done_human = [False]
 
+        self.states = {}
         # FSM setup
+        """
         self.idle = State("Idle")
         self.confirm_takeoff_clearance = State("Confirm takeoff clearance")
         self.ali_run_cen = State("Align with runway centerline")
@@ -107,87 +109,93 @@ class TarsAgent:
         self.fuel_transfer_knob_as_required = State("Fuel transfer knob as required")
         self.verify_engine_fire_switch_affected_side = State("Verify engine fire switch affected side is pushed")
         self.announce_current_checklist_completed = State("Announce current checklist completed, Checklist to refer next: single engine approach and landing")
-        self.finished = State("Finished")
+        self.finished = State("Finished") """
+
+
 
         #conditions
         self.is_on_off = [False]
         self.should_run = [False]
         self.should_finish = [False]
 
-        self.fsm = FiniteStateMachine(self.idle)
-        self.fsm.add_transition(Transition(self.idle, self.confirm_takeoff_clearance, self.is_started, self.on_confirm_takeoff_clearance))
-        self.fsm.add_transition(Transition(self.confirm_takeoff_clearance, self.ali_run_cen, self.can_start_timeout, self.on_ali_run_cen))
-        self.fsm.add_transition(Transition(self.ali_run_cen, self.check_winds, self.can_start_timeout, self.on_check_winds))
-        self.fsm.add_transition(Transition(self.check_winds, self.hold_brakes, self.is_acked, self.on_hold_brakes))
-        self.fsm.add_transition(Transition(self.hold_brakes, self.check_cas_clear, self.can_start_timeout, self.on_check_cas_clear))
-        self.fsm.add_transition(Transition(self.check_cas_clear, self.set_thrust, self.can_start_timeout, self.on_set_thrust))
-        self.fsm.add_transition(Transition(self.set_thrust, self.check_fadec_bug_to, self.is_thrust_sensed, self.on_check_fadec_bug_to))
-        self.fsm.add_transition(Transition(self.check_fadec_bug_to, self.check_engine_spool_evenly, self.can_start_timeout, self.on_check_engine_spool_evenly))
-        self.fsm.add_transition(Transition(self.check_engine_spool_evenly, self.check_n1_percent, self.can_start_timeout, self.on_thrust_set))
-        self.fsm.add_transition(Transition(self.check_n1_percent, self.release_brakes, self.can_start_timeout, self.on_release_brakes))
-        self.fsm.add_transition(Transition(self.release_brakes, self.airspeed_alive, self.is_brake_released_sensed, self.on_airspeed_alive))
-        self.fsm.add_transition(Transition(self.airspeed_alive, self.seventy_kts, self.is_airspeed_alive, self.on_seventy_kts))
-        self.fsm.add_transition(Transition(self.seventy_kts, self.v1, self.is_seventy_kts, self.on_v1))
-        self.fsm.add_transition(Transition(self.v1, self.rotate, self.is_v_one , self.on_rotate))
-        self.fsm.add_transition(Transition(self.rotate, self.maintain_pitch, self.is_v_rotate , self.on_maintain_pitch))
-        self.fsm.add_transition(Transition(self.maintain_pitch, self.check_positive_rate, self.is_pitch_maintained, self.on_check_positive_rate))
+        self.states = self.create_states_from_csv("Core/task_allocation.csv")
+        self.fsm = FiniteStateMachine(self.states["idle"])
+
+        
+        self.fsm.add_transition(Transition(self.states["idle"], self.states["confirm_takeoff_clearance"], self.is_started, self.on_confirm_takeoff_clearance))
+        self.fsm.add_transition(Transition(self.states["confirm_takeoff_clearance"], self.states["ali_run_cen"], self.can_start_timeout, self.on_ali_run_cen))
+        self.fsm.add_transition(Transition(self.states["ali_run_cen"], self.states["check_winds"], self.can_start_timeout, self.on_check_winds))
+        self.fsm.add_transition(Transition(self.states["check_winds"], self.states["hold_brakes"], self.is_acked, self.on_hold_brakes))
+        self.fsm.add_transition(Transition(self.states["hold_brakes"], self.states["check_cas_clear"], self.can_start_timeout, self.on_check_cas_clear))
+        self.fsm.add_transition(Transition(self.states["check_cas_clear"], self.states["set_thrust"], self.can_start_timeout, self.on_set_thrust))
+        self.fsm.add_transition(Transition(self.states["set_thrust"], self.states["check_fadec_bug_to"], self.is_thrust_sensed, self.on_check_fadec_bug_to))
+        self.fsm.add_transition(Transition(self.states["check_fadec_bug_to"], self.states["check_engine_spool_evenly"], self.can_start_timeout, self.on_check_engine_spool_evenly))
+        self.fsm.add_transition(Transition(self.states["check_engine_spool_evenly"], self.states["check_n1_percent"], self.can_start_timeout, self.on_thrust_set))
+        self.fsm.add_transition(Transition(self.states["check_n1_percent"], self.states["release_brakes"], self.can_start_timeout, self.on_release_brakes))
+        self.fsm.add_transition(Transition(self.states["release_brakes"], self.states["airspeed_alive"], self.is_brake_released_sensed, self.on_airspeed_alive))
+        self.fsm.add_transition(Transition(self.states["airspeed_alive"], self.states["seventy_kts"], self.is_airspeed_alive, self.on_seventy_kts))
+        self.fsm.add_transition(Transition(self.states["seventy_kts"], self.states["v1"], self.is_seventy_kts, self.on_v1))
+        self.fsm.add_transition(Transition(self.states["v1"], self.states["rotate"], self.is_v_one, self.on_rotate))
+        self.fsm.add_transition(Transition(self.states["rotate"], self.states["maintain_pitch"], self.is_v_rotate, self.on_maintain_pitch))
+        self.fsm.add_transition(Transition(self.states["maintain_pitch"], self.states["check_positive_rate"], self.is_pitch_maintained, self.on_check_positive_rate))
         #self.fsm.add_transition(Transition(self.scan_slip_skid, self.check_positive_rate, self.can_start_timeout, self.on_check_positive_rate))
-        self.fsm.add_transition(Transition(self.check_positive_rate, self.gear_up, self.is_positive_rate, self.on_positive_rate_gear_up))
-        self.fsm.add_transition(Transition(self.gear_up, self.announce_alarm, self.is_alarm, self.on_announce_alarm))
+        self.fsm.add_transition(Transition(self.states["check_positive_rate"], self.states["gear_up"], self.is_positive_rate, self.on_positive_rate_gear_up))
+        self.fsm.add_transition(Transition(self.states["gear_up"], self.states["announce_alarm"], self.is_alarm, self.on_announce_alarm))
         #self.fsm.add_transition(Transition(self.apply_rudder, self.trim_rudder, self.can_start_timeout, self.on_trim_rudder))
         #self.fsm.add_transition(Transition(self.trim_rudder, self.announce_alarm, self.can_start_timeout, self.on_announce_alarm))
-        self.fsm.add_transition(Transition(self.announce_alarm, self.reset_master_warning, self.can_start_timeout, self.on_reset_master_warning))
-        self.fsm.add_transition(Transition(self.reset_master_warning, self.set_fd_to_mode, self.is_master_warning_reset, self.on_set_fd_to_mode))
-        self.fsm.add_transition(Transition(self.set_fd_to_mode, self.check_lg_up, self.can_start_timeout, self.on_maintain_pitch_after_fd))
-        self.fsm.add_transition(Transition(self.check_lg_up, self.check_airspeed_v2, self.is_gear_up, self.on_check_airspeed_v2))
-        self.fsm.add_transition(Transition(self.check_airspeed_v2, self.speed_mode_flc_v2_heading_mode, self.is_airspeed_v_two, self.on_say_speed_mode_flc_v2_heading_mode))
-        self.fsm.add_transition(Transition(self.speed_mode_flc_v2_heading_mode, self.contact_atc_emergency, self.can_start_timeout, self.on_contact_atc_emergency))
-        self.fsm.add_transition(Transition(self.contact_atc_emergency, self.listen_atc, self.is_acked, self.on_listen_atc))
-        self.fsm.add_transition(Transition(self.listen_atc, self.engage_autopilot, self.is_ap_altitude, self.on_seven_hundred_ft_engage_ap))
-        self.fsm.add_transition(Transition(self.engage_autopilot, self.check_v2_plus_twelve, self.is_v2_plus_12 , self.on_check_v2_plus_twelve))
-        self.fsm.add_transition(Transition(self.check_v2_plus_twelve, self.retract_flaps, self.can_start_timeout, self.on_say_retract_flaps))
-        self.fsm.add_transition(Transition(self.retract_flaps, self.throttle_affected_idle, self.is_flaps_retracted, self.on_affected_thrust_lever_confirm_idle))
-        self.fsm.add_transition(Transition(self.throttle_affected_idle, self.start_chrono, self.is_throttle_idle, self.on_top))
-        self.fsm.add_transition(Transition(self.start_chrono, self.check_light_after_15_seconds, self.can_start_timeout, self.on_check_light_after_15_seconds))
-        self.fsm.add_transition(Transition(self.check_light_after_15_seconds, self.eng_fire_switch_lift_cover_push, self.can_start_timeout, self.on_eng_fire_switch_lift_cover_push))
-        self.fsm.add_transition(Transition(self.eng_fire_switch_lift_cover_push, self.cutoff, self.can_start_timeout, self.on_affected_thrust_lever_confirm_cutoff))
-        self.fsm.add_transition(Transition(self.cutoff, self.affected_engine_fuel_boost_confirm_off_then_norm, self.is_throttle_cutoff, self.on_affected_engine_fuel_boost_confirm_off_then_norm))
-        self.fsm.add_transition(Transition(self.affected_engine_fuel_boost_confirm_off_then_norm, self.fuel_boost_off, self.can_start_timeout, self.on_fuel_boost_off))
-        self.fsm.add_transition(Transition(self.fuel_boost_off, self.fuel_boost_norm, self.is_fuel_boost_off, self.on_fuel_boost_norm))
-        self.fsm.add_transition(Transition(self.fuel_boost_norm, self.check_light_after_30_seconds, self.is_fuel_boost_norm, self.on_check_light_after_30_seconds))
-        self.fsm.add_transition(Transition(self.check_light_after_30_seconds, self.thirty_seconds_light_remains_on_bottle_discharge, self.can_start_timeout, self.on_thirty_seconds_light_remains_on_bottle_discharge))
-        self.fsm.add_transition(Transition(self.thirty_seconds_light_remains_on_bottle_discharge, self.discharge, self.can_start_timeout, self.on_discharge))
-        self.fsm.add_transition(Transition(self.discharge, self.illuminated_bottle_armed_switch_push, self.can_start_timeout, self.on_illuminated_bottle_armed_switch_push))
-        self.fsm.add_transition(Transition(self.illuminated_bottle_armed_switch_push, self.turn_rotary_test_knob, self.can_start_timeout, self.on_turn_rotary_test_knob))
-        self.fsm.add_transition(Transition(self.turn_rotary_test_knob, self.check_engine_fire_lights, self.is_test_knob_turned, self.on_check_engine_fire_lights))
-        self.fsm.add_transition(Transition(self.check_engine_fire_lights, self.order_start_checklist, self.can_start_timeout, self.on_order_start_checklist))
-        self.fsm.add_transition(Transition(self.order_start_checklist, self.allocate_radio, self.is_acked, self.on_allocate_radio))
-        self.fsm.add_transition(Transition(self.allocate_radio, self.retrieve_checklist, self.can_start_timeout, self.on_retrieve_checklist))
-        self.fsm.add_transition(Transition(self.retrieve_checklist, self.check_immediate_action_items_done, self.can_start_timeout, self.on_check_immediate_action_items_done))
-        self.fsm.add_transition(Transition(self.check_immediate_action_items_done, self.contact_atc_vector, self.can_start_timeout, self.on_immediate_action_checked))
-        self.fsm.add_transition(Transition(self.contact_atc_vector, self.announce_start_checklist, self.can_start_timeout, self.on_listen_atc_vector))
-        self.fsm.add_transition(Transition(self.announce_start_checklist, self.retrieve_checklist_start, self.can_start_timeout, self.on_retrieve_checklist_start))
-        self.fsm.add_transition(Transition(self.retrieve_checklist_start, self.landing_gear_up, self.is_gear_up, self.on_landing_gear_up))
-        self.fsm.add_transition(Transition(self.landing_gear_up, self.flap_handle_up, self.is_flaps_retracted, self.on_flap_handle_up))
-        self.fsm.add_transition(Transition(self.flap_handle_up, self.throttles_clb_detent, self.is_throttle_clb, self.on_throttles_clb_detent))
-        self.fsm.add_transition(Transition(self.throttles_clb_detent, self.yaw_damper_as_desired, self.can_start_timeout, self.on_yaw_damper_as_desired))
-        self.fsm.add_transition(Transition(self.yaw_damper_as_desired, self.deice_as_required, self.can_start_timeout, self.on_deice_as_required))
-        self.fsm.add_transition(Transition(self.deice_as_required, self.pax_safety_switch_as_required, self.can_start_timeout, self.on_pax_safety_switch_as_required))
-        self.fsm.add_transition(Transition(self.pax_safety_switch_as_required, self.pressurization_check, self.can_start_timeout, self.on_pressurization_check))
-        self.fsm.add_transition(Transition(self.pressurization_check, self.alti_set_std, self.can_start_timeout, self.on_alti_set_std))
-        self.fsm.add_transition(Transition(self.alti_set_std, self.crosscheck_alti, self.can_start_timeout, self.on_crosscheck_alti))
-        self.fsm.add_transition(Transition(self.crosscheck_alti, self.announce_checklist_completed, self.can_start_timeout, self.on_announce_checklist_completed))
-        self.fsm.add_transition(Transition(self.announce_checklist_completed, self.announce_start_checklist_retrieve, self.can_start_timeout, self.on_announce_start_checklist_retrieve))
-        self.fsm.add_transition(Transition(self.announce_start_checklist_retrieve, self.retrieve_checklist_start_checklist, self.can_start_timeout, self.on_retrieve_checklist_start_checklist))
-        self.fsm.add_transition(Transition(self.retrieve_checklist_start_checklist, self.throttle_affected_engine_cutoff, self.can_start_timeout, self.on_throttle_affected_engine_cutoff))
-        self.fsm.add_transition(Transition(self.throttle_affected_engine_cutoff, self.caution_text_readout, self.is_throttle_cutoff, self.on_caution_text_readout))
-        self.fsm.add_transition(Transition(self.caution_text_readout, self.gen_switch_affected_side_off, self.can_start_timeout, self.on_gen_switch_affected_side_off))
-        self.fsm.add_transition(Transition(self.gen_switch_affected_side_off, self.ignition_switch_affected_side_norm, self.is_gen_switch_off, self.on_ignition_switch_affected_side_norm))
-        self.fsm.add_transition(Transition(self.ignition_switch_affected_side_norm, self.electrical_load_reduce_as_required, self.is_ignition_switch_norm, self.on_electrical_load_reduce_as_required))
-        self.fsm.add_transition(Transition(self.electrical_load_reduce_as_required, self.fuel_transfer_knob_as_required, self.can_start_timeout, self.on_fuel_transfer_knob_as_required))
-        self.fsm.add_transition(Transition(self.fuel_transfer_knob_as_required, self.verify_engine_fire_switch_affected_side, self.can_start_timeout, self.on_verify_engine_fire_switch_affected_side))
-        self.fsm.add_transition(Transition(self.verify_engine_fire_switch_affected_side, self.announce_current_checklist_completed, self.can_start_timeout, self.on_announce_current_checklist_completed))
-        self.fsm.add_transition(Transition(self.announce_current_checklist_completed, self.finished, self.can_start_timeout, self.on_finished))
+        self.fsm.add_transition(Transition(self.states["announce_alarm"], self.states["reset_master_warning"], self.can_start_timeout, self.on_reset_master_warning))
+        self.fsm.add_transition(Transition(self.states["reset_master_warning"], self.states["set_fd_to_mode"], self.is_master_warning_reset, self.on_set_fd_to_mode))
+        self.fsm.add_transition(Transition(self.states["set_fd_to_mode"], self.states["check_lg_up"], self.can_start_timeout, self.on_maintain_pitch_after_fd))
+        self.fsm.add_transition(Transition(self.states["check_lg_up"], self.states["check_airspeed_v2"], self.is_gear_up, self.on_check_airspeed_v2))
+        self.fsm.add_transition(Transition(self.states["check_airspeed_v2"], self.states["speed_mode_flc_v2_heading_mode"], self.is_airspeed_v_two, self.on_say_speed_mode_flc_v2_heading_mode))
+        self.fsm.add_transition(Transition(self.states["speed_mode_flc_v2_heading_mode"], self.states["contact_atc_emergency"], self.can_start_timeout, self.on_contact_atc_emergency))
+        self.fsm.add_transition(Transition(self.states["contact_atc_emergency"], self.states["listen_atc"], self.is_acked, self.on_listen_atc))
+        self.fsm.add_transition(Transition(self.states["listen_atc"], self.states["engage_autopilot"], self.is_ap_altitude, self.on_seven_hundred_ft_engage_ap))
+        self.fsm.add_transition(Transition(self.states["engage_autopilot"], self.states["check_v2_plus_twelve"], self.is_v2_plus_12, self.on_check_v2_plus_twelve))
+        self.fsm.add_transition(Transition(self.states["check_v2_plus_twelve"], self.states["retract_flaps"], self.can_start_timeout, self.on_say_retract_flaps))
+        self.fsm.add_transition(Transition(self.states["retract_flaps"], self.states["throttle_affected_idle"], self.is_flaps_retracted, self.on_affected_thrust_lever_confirm_idle))
+        self.fsm.add_transition(Transition(self.states["throttle_affected_idle"], self.states["start_chrono"], self.is_throttle_idle, self.on_top))
+        self.fsm.add_transition(Transition(self.states["start_chrono"], self.states["check_light_after_15_seconds"], self.can_start_timeout, self.on_check_light_after_15_seconds))
+        self.fsm.add_transition(Transition(self.states["check_light_after_15_seconds"], self.states["eng_fire_switch_lift_cover_and_push"], self.can_start_timeout, self.on_eng_fire_switch_lift_cover_push))
+        self.fsm.add_transition(Transition(self.states["eng_fire_switch_lift_cover_and_push"], self.states["cutoff"], self.can_start_timeout, self.on_affected_thrust_lever_confirm_cutoff))
+        self.fsm.add_transition(Transition(self.states["cutoff"], self.states["affected_engine_fuel_boost_confirm_off_then_norm"], self.is_throttle_cutoff, self.on_affected_engine_fuel_boost_confirm_off_then_norm))
+        self.fsm.add_transition(Transition(self.states["affected_engine_fuel_boost_confirm_off_then_norm"], self.states["fuel_boost_off"], self.can_start_timeout, self.on_fuel_boost_off))
+        self.fsm.add_transition(Transition(self.states["fuel_boost_off"], self.states["fuel_boost_norm"], self.is_fuel_boost_off, self.on_fuel_boost_norm))
+        self.fsm.add_transition(Transition(self.states["fuel_boost_norm"], self.states["check_light_after_30_seconds"], self.is_fuel_boost_norm, self.on_check_light_after_30_seconds))
+        self.fsm.add_transition(Transition(self.states["check_light_after_30_seconds"], self.states["thirty_seconds_light_remains_on_bottle_discharge"], self.can_start_timeout, self.on_thirty_seconds_light_remains_on_bottle_discharge))
+        self.fsm.add_transition(Transition(self.states["thirty_seconds_light_remains_on_bottle_discharge"], self.states["discharge"], self.can_start_timeout, self.on_discharge))
+        self.fsm.add_transition(Transition(self.states["discharge"], self.states["illuminated_bottle_armed_switch_push"], self.can_start_timeout, self.on_illuminated_bottle_armed_switch_push))
+        self.fsm.add_transition(Transition(self.states["illuminated_bottle_armed_switch_push"], self.states["turn_rotary_test_knob"], self.can_start_timeout, self.on_turn_rotary_test_knob))
+        self.fsm.add_transition(Transition(self.states["turn_rotary_test_knob"], self.states["check_engine_fire_lights"], self.is_test_knob_turned, self.on_check_engine_fire_lights))
+        self.fsm.add_transition(Transition(self.states["check_engine_fire_lights"], self.states["order_start_checklist"], self.can_start_timeout, self.on_order_start_checklist))
+        self.fsm.add_transition(Transition(self.states["order_start_checklist"], self.states["allocate_radio"], self.is_acked, self.on_allocate_radio))
+        self.fsm.add_transition(Transition(self.states["allocate_radio"], self.states["retrieve_checklist"], self.can_start_timeout, self.on_retrieve_checklist))
+        self.fsm.add_transition(Transition(self.states["retrieve_checklist"], self.states["check_immediate_action_items_done"], self.can_start_timeout, self.on_check_immediate_action_items_done))
+        self.fsm.add_transition(Transition(self.states["check_immediate_action_items_done"], self.states["contact_atc_vector"], self.can_start_timeout, self.on_immediate_action_checked))
+        self.fsm.add_transition(Transition(self.states["contact_atc_vector"], self.states["announce_start_checklist"], self.can_start_timeout, self.on_listen_atc_vector))
+        self.fsm.add_transition(Transition(self.states["announce_start_checklist"], self.states["retrieve_checklist_start"], self.can_start_timeout, self.on_retrieve_checklist_start))
+        self.fsm.add_transition(Transition(self.states["retrieve_checklist_start"], self.states["landing_gear_up"], self.is_gear_up, self.on_landing_gear_up))
+        self.fsm.add_transition(Transition(self.states["landing_gear_up"], self.states["flap_handle_up"], self.can_start_timeout, self.on_flap_handle_up))
+        self.fsm.add_transition(Transition(self.states["flap_handle_up"], self.states["throttles_clb_detent"], self.is_flaps_retracted, self.on_throttles_clb_detent))
+        self.fsm.add_transition(Transition(self.states["throttles_clb_detent"], self.states["yaw_damper_as_desired"], self.can_start_timeout, self.on_yaw_damper_as_desired))
+        self.fsm.add_transition(Transition(self.states["yaw_damper_as_desired"], self.states["deice_as_required"], self.can_start_timeout, self.on_deice_as_required))
+        self.fsm.add_transition(Transition(self.states["deice_as_required"], self.states["pax_safety_switch_as_required"], self.can_start_timeout, self.on_pax_safety_switch_as_required))
+        self.fsm.add_transition(Transition(self.states["pax_safety_switch_as_required"], self.states["pressurization_check"], self.can_start_timeout, self.on_pressurization_check))
+        self.fsm.add_transition(Transition(self.states["pressurization_check"], self.states["alti_set_std"], self.can_start_timeout, self.on_alti_set_std))
+        self.fsm.add_transition(Transition(self.states["alti_set_std"], self.states["crosscheck_alti"], self.can_start_timeout, self.on_crosscheck_alti))
+        self.fsm.add_transition(Transition(self.states["crosscheck_alti"], self.states["announce_checklist_completed"], self.can_start_timeout, self.on_announce_checklist_completed))
+        self.fsm.add_transition(Transition(self.states["announce_checklist_completed"], self.states["announce_start_checklist_retrieve"], self.can_start_timeout, self.on_announce_start_checklist_retrieve))
+        self.fsm.add_transition(Transition(self.states["announce_start_checklist_retrieve"], self.states["retrieve_checklist_start_checklist"], self.can_start_timeout, self.on_retrieve_checklist_start_checklist))
+        self.fsm.add_transition(Transition(self.states["retrieve_checklist_start_checklist"], self.states["throttle_affected_engine_cutoff"], self.can_start_timeout, self.on_throttle_affected_engine_cutoff))
+        self.fsm.add_transition(Transition(self.states["throttle_affected_engine_cutoff"], self.states["caution_text_readout"], self.can_start_timeout, self.on_caution_text_readout))
+        self.fsm.add_transition(Transition(self.states["caution_text_readout"], self.states["gen_switch_affected_side_off"], self.can_start_timeout, self.on_gen_switch_affected_side_off))
+        self.fsm.add_transition(Transition(self.states["gen_switch_affected_side_off"], self.states["ignition_switch_affected_side_norm"], self.can_start_timeout, self.on_ignition_switch_affected_side_norm))
+        self.fsm.add_transition(Transition(self.states["ignition_switch_affected_side_norm"], self.states["electrical_load_reduce_as_required"], self.can_start_timeout, self.on_electrical_load_reduce_as_required))
+        self.fsm.add_transition(Transition(self.states["electrical_load_reduce_as_required"], self.states["fuel_transfer_knob_as_required"], self.can_start_timeout, self.on_fuel_transfer_knob_as_required))
+        self.fsm.add_transition(Transition(self.states["fuel_transfer_knob_as_required"], self.states["verify_engine_fire_switch_affected_side"], self.can_start_timeout, self.on_verify_engine_fire_switch_affected_side))
+        self.fsm.add_transition(Transition(self.states["verify_engine_fire_switch_affected_side"], self.states["announce_current_checklist_completed"], self.can_start_timeout, self.on_announce_current_checklist_completed))
+        self.fsm.add_transition(Transition(self.states["announce_current_checklist_completed"], self.states["finished"], self.can_start_timeout, self.on_finished))
+        # Adding transitions to the FSM
         
         # Echo agent
         self.agent = Echo()
@@ -204,6 +212,18 @@ class TarsAgent:
                 tasks.append(row)
         return tasks
     # FSM conditions and actions
+
+    def create_states_from_csv(self, csv_path):
+        states = {}
+        with open(csv_path, newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                task_name = row['task_name'].strip()
+                procedure_name = row['procedure_name'].strip()
+                delay_before_action = row['time_end_action'].strip()
+                if task_name and task_name not in states:
+                    states[task_name] = State(task_name, procedure_name, delay_before_action)
+        return states
     
     def is_started(self):
         if self.is_on_off[0]:
@@ -214,7 +234,7 @@ class TarsAgent:
     def can_start_timeout(self):
         if self.state_entry_time is None:
             return False #Not ready yet
-        required = self.get_time_end_action_for_state(self.fsm.current_state)
+        required = self.fsm.current_state.delay_before_action #get_time_end_action_for_state(self.fsm.current_state)
         elapsed = time.monotonic() - self.state_entry_time
         return elapsed >= required
     

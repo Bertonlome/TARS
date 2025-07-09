@@ -2060,7 +2060,7 @@ class Ui_MainWindow(object):
         self.n_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
         self.interaction_panel_icon.setText("")
-        self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
+        self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel title", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
         self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"Ask TARS for a recap", None))
