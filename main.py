@@ -255,13 +255,26 @@ class MainWindow(QMainWindow):
     def tts_callback(self, text):
         self.tts_speak_signal.emit(text)
 
-    def start_glow_effect(self, widget):
+    def start_glow_effect(self, widget, color):
         # Flicker parameters: border width and color alpha
-        self._glow_steps = [
-            (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
-            (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff"), (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
-            (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff")
-        ]
+        if color == "red":
+            self._glow_steps = [
+                (2, "#ff3333"), (4, "#ff3333"), (6, "#ff3333"), (8, "#ff3333"),
+                (6, "#ff3333"), (4, "#ff3333"), (2, "#ff3333"), (2, "#ff3333"), (4, "#ff3333"), (6, "#ff3333"), (8, "#ff3333"),
+                (6, "#ff3333"), (4, "#ff3333"), (2, "#ff3333")
+            ]       
+        elif color == "blue":
+            self._glow_steps = [
+                (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
+                (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff"), (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
+                (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff")
+            ]
+        elif color == "green":
+            self._glow_steps = [
+                (2, "#00ff00"), (4, "#00ff00"), (6, "#00ff00"), (8, "#00ff00"),
+                (6, "#00ff00"), (4, "#00ff00"), (2, "#00ff00"), (2, "#00ff00"), (4, "#00ff00"), (6, "#00ff00"), (8, "#00ff00"),
+                (6, "#00ff00"), (4, "#00ff00"), (2, "#00ff00")
+            ]
         self._glow_index = 0
         self._glow_timer = getattr(self, "_glow_timer", None)
         if self._glow_timer is None:
@@ -285,7 +298,7 @@ class MainWindow(QMainWindow):
             self._glow_timer.stop()
             widget.setStyleSheet(f"""
                 #currentTaskContainer {{
-                border: 4px solid #3399ff;
+                border: 4px solid {color};
                 border-radius: 8px;
                 background-color: rgba(19, 20, 23, 255)
                 }}
@@ -363,6 +376,8 @@ class MainWindow(QMainWindow):
                 self.show_label(self.ui.p_t_prog_widget_2)
         else:
             self.ui.p_t_prog_widget_2.hide()
+        
+        self.remove_glow(self.ui.current_task_container_3)
 
         if current_task["autonomy_role"] != "performer":
             self.hide_label(self.ui.c_t_prog_widget_2)
@@ -378,7 +393,7 @@ class MainWindow(QMainWindow):
                 """)
         else:
             self.show_label(self.ui.c_t_prog_widget_2)
-            self.start_glow_effect(self.ui.current_task_container_3)
+            self.start_glow_effect(self.ui.current_task_container_3, "blue")
             self.ui.task_done_button.hide()
             self.ui.cancel_task_button_2.show()            
             self.ui.task_done_button.setStyleSheet(
@@ -567,7 +582,9 @@ class MainWindow(QMainWindow):
                     background-color: rgba(0, 48, 20, 255);
                     font: 600 16pt "JetBrains Mono";
                 """)
+        self.start_glow_effect(self.ui.current_task_container_3, "green")
         self.agent.task_done_human[0] = True
+        
         
     def task_cancel_clicked(self):
         btn = self.sender()
@@ -577,6 +594,7 @@ class MainWindow(QMainWindow):
                     background-color: rgba(108, 04, 04, 255);
                     font: 600 16pt "JetBrains Mono";
                 """)
+        self.start_glow_effect(self.ui.current_task_container_3, "red")
 
     def show_button(self, button, color):
         if color == "green":
