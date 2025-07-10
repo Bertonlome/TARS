@@ -14,7 +14,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
+            "subProcess": true,
             "stopOnEntry": false
         }
     ]

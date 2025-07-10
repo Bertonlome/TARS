@@ -45,18 +45,48 @@ class FSMWorker(QtCore.QObject):
 
     @QtCore.Slot()
     def run(self):
-        # Patch FSM to emit state changes
         fsm = self.agent.fsm
         while not self.agent.is_interrupted:
             for t in fsm.transitions:
                 if t.from_state == fsm.current_state and t.condition():
                     fsm.current_state = t.to_state
                     self.state_changed.emit(fsm.current_state.name)
+                    # wait before action
+                    delay = self.get_delay_before_action(fsm.current_state) 
+                    QtCore.QThread.msleep(int((delay) * 1000))
                     if t.action:
                         t.action()
+                    # wait after action (same delay)
+                    delay = self.get_delay_after_action(fsm.current_state)
+                    QtCore.QThread.msleep(int((delay + 1 ) * 1000)) # + 1 delay for UI
                     break
-            QtCore.QThread.msleep(500)  # adjust as needed
-
+            
+    def get_delay_before_action(self, state):
+        delay = getattr(state, "delay_before_action", 0)
+        if delay is None:
+            delay = 0
+        elif isinstance(delay, str):
+            try:
+                delay = float(delay)
+            except ValueError:
+                    delay = 0
+        if delay and delay > 0:
+            print(f"waiting for {delay} seconds before executing action for state {state.name}")
+        return delay
+    
+    def get_delay_after_action(self, state):
+        delay = getattr(state, "delay_after_action", 0)
+        if delay is None:
+            delay = 0
+        elif isinstance(delay, str):
+            try:
+                delay = float(delay)
+            except ValueError:
+                    delay = 0
+        if delay and delay > 0:
+            print(f"waiting for {delay} seconds after executing action for state {state.name}")
+        return delay
+            
 # Agent Thread
 # ///////////////////////////////////////////////////////////////
 class AgentThread(QtCore.QThread):
@@ -285,7 +315,7 @@ class MainWindow(QMainWindow):
         fsm = self.agent.fsm
         self.next_state = None
         previous_task = None
-        previous_procedure = None
+        previous_procedure_text = None
         
 
         for t in fsm.transitions:
@@ -306,18 +336,25 @@ class MainWindow(QMainWindow):
             (task for task in self.agent.tasks if task.get("task_name", "") == self.next_state),
         None
         )
-        if previous_task is not None:
-            previous_procedure = previous_task["procedure_name"]
-        current_procedure = current_task["procedure_name"] if current_task is not None else ""
-        next_procedure = next_task["procedure_name"] if next_task is not None else ""
+        previous_state_text = self.previous_state.replace("_", " ").upper() if previous_task is not None else ""
+        current_state_text = self.current_state.replace("_", " ").upper() if current_task is not None else ""
+        next_state_text = self.next_state.replace("_", " ").upper() if next_task is not None else ""
         
-        self.ui.p_g_2.setText(f"{previous_procedure if previous_procedure else ''}")
-        self.ui.p_t_2.setText(f"{self.previous_state if self.previous_state else ''}")
-        self.ui.c_g_2.setText(f"{current_procedure if current_procedure else ''}")
-        self.ui.c_t_2.setText(f"{self.current_state}")
-        self.ui.n_g_label_2.setText(f"{next_procedure if next_procedure else ''}")
-        self.ui.n_t_label_2.setText(f"{self.next_state if self.next_state else ''}")
-        self.ui.alert_label_2.setText(f"Current procedure : {current_procedure}")
+        if previous_task is not None:
+            previous_procedure_text = previous_task["procedure_name"].replace("_", " ").upper()
+        current_procedure_text = current_task["procedure_name"].replace("_", " ").upper() if current_task is not None else ""
+        next_procedure_text = next_task["procedure_name"].replace("_", " ").upper() if next_task is not None else ""
+        
+        self.ui.p_g_2.setText(f"{previous_procedure_text if previous_procedure_text else ''}")
+        self.ui.p_t_2.setText(f"{previous_state_text if self.previous_state else ''}")
+        self.ui.c_g_2.setText(f"{current_procedure_text if current_procedure_text else ''}")
+        self.ui.c_t_2.setText(f"{current_state_text if self.current_state else ''}")
+        self.ui.n_g_label_2.setText(f"{next_procedure_text if next_procedure_text else ''}")
+        self.ui.n_t_label_2.setText(f"{next_state_text if self.next_state else ''}")
+        self.ui.alert_label_2.setText(f"Current procedure : {current_procedure_text}")
+        
+
+        
         
         if previous_task is not None:
             if previous_task["autonomy_role"] != "performer":
@@ -356,25 +393,6 @@ class MainWindow(QMainWindow):
             self.hide_label(self.ui.n_t_prog_widget_2)
         else:
             self.show_label(self.ui.n_t_prog_widget_2)
-        
-        # For current task counter
-        try:
-            seconds = int(current_task["time_init_action"])  
-            self.current_countdown_value = seconds
-            self.ui.c_t_s_value_2.setText(str(self.current_countdown_value))
-            self.current_countdown_timer.start()
-        except (KeyError, ValueError, TypeError):
-            seconds = "0"
-            self.ui.c_t_s_value_2.setText(seconds)
-        # For next task counter
-        try:
-            seconds = int(current_task["time_end_action"]) 
-            self.next_countdown_value = seconds
-            self.ui.n_t_s_value_2.setText(str(self.next_countdown_value))
-            self.next_countdown_timer.start()
-        except (KeyError, ValueError, TypeError):
-            seconds = "N/A"
-            self.ui.n_t_s_value_2.setText(seconds)
 
         if current_task["interaction"] is not None:
             self.ui.int_panel_right_button.hide()
@@ -481,7 +499,31 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Caution text \nIf possible, the engines should remain at idle for a minimum of two minutes prior to shutdown to allow the engine inter-turbine temperature to stabilize and avoid turbine blade rub.\nIf the engine windmills for more than 15 minutes without a positive indication of oil pressure, a notation is required in the engine logbook and the engine must be inspected in accordance with the Pratt & Whitney engine maintenance manual.\nIf the engine windmills for more than 30 minutes with the firewall shutoff closed or the boost pump turned off, the engine fuel pump must be inspected in accordance with the Pratt & Whitney engine maintenance manual.")
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
-        
+        self.current_countdown_timer.stop()
+        self.next_countdown_timer.stop()
+        # For current task counter
+        try:
+            seconds = int(current_task["time_init_action"])
+            print(f"\nCurrent task time_init_action: {seconds} seconds")
+            self.current_countdown_value = seconds
+            self.ui.c_t_s_value_2.setText(str(self.current_countdown_value))
+            self.current_countdown_timer.start()
+        except (KeyError, ValueError, TypeError):
+            seconds = "0"
+            self.ui.c_t_s_value_2.setText(seconds)
+
+        # For next task counter
+        try:
+            seconds = seconds + int(current_task["time_end_action"]) + int(next_task["time_init_action"])
+            print(f"\nNext task time_init_action: {seconds} seconds")
+            self.next_countdown_value = seconds
+            self.ui.n_t_s_value_2.setText(str(self.next_countdown_value))
+            self.next_countdown_timer.start()
+        except (KeyError, ValueError, TypeError):
+            seconds = "N/A"
+            self.next_countdown_timer.stop()
+            self.ui.n_t_s_value_2.setText(seconds)
+
         self.previous_state = self.current_state
     # ///////////////////////////////////////////////////////////////
     # BUTTONS CLICK
@@ -574,6 +616,7 @@ class MainWindow(QMainWindow):
         if event.buttons() == Qt.RightButton:
             print('Mouse click: RIGHT CLICK')
     
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
