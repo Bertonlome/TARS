@@ -7,7 +7,7 @@ import csv
 
 # Agent Class
 class TarsAgent:
-    def __init__(self, agent_name="TARS Agent", device="Wi-Fi", port=5670, verbose=False):
+    def __init__(self, agent_name="TARS Agent", device="wlp0s20f3", port=5670, verbose=False):
         self.agent_name = agent_name
         self.device = device
         self.port = port
@@ -212,11 +212,6 @@ class TarsAgent:
             return True
         return False
     
-    def is_v2_plus_12(self):
-        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 132:
-            return True
-        return False
-
     def is_pitch_maintained(self):
         if self.agent.pitch_i is not None and self.agent.pitch_i >= 7:
             #time.sleep(1)  # Simulate time to maintain pitch

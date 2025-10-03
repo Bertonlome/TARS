@@ -2,7 +2,7 @@
 <g filter="url(#filter0_d_3597_848)">
 <path fill-rule="evenodd" clip-rule="evenodd" d="M6.99996 17.1622L1.41882 0.418823L18.1622 5.99996L9.79053 8.79053L6.99996 17.1622Z" fill="white"/>
 </g>
-<path d="M7 14L3 2L15 6L9 8L7 14Z" fill="#373737"/>
+<path d="M7 14L3 2L15 6L9 8L7 14Z" fill="#F7F7F7"/>
 <defs>
 <filter id="filter0_d_3597_848" x="0.418823" y="0.418823" width="18.7434" height="18.7434" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>

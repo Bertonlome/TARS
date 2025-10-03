@@ -28,6 +28,7 @@ import time
 # IMPORT / GUI AND MODULES AND WIDGETS
 # ///////////////////////////////////////////////////////////////
 from modules import *
+from modules import resources_rc  # Import resources explicitly
 from widgets import *
 os.environ["QT_FONT_DPI"] = "96" # FIX Problem for High DPI and Scale above 100%
 
@@ -265,6 +266,7 @@ class MainWindow(QMainWindow):
         widgets.int_panel_left_button.clicked.connect(self.task_cancel_clicked)
         # LEFT MENUS
         widgets.btn_home.clicked.connect(self.buttonClick)
+        widgets.btn_briefing.clicked.connect(self.buttonClick)
 
         # EXTRA LEFT BOX
         def openCloseLeftBox():
@@ -622,6 +624,11 @@ class MainWindow(QMainWindow):
         btn = self.sender()
         btnName = btn.objectName()
 
+        # SHOW BRIEFING PAGE
+        if btnName == "btn_briefing":
+            widgets.stackedWidget.setCurrentWidget(widgets.briefing)
+            UIFunctions.resetStyle(self, btnName)
+            btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
         # SHOW HOME PAGE
         if btnName == "btn_home":
             widgets.stackedWidget.setCurrentWidget(widgets.home)

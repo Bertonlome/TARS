@@ -2,10 +2,10 @@
 <g filter="url(#filter0_d_3597_813)">
 <path fill-rule="evenodd" clip-rule="evenodd" d="M6.00018 14L14 14L14 6L18 6V14L14 14L14.0001 18L18 18L18 26H14L14.0001 18H6L6.00018 14ZM18 18L26 18V14L18 14L18 18Z" fill="white"/>
 </g>
-<path d="M7.00009 15L13.0001 15L13.0001 17H7L7.00009 15Z" fill="#373737"/>
-<path d="M19 15H25V17H19V15Z" fill="#373737"/>
-<path d="M15 25V19H17V25H15Z" fill="#373737"/>
-<path d="M15 13L15 7L17 7V13L15 13Z" fill="#373737"/>
+<path d="M7.00009 15L13.0001 15L13.0001 17H7L7.00009 15Z" fill="#F7F7F7"/>
+<path d="M19 15H25V17H19V15Z" fill="#F7F7F7"/>
+<path d="M15 25V19H17V25H15Z" fill="#F7F7F7"/>
+<path d="M15 13L15 7L17 7V13L15 13Z" fill="#F7F7F7"/>
 <defs>
 <filter id="filter0_d_3597_813" x="5" y="6" width="22" height="22" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>

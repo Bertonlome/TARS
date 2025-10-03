@@ -2,10 +2,10 @@
 <path d="M14 0H10V24H14V0Z" fill="white"/>
 <path d="M0 10H8V14H0V10Z" fill="white"/>
 <path d="M16 10H24V14H16V10Z" fill="white"/>
-<path d="M11 24V0H10V24H11Z" fill="#535353"/>
-<path d="M13 0V24H14V0H13Z" fill="#535353"/>
-<path d="M8 11H0V10H8V11Z" fill="#535353"/>
-<path d="M0 13H8V14H0V13Z" fill="#535353"/>
-<path d="M24 11H16V10H24V11Z" fill="#535353"/>
-<path d="M16 13H24V14H16V13Z" fill="#535353"/>
+<path d="M11 24V0H10V24H11Z" fill="#F7F7F7"/>
+<path d="M13 0V24H14V0H13Z" fill="#F7F7F7"/>
+<path d="M8 11H0V10H8V11Z" fill="#F7F7F7"/>
+<path d="M0 13H8V14H0V13Z" fill="#F7F7F7"/>
+<path d="M24 11H16V10H24V11Z" fill="#F7F7F7"/>
+<path d="M16 13H24V14H16V13Z" fill="#F7F7F7"/>
 </svg>
