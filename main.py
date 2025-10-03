@@ -30,6 +30,7 @@ import time
 from modules import *
 from modules import resources_rc  # Import resources explicitly
 from widgets import *
+from pages import PageManager  # Import page manager
 os.environ["QT_FONT_DPI"] = "96" # FIX Problem for High DPI and Scale above 100%
 
 # SET AS GLOBAL WIDGETS
@@ -177,6 +178,18 @@ class AgentThread(QtCore.QThread):
         self.agent.start()
 
 
+
+
+
+
+
+
+
+
+
+
+# Main Window
+# ///////////////////////////////////////////////////////////////
 class MainWindow(QMainWindow):
     tts_speak_signal = QtCore.Signal(str)
 
@@ -204,31 +217,24 @@ class MainWindow(QMainWindow):
         self.fsm_worker.state_changed.connect(self.update_state)
         self.fsm_thread.started.connect(self.fsm_worker.run)
         self.fsm_thread.start()
-
         self.current_state = None
         self.previous_state = None
         self.next_state = None
 
         self.tts_speak_signal.connect(self.on_tts_speak)
         register_speak_callback(self.tts_callback)
-        self.ui.current_task_container_3.setObjectName("currentTaskContainer")
-
-        #countdown timer for current task
-        self.current_countdown_timer = QtCore.QTimer(self)
-        self.current_countdown_timer.setInterval(1000)
-        self.current_countdown_timer.timeout.connect(self.update_current_countdown)
-        self.current_countdown_value = 0
-        
-
-        #countdown timer for next task
-        self.next_countdown_timer = QtCore.QTimer(self)
-        self.next_countdown_timer.setInterval(1000)
-        self.next_countdown_timer.timeout.connect(self.update_next_countdown)
-        self.next_countdown_value = 0
 
         global widgets
         
         widgets = self.ui
+
+        # INITIALIZE PAGE MANAGER
+        # ///////////////////////////////////////////////////////////////
+        self.page_manager = PageManager(widgets, self)
+        
+        # CONNECT PAGE SIGNALS
+        # ///////////////////////////////////////////////////////////////
+        self.setup_page_connections()
 
         # USE CUSTOM TITLE BAR | USE AS "False" FOR MAC OR LINUX
         # ///////////////////////////////////////////////////////////////
@@ -241,7 +247,7 @@ class MainWindow(QMainWindow):
         # APP NAME
         # ///////////////////////////////////////////////////////////////
         title = "TARS Interface"
-        description = "TARS Interface - Python GUI Framework"
+        description = "TARS Interface"
         # APPLY TEXTS
         self.setWindowTitle(title)
         widgets.titleRightInfo.setText(description)
@@ -260,13 +266,10 @@ class MainWindow(QMainWindow):
 
         # BUTTONS CLICK
         # ///////////////////////////////////////////////////////////////
-        widgets.task_done_button.clicked.connect(self.task_done_clicked)
-        widgets.int_panel_right_button.clicked.connect(self.task_done_clicked)
-        widgets.cancel_task_button_2.clicked.connect(self.task_cancel_clicked)
-        widgets.int_panel_left_button.clicked.connect(self.task_cancel_clicked)
+        # Task buttons are now handled by HomePage
         # LEFT MENUS
-        widgets.btn_home.clicked.connect(self.buttonClick)
-        widgets.btn_briefing.clicked.connect(self.buttonClick)
+        widgets.btn_home.clicked.connect(self.navigateToPageButtonClick)
+        widgets.btn_briefing.clicked.connect(self.navigateToPageButtonClick)
 
         # EXTRA LEFT BOX
         def openCloseLeftBox():
@@ -292,102 +295,55 @@ class MainWindow(QMainWindow):
         if useCustomTheme:
             # LOAD AND APPLY STYLE
             UIFunctions.theme(self, themeFile, True)
-
             # SET HACKS
             AppFunctions.setThemeHack(self)
 
         # SET HOME PAGE AND SELECT MENU
         # ///////////////////////////////////////////////////////////////
-        widgets.stackedWidget.setCurrentWidget(widgets.home)
+        # Page manager will handle initial page navigation
         widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet()))
         widgets = self.ui
-
-    def hide_label(self, label):
-        opacity_effect = label.graphicsEffect()
-        if not isinstance(opacity_effect, QGraphicsOpacityEffect):
-            opacity_effect = QGraphicsOpacityEffect(label)
-            label.setGraphicsEffect(opacity_effect)
-        opacity_effect.setOpacity(0.0)
+    # End of init
+    # /////////////////////////////////////////////////////////////
     
-    def show_label(self, label):
-        opacity_effect = label.graphicsEffect()
-        if not isinstance(opacity_effect, QGraphicsOpacityEffect):
-            opacity_effect = QGraphicsOpacityEffect(label)
-            label.setGraphicsEffect(opacity_effect)
-        opacity_effect.setOpacity(0.99)
-        label.show()
+    def setup_page_connections(self):
+        """
+        Setup signal connections between MainWindow and pages
+        """
+        # Connect HomePage signals
+        home_page = self.page_manager.get_page('home')
+        if home_page:
+            home_page.task_done_signal.connect(self.handle_task_done)
+            home_page.task_cancel_signal.connect(self.handle_task_cancel)
     
-    def update_current_countdown(self):
-        if self.current_countdown_value > 0:
-            self.ui.c_t_s_value_2.setText(str(self.current_countdown_value))
-            self.current_countdown_value -= 1
-        else:
-            self.ui.c_t_s_value_2.setText("0")
-            self.current_countdown_timer.stop()
-
-    def update_next_countdown(self):
-        if self.next_countdown_value > 0:
-            self.ui.n_t_s_value_2.setText(str(self.next_countdown_value))
-            self.next_countdown_value -= 1
-        else:
-            self.ui.n_t_s_value_2.setText("0")
-            self.next_countdown_timer.stop()
+    def handle_task_done(self):
+        """
+        Handle task done signal from HomePage
+        """
+        # This is where MainWindow handles the task completion
+        # Update agent state
+        self.agent.task_done_human[0] = True
+        print("Task marked as done")
+    
+    def handle_task_cancel(self):
+        """
+        Handle task cancel signal from HomePage  
+        """
+        # This is where MainWindow handles the task cancellation
+        print("Task cancelled")
+    
+    def get_home_page(self):
+        """
+        Get the HomePage instance from page manager
+        """
+        return self.page_manager.get_page('home')
+    
 
     def tts_callback(self, text):
         self.tts_speak_signal.emit(text)
 
-    def start_glow_effect(self, widget, color):
-        # Flicker parameters: border width and color alpha
-        if color == "red":
-            self._glow_steps = [
-                (2, "#ff3333"), (4, "#ff3333"), (6, "#ff3333"), (8, "#ff3333"),
-                (6, "#ff3333"), (4, "#ff3333"), (2, "#ff3333"), (2, "#ff3333"), (4, "#ff3333"), (6, "#ff3333"), (8, "#ff3333"),
-                (6, "#ff3333"), (4, "#ff3333"), (2, "#ff3333")
-            ]       
-        elif color == "blue":
-            self._glow_steps = [
-                (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
-                (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff"), (2, "#3399ff"), (4, "#3399ff"), (6, "#3399ff"), (8, "#3399ff"),
-                (6, "#3399ff"), (4, "#3399ff"), (2, "#3399ff")
-            ]
-        elif color == "green":
-            self._glow_steps = [
-                (2, "#00ff00"), (4, "#00ff00"), (6, "#00ff00"), (8, "#00ff00"),
-                (6, "#00ff00"), (4, "#00ff00"), (2, "#00ff00"), (2, "#00ff00"), (4, "#00ff00"), (6, "#00ff00"), (8, "#00ff00"),
-                (6, "#00ff00"), (4, "#00ff00"), (2, "#00ff00")
-            ]
-        self._glow_index = 0
-        self._glow_timer = getattr(self, "_glow_timer", None)
-        if self._glow_timer is None:
-            self._glow_timer = QtCore.QTimer(self)
-            self._glow_timer.timeout.connect(lambda: self._glow_tick(widget))
-            self._glow_timer.setSingleShot(False)
-        self._glow_timer.start(30)  # Flicker speed
-
-    def _glow_tick(self, widget):
-        width, color = self._glow_steps[self._glow_index]
-        widget.setStyleSheet(f"""
-            #currentTaskContainer {{
-            border: {width}px solid {color};
-            border-radius: 8px;
-            background-color: rgba(19, 20, 23, 255);
-            }}
-        """)
-        self._glow_index += 1
-        if self._glow_index >= len(self._glow_steps):
-            # Stabilize to a steady glow after flicker
-            self._glow_timer.stop()
-            widget.setStyleSheet(f"""
-                #currentTaskContainer {{
-                border: 4px solid {color};
-                border-radius: 8px;
-                background-color: rgba(19, 20, 23, 255)
-                }}
-            """)
-        else:
-            self._glow_timer.start(60)
-    
     def remove_glow(self, widget):
+        """Remove glow effect from widget"""
         widget.setStyleSheet(f"""
                 #currentTaskContainer {{
                     border: 2px solid rgba(19, 20, 23, 255);
@@ -410,7 +366,6 @@ class MainWindow(QMainWindow):
         self.next_state = None
         previous_task = None
         previous_procedure_text = None
-        
 
         for t in fsm.transitions:
             if t.from_state.name == state_name:
@@ -427,9 +382,9 @@ class MainWindow(QMainWindow):
         
         if previous_task is not None:
             previous_procedure_text = previous_task["procedure_name"].replace("_", " ").upper()
+
         current_procedure_text = current_task["procedure_name"].replace("_", " ").upper() if current_task is not None else ""
         next_procedure_text = next_task["procedure_name"].replace("_", " ").upper() if next_task is not None else ""
-        
         self.ui.p_g_2.setText(f"{previous_procedure_text if previous_procedure_text else ''}")
         self.ui.p_t_2.setText(f"{previous_state_text if self.previous_state else ''}")
         self.ui.c_g_2.setText(f"{current_procedure_text if current_procedure_text else ''}")
@@ -438,21 +393,18 @@ class MainWindow(QMainWindow):
         self.ui.n_t_label_2.setText(f"{next_state_text if self.next_state else ''}")
         self.ui.alert_label_2.setText(f"Current procedure : {current_procedure_text}")
         
-
-        
-        
         if previous_task is not None:
             if previous_task["autonomy_role"] != "performer":
-                self.hide_label(self.ui.p_t_prog_widget_2)
+                self.get_home_page().hide_label(self.ui.p_t_prog_widget_2)
             else:
-                self.show_label(self.ui.p_t_prog_widget_2)
+                self.get_home_page().show_label(self.ui.p_t_prog_widget_2)
         else:
             self.ui.p_t_prog_widget_2.hide()
         
         self.remove_glow(self.ui.current_task_container_3)
 
         if current_task["autonomy_role"] != "performer":
-            self.hide_label(self.ui.c_t_prog_widget_2)
+            self.get_home_page().hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
             self.ui.cancel_task_button_2.hide()
             self.ui.task_done_button.show()
@@ -464,8 +416,8 @@ class MainWindow(QMainWindow):
                 font: 600 16pt "JetBrains Mono";
                 """)
         else:
-            self.show_label(self.ui.c_t_prog_widget_2)
-            self.start_glow_effect(self.ui.current_task_container_3, "blue")
+            self.get_home_page().show_label(self.ui.c_t_prog_widget_2)
+            self.get_home_page().start_glow_effect(self.ui.current_task_container_3, "blue")
             self.ui.task_done_button.hide()
             self.ui.cancel_task_button_2.show()            
             self.ui.task_done_button.setStyleSheet(
@@ -478,9 +430,9 @@ class MainWindow(QMainWindow):
 
         if next_task is not None:
             if next_task["autonomy_role"] != "performer":
-                self.hide_label(self.ui.n_t_prog_widget_2)
+                self.get_home_page().hide_label(self.ui.n_t_prog_widget_2)
             else:
-                self.show_label(self.ui.n_t_prog_widget_2)
+                self.get_home_page().show_label(self.ui.n_t_prog_widget_2)
         elif next_task is None:
             self.ui.n_t_prog_widget_2.hide()
 
@@ -491,7 +443,7 @@ class MainWindow(QMainWindow):
             match current_task["interaction"]:
                 case "display_winds_and_ack":
                     self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
-                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_right_button.setText("Acknowledge")
                 case "display_cas":
                     self.ui.interaction_panel_text.setText("CAS: CLEAR")
@@ -513,13 +465,13 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Set Speed mode: FLC heading mode")
                 case "display_ATC_msg_and_buttons_mayday":
                     self.ui.interaction_panel_text.setText("ATC Message: Mayday, Mayday, Mayday, Montreal Tower, from Papa Oscar Lima Yankee, engine fire after takeoff due to bird strike")
-                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.hide()
                     self.ui.int_panel_right_button.setText("Allow TARS to send Mayday message to ATC")
                 case "display_engage_autopilot":
                     self.ui.interaction_panel_text.setText("Engage Autopilot: ")
-                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                     self.ui.int_panel_right_button.setText("Engage")
                     self.ui.int_panel_left_button.setText("CANCEL")
                 case "display_check_v2_plus_12":
@@ -532,12 +484,12 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Check the emergency fire light in 30 s")
                 case "display_checklist_emer_eng_fire_continue":
                     self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
-                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_right_button.setText("Continue")
                 case "display_allocate_radio":
                     self.ui.interaction_panel_text.setText("Allocate radio : ")
-                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                     self.ui.int_panel_right_button.setText("TARS does the radio")
                     self.ui.int_panel_left_button.setText("Captain does the radio")
                 case "display_checklist_emer_eng_fire":
@@ -546,7 +498,7 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Immediate action item : Throttle affected engine IDLE\nIlluminated ENGINE FIRE Switch LIFT COVER AND PUSH")
                 case "display_ATC_msg_and_buttons_panpan":
                     self.ui.interaction_panel_text.setText("ATC Message: PanpanPan-Pan, Pan-Pan, Pan-Pan, Montreal Tower, from Papa Oscar Lima Yankee, request vectors to return for landing with one engine.")
-                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.hide()
                     self.ui.int_panel_right_button.setText("Allow TARS to send Panpan message to ATC")
                 case "display_set_heading":
@@ -555,33 +507,33 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Set FLC : ")
                 case "display_checklist_aft_takeoff_continue":
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
-                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_right_button.setText("Continue")
                 case "display_checklist_aft_takeoff":
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
                 case "display_yaw_damper_prop":
                     self.ui.interaction_panel_text.setText("Yaw damper : TARS suggest ON")
-                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                     self.ui.int_panel_right_button.setText("Accept")
                     self.ui.int_panel_left_button.setText("Refuse")
                 case "display_deice_prop":
                     self.ui.interaction_panel_text.setText("De-ice : TARS suggest OFF")
-                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                     self.ui.int_panel_right_button.setText("Accept")
                     self.ui.int_panel_left_button.setText("Refuse")
                 case "display_pax_safety_prop":
                     self.ui.interaction_panel_text.setText("Pax safety: TARS suggest ON")
-                    if not self.ui.int_panel_right_button.isVisible() : self.show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_left_button.isVisible() : self.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                     self.ui.int_panel_right_button.setText("Accept")
                     self.ui.int_panel_left_button.setText("Refuse")
                 case "display_alti_set_std":
                     self.ui.interaction_panel_text.setText("Setting altimeter to STD")
                 case "display_checklist_eng_fail_proc_continue":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
-                    if not self.ui.int_panel_right_button.isVisible(): self.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_right_button.setText("Continue")
                 case "display_checklist_eng_fail_proc":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
@@ -589,15 +541,16 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Caution text \nIf possible, the engines should remain at idle for a minimum of two minutes prior to shutdown to allow the engine inter-turbine temperature to stabilize and avoid turbine blade rub.\nIf the engine windmills for more than 15 minutes without a positive indication of oil pressure, a notation is required in the engine logbook and the engine must be inspected in accordance with the Pratt & Whitney engine maintenance manual.\nIf the engine windmills for more than 30 minutes with the firewall shutoff closed or the boost pump turned off, the engine fuel pump must be inspected in accordance with the Pratt & Whitney engine maintenance manual.")
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
-        self.current_countdown_timer.stop()
-        self.next_countdown_timer.stop()
+        home_page = self.get_home_page()
+        home_page.current_countdown_timer.stop()
+        home_page.next_countdown_timer.stop()
         # For current task counter
         try:
             seconds = int(current_task["time_init_action"])
             print(f"\nCurrent task time_init_action: {seconds} seconds")
-            self.current_countdown_value = seconds
-            self.ui.c_t_s_value_2.setText(str(self.current_countdown_value))
-            self.current_countdown_timer.start()
+            home_page.current_countdown_value = seconds
+            self.ui.c_t_s_value_2.setText(str(home_page.current_countdown_value))
+            home_page.current_countdown_timer.start()
         except (KeyError, ValueError, TypeError):
             seconds = "0"
             self.ui.c_t_s_value_2.setText(seconds)
@@ -606,32 +559,35 @@ class MainWindow(QMainWindow):
         try:
             seconds = seconds + int(current_task["time_end_action"]) + int(next_task["time_init_action"])
             print(f"\nNext task time_init_action: {seconds} seconds")
-            self.next_countdown_value = seconds
-            self.ui.n_t_s_value_2.setText(str(self.next_countdown_value))
-            self.next_countdown_timer.start()
+            home_page.next_countdown_value = seconds
+            self.ui.n_t_s_value_2.setText(str(home_page.next_countdown_value))
+            home_page.next_countdown_timer.start()
         except (KeyError, ValueError, TypeError):
             seconds = "N/A"
-            self.next_countdown_timer.stop()
+            home_page.next_countdown_timer.stop()
             self.ui.n_t_s_value_2.setText(seconds)
 
         self.previous_state = self.current_state
+
     # ///////////////////////////////////////////////////////////////
-    # BUTTONS CLICK
+    # PAGE MENU BUTTONS CLICK
     # Post here your functions for clicked buttons
     # ///////////////////////////////////////////////////////////////
-    def buttonClick(self):
+    def navigateToPageButtonClick(self):
         # GET BUTTON CLICKED
         btn = self.sender()
         btnName = btn.objectName()
 
         # SHOW BRIEFING PAGE
         if btnName == "btn_briefing":
-            widgets.stackedWidget.setCurrentWidget(widgets.briefing)
+            # Use page manager for briefing page
+            self.page_manager.navigate_to_page('briefing')
             UIFunctions.resetStyle(self, btnName)
             btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
         # SHOW HOME PAGE
         if btnName == "btn_home":
-            widgets.stackedWidget.setCurrentWidget(widgets.home)
+            # Use page manager for home page
+            self.page_manager.navigate_to_page('home')
             UIFunctions.resetStyle(self, btnName)
             btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
 
@@ -646,56 +602,8 @@ class MainWindow(QMainWindow):
             widgets.stackedWidget.setCurrentWidget(widgets.new_page) # SET PAGE
             UIFunctions.resetStyle(self, btnName) # RESET ANOTHERS BUTTONS SELECTED
             btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet())) # SELECT MENU
+    # //////////////////////////////////////////////////////////////
 
-        if btnName == "btn_save":
-            print("Save BTN clicked!")
-
-        # PRINT BTN NAME
-        print(f'Button "{btnName}" pressed!')
-
-
-    def task_done_clicked(self):
-        btn = self.sender()
-        btn.setStyleSheet(f"""
-                    border: 2px solid #3399ff;
-                    border-radius: 5px;
-                    background-color: rgba(0, 48, 20, 255);
-                    font: 600 16pt "JetBrains Mono";
-                """)
-        self.start_glow_effect(self.ui.current_task_container_3, "green")
-        self.agent.task_done_human[0] = True
-        
-        
-    def task_cancel_clicked(self):
-        btn = self.sender()
-        btn.setStyleSheet(f"""
-                    border: 2px solid #3399ff;
-                    border-radius: 5px;
-                    background-color: rgba(108, 04, 04, 255);
-                    font: 600 16pt "JetBrains Mono";
-                """)
-        self.start_glow_effect(self.ui.current_task_container_3, "red")
-
-    def show_button(self, button, color):
-        if color == "green":
-            button.setStyleSheet("""
-                QPushButton {
-                    border: 2px solid #3399ff;
-                    border-radius: 5px;
-                    background-color: rgba(0, 168, 120, 255);
-                    font: 600 16pt "JetBrains Mono";
-                }
-            """)
-        elif color == "red":
-            button.setStyleSheet("""
-                QPushButton {
-                    border: 2px solid #3399ff;
-                    border-radius: 5px;
-                    background-color: rgba(208, 04, 04, 255);
-                    font: 600 16pt "JetBrains Mono";
-                }
-            """)
-        button.show()
     # RESIZE EVENTS
     # ///////////////////////////////////////////////////////////////
     def resizeEvent(self, event):
@@ -706,14 +614,14 @@ class MainWindow(QMainWindow):
     # ///////////////////////////////////////////////////////////////
     def mousePressEvent(self, event):
         # SET DRAG POS WINDOW
-        self.dragPos = event.globalPos()
+        #self.dragpos = event.globalPos() -- ignore --
+        self.dragPos = event.globalPosition().toPoint()
 
         # PRINT MOUSE EVENTS
-        if event.buttons() == Qt.LeftButton:
-            print('Mouse click: LEFT CLICK')
-        if event.buttons() == Qt.RightButton:
-            print('Mouse click: RIGHT CLICK')
-    
+        #if event.buttons() == Qt.LeftButton:
+            #print('Mouse click: LEFT CLICK')
+        #if event.buttons() == Qt.RightButton:
+            #print('Mouse click: RIGHT CLICK')
 
 
 if __name__ == "__main__":

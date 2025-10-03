@@ -32,7 +32,8 @@ class UIFunctions(MainWindow):
         if status == False:
             self.showMaximized()
             GLOBAL_STATE = True
-            self.ui.appMargins.setContentsMargins(0, 0, 0, 0)
+            #self.ui.appMargins.setContentsMargins(0, 0, 0, 0) --- IGNORE ---
+            self.ui.appLayout.setContentsMargins(0, 0, 0, 0)
             self.ui.maximizeRestoreAppBtn.setToolTip("Restore")
             self.ui.maximizeRestoreAppBtn.setIcon(QIcon(u":/icons/images/icons/icon_restore.png"))
             self.ui.frame_size_grip.hide()
@@ -44,7 +45,8 @@ class UIFunctions(MainWindow):
             GLOBAL_STATE = False
             self.showNormal()
             self.resize(self.width()+1, self.height()+1)
-            self.ui.appMargins.setContentsMargins(10, 10, 10, 10)
+            #self.ui.appMargins.setContentsMargins(10, 10, 10, 10) --- IGNORE ---
+            self.ui.appLayout.setContentsMargins(10, 10, 10, 10)
             self.ui.maximizeRestoreAppBtn.setToolTip("Maximize")
             self.ui.maximizeRestoreAppBtn.setIcon(QIcon(u":/icons/images/icons/icon_maximize.png"))
             self.ui.frame_size_grip.show()
@@ -232,8 +234,8 @@ class UIFunctions(MainWindow):
                     UIFunctions.maximize_restore(self)
                 # MOVE WINDOW
                 if event.buttons() == Qt.LeftButton:
-                    self.move(self.pos() + event.globalPos() - self.dragPos)
-                    self.dragPos = event.globalPos()
+                    self.move(self.pos() + event.globalPosition().toPoint() - self.dragPos)
+                    self.dragPos = event.globalPosition().toPoint()
                     event.accept()
             self.ui.titleRightInfo.mouseMoveEvent = moveWindow
 
@@ -244,7 +246,7 @@ class UIFunctions(MainWindow):
             self.bottom_grip = CustomGrip(self, Qt.BottomEdge, True)
 
         else:
-            self.ui.appMargins.setContentsMargins(0, 0, 0, 0)
+            self.ui.appLayout.setContentsMargins(0, 0, 0, 0)
             self.ui.minimizeAppBtn.hide()
             self.ui.maximizeRestoreAppBtn.hide()
             self.ui.closeAppBtn.hide()
