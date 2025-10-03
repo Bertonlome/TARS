@@ -23,6 +23,7 @@ from PySide6.QtGui import QFont, QFontDatabase
 import signal
 from Core.agent import TarsAgent
 from Core.tts import shutdown, register_speak_callback
+import time
 
 # IMPORT / GUI AND MODULES AND WIDGETS
 # ///////////////////////////////////////////////////////////////
@@ -38,28 +39,105 @@ widgets = None
 # ///////////////////////////////////////////////////////////////
 class FSMWorker(QtCore.QObject):
     state_changed = QtCore.Signal(str)
+    current_state = None
 
     def __init__(self, agent: TarsAgent):
         super().__init__()
         self.agent = agent
+        # Performance monitoring
+        self.performance_metrics = {}
+        self.loop_count = 0
+        self.last_performance_report = time.perf_counter()
+
+    def start_performance_timer(self, action_name):
+        """Start timing for a specific action"""
+        return time.perf_counter()
+
+    def stop_performance_timer(self, action_name, start_time):
+        """Stop timing and record the result"""
+        elapsed = time.perf_counter() - start_time
+        if action_name not in self.performance_metrics:
+            self.performance_metrics[action_name] = []
+        self.performance_metrics[action_name].append(elapsed)
+        return elapsed
+
+    def print_performance_report(self):
+        """Print performance report every 10 seconds"""
+        print(f"\n=== FSM Performance Report (Loops: {self.loop_count}) ===")
+        for action, times in self.performance_metrics.items():
+            if times:
+                avg_time = sum(times) / len(times)
+                print(f"{action}: avg={avg_time*1000:.2f}ms, count={len(times)}, min={min(times)*1000:.2f}ms, max={max(times)*1000:.2f}ms")
+        
+        # Reset counters
+        self.performance_metrics.clear()
+        self.loop_count = 0
 
     @QtCore.Slot()
     def run(self):
         fsm = self.agent.fsm
+        loop_start_time = time.perf_counter()
+        
         while not self.agent.is_interrupted:
+            # Performance monitoring
+            self.loop_count += 1
+            current_time = time.perf_counter()
+            
+            # Print performance report every 10 seconds
+            if current_time - self.last_performance_report >= 10.0:
+                self.print_performance_report()
+                self.last_performance_report = current_time
+
+            # Check transitions with performance timing
+            transition_start = self.start_performance_timer("transition_check")
+            transition_found = False
+            
             for t in fsm.transitions:
-                if t.from_state == fsm.current_state and t.condition():
-                    fsm.current_state = t.to_state
-                    self.state_changed.emit(fsm.current_state.name)
-                    # wait before action
-                    delay = self.get_delay_before_action(fsm.current_state) 
-                    QtCore.QThread.msleep(int((delay) * 1000))
-                    if t.action:
-                        t.action()
-                    # wait after action (same delay)
-                    delay = self.get_delay_after_action(fsm.current_state)
-                    QtCore.QThread.msleep(int((delay + 1 ) * 1000)) # + 1 delay for UI
-                    break
+                if t.from_state == fsm.current_state:
+                    # Time the condition check
+                    condition_start = self.start_performance_timer("condition_check")
+                    condition_result = t.condition()
+                    condition_time = self.stop_performance_timer("condition_check", condition_start)
+                    
+                    # Log slow conditions
+                    if condition_time > 0.1:  # 100ms threshold
+                        print(f"WARNING: Slow condition check for {t.from_state.name} -> {t.to_state.name}: {condition_time*1000:.2f}ms")
+                    
+                    if condition_result:
+                        # State transition
+                        transition_time = self.stop_performance_timer("transition_check", transition_start)
+                        print(f"State transition: {fsm.current_state.name} -> {t.to_state.name} (check took {transition_time*1000:.2f}ms)")
+                        
+                        fsm.current_state = t.to_state
+                        self.state_changed.emit(fsm.current_state.name)
+                        self.current_state = fsm.current_state
+                        
+                        # wait before action
+                        delay = self.get_delay_before_action(fsm.current_state) 
+                        QtCore.QThread.msleep(int((delay) * 1000))
+                        
+                        if t.action:
+                            action_start = self.start_performance_timer("action_execution")
+                            t.action()
+                            action_time = self.stop_performance_timer("action_execution", action_start)
+                            print(f"Action execution took: {action_time*1000:.2f}ms")
+                        
+                        # wait after action
+                        delay = self.get_delay_after_action(fsm.current_state)
+                        QtCore.QThread.msleep(int((delay + 1 ) * 1000)) # + 1 delay for UI
+                        
+                        transition_found = True
+                        break
+            
+            if not transition_found:
+                self.stop_performance_timer("transition_check", transition_start)
+            
+            # CRITICAL FIX: Add a small sleep to prevent tight loop
+            # This allows other threads (like network updates) to run
+            QtCore.QThread.msleep(50)  # 50ms sleep = 20 checks per second instead of thousands
+            
+            # Alternative: Use processEvents to allow other operations
+            # QtCore.QCoreApplication.processEvents()
             
     def get_delay_before_action(self, state):
         delay = getattr(state, "delay_before_action", 0)
@@ -148,6 +226,7 @@ class MainWindow(QMainWindow):
         self.next_countdown_value = 0
 
         global widgets
+        
         widgets = self.ui
 
         # USE CUSTOM TITLE BAR | USE AS "False" FOR MAC OR LINUX
@@ -337,18 +416,9 @@ class MainWindow(QMainWindow):
                 break
         
         if self.previous_state is not None:
-            previous_task = next(
-            (task for task in self.agent.tasks if task.get("task_name", "") == self.previous_state),
-            None
-            )
-        current_task = next(
-            (task for task in self.agent.tasks if task.get("task_name", "") == self.current_state),
-        None
-        )
-        next_task = next(
-            (task for task in self.agent.tasks if task.get("task_name", "") == self.next_state),
-        None
-        )
+            previous_task = next((task for task in self.agent.tasks if task.get("task_name", "") == self.previous_state),None)
+        current_task = next((task for task in self.agent.tasks if task.get("task_name", "") == self.current_state),None)
+        next_task = next((task for task in self.agent.tasks if task.get("task_name", "") == self.next_state),None)
         previous_state_text = self.previous_state.replace("_", " ").upper() if previous_task is not None else ""
         current_state_text = self.current_state.replace("_", " ").upper() if current_task is not None else ""
         next_state_text = self.next_state.replace("_", " ").upper() if next_task is not None else ""
@@ -404,10 +474,13 @@ class MainWindow(QMainWindow):
                 font: 600 16pt "JetBrains Mono";
                 """)
 
-        if next_task["autonomy_role"] != "performer":
-            self.hide_label(self.ui.n_t_prog_widget_2)
-        else:
-            self.show_label(self.ui.n_t_prog_widget_2)
+        if next_task is not None:
+            if next_task["autonomy_role"] != "performer":
+                self.hide_label(self.ui.n_t_prog_widget_2)
+            else:
+                self.show_label(self.ui.n_t_prog_widget_2)
+        elif next_task is None:
+            self.ui.n_t_prog_widget_2.hide()
 
         if current_task["interaction"] is not None:
             self.ui.int_panel_right_button.hide()

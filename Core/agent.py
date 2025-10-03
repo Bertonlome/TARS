@@ -36,17 +36,21 @@ class TarsAgent:
         self.fsm.add_transition(Transition(self.states["hold_brakes"], self.states["check_cas_clear"], self.can_transition_timeout, lambda: self.on_speak_action("C A S is clear")))
         self.fsm.add_transition(Transition(self.states["check_cas_clear"], self.states["set_thrust"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["set_thrust"], self.states["check_fadec_bug_to"], self.is_thrust_sensed, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_fadec_bug_to"], self.states["check_engine_spool_evenly"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_engine_spool_evenly"], self.states["check_n1_percent"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_n1_percent"], self.states["release_brakes"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["release_brakes"], self.states["airspeed_alive"], self.is_brake_released_sensed, lambda: self.on_speak_action("Airspeed alive")))
-        self.fsm.add_transition(Transition(self.states["airspeed_alive"], self.states["seventy_kts"], self.is_airspeed_alive, lambda: self.on_speak_action("seventy knots")))
-        self.fsm.add_transition(Transition(self.states["seventy_kts"], self.states["v1"], self.is_seventy_kts, lambda: self.on_speak_action("V one")))
-        self.fsm.add_transition(Transition(self.states["v1"], self.states["rotate"], self.is_v_one, lambda: self.on_speak_action("Rotate")))
-        self.fsm.add_transition(Transition(self.states["rotate"], self.states["maintain_pitch"], self.is_v_rotate, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["maintain_pitch"], self.states["check_positive_rate"], self.is_pitch_maintained, self.on_speak_action))
-        #self.fsm.add_transition(Transition(self.scan_slip_skid, self.check_positive_rate, self.can_start_timeout, self.on_check_positive_rate))
+        self.fsm.add_transition(Transition(self.states["check_fadec_bug_to"], self.states["check_engine_spool_evenly"], self.is_fadec_bug_to, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["check_engine_spool_evenly"], self.states["check_n1_percent"], self.is_engine_spool_even, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["check_n1_percent"], self.states["release_brakes"], self.is_n1_percent_above_90, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["release_brakes"], self.states["acceleration"], self.is_brake_released_sensed, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["acceleration"], self.states["airspeed_alive"], self.is_airspeed_alive, lambda: self.on_speak_action("Airspeed's alive")))
+        self.fsm.add_transition(Transition(self.states["airspeed_alive"], self.states["seventy_kts"], self.is_seventy_kts, lambda: self.on_speak_action("seventy knots")))
+        self.fsm.add_transition(Transition(self.states["seventy_kts"], self.states["v1"], self.is_v_one, lambda: self.on_speak_action("V one")))
+        self.fsm.add_transition(Transition(self.states["v1"], self.states["rotate"], self.is_v_rotate, lambda: self.on_speak_action("Rotate")))
+        self.fsm.add_transition(Transition(self.states["rotate"], self.states["maintain_pitch"], self.is_pitch_maintained, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["maintain_pitch"], self.states["check_positive_rate"], self.is_positive_rate, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["check_positive_rate"], self.states["gear_up"], self.is_positive_rate, lambda: self.on_speak_action("Positive rate, gear up")))
+        self.fsm.add_transition(Transition(self.states["gear_up"], self.states["announce_start_checklist_aft_to_norm_proc"], self.is_400_ft, self.on_speak_action))
+        
+
+        # IF ALARM
         self.fsm.add_transition(Transition(self.states["gear_up"], self.states["announce_alarm"], self.is_alarm, lambda: self.on_speak_action("Alarm Engine fire, low oil pressure")))
         #self.fsm.add_transition(Transition(self.apply_rudder, self.trim_rudder, self.can_start_timeout, self.on_trim_rudder))
         #self.fsm.add_transition(Transition(self.trim_rudder, self.announce_alarm, self.can_start_timeout, self.on_announce_alarm))
@@ -59,8 +63,8 @@ class TarsAgent:
         self.fsm.add_transition(Transition(self.states["contact_atc_emergency"], self.states["listen_atc"], self.is_acked, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["listen_atc"], self.states["engage_autopilot"], self.is_ap_altitude, lambda: self.on_speak_action("Seven hundred feet, autopilot ready to engage")))
         self.fsm.add_transition(Transition(self.states["engage_autopilot"], self.states["check_v2_plus_twelve"], self.is_v2_plus_12, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_v2_plus_twelve"], self.states["retract_flaps"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["retract_flaps"], self.states["throttle_affected_idle"], self.is_flaps_retracted, lambda: self.on_speak_action("Affected thrust lever, confirm and idle")))
+        self.fsm.add_transition(Transition(self.states["check_v2_plus_twelve"], self.states["retract_flaps_emer"], self.can_transition_timeout, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["retract_flaps_emer"], self.states["throttle_affected_idle"], self.is_flaps_retracted, lambda: self.on_speak_action("Affected thrust lever, confirm and idle")))
         self.fsm.add_transition(Transition(self.states["throttle_affected_idle"], self.states["start_chrono"], self.is_throttle_idle, lambda: self.on_speak_action("Chronometer started, fifteen seconds to check light")))
         self.fsm.add_transition(Transition(self.states["start_chrono"], self.states["check_light_after_15_seconds"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["check_light_after_15_seconds"], self.states["eng_fire_switch_lift_cover_and_push"], self.can_transition_timeout, lambda: self.on_speak_action("Engine fire switch, lift cover and push")))
@@ -79,8 +83,8 @@ class TarsAgent:
         self.fsm.add_transition(Transition(self.states["allocate_radio"], self.states["retrieve_checklist"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["retrieve_checklist"], self.states["check_immediate_action_items_done"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["check_immediate_action_items_done"], self.states["contact_atc_vector"], self.can_transition_timeout, lambda: self.on_speak_action("Immediate action items checked, Current checklist completed, checklist to refer next: precautionary shutdown")))
-        self.fsm.add_transition(Transition(self.states["contact_atc_vector"], self.states["announce_start_checklist"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["announce_start_checklist"], self.states["retrieve_checklist_start"], self.can_transition_timeout, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["contact_atc_vector"], self.states["announce_start_checklist_aft_to_norm_proc"], self.can_transition_timeout, self.on_speak_action))
+        self.fsm.add_transition(Transition(self.states["announce_start_checklist_aft_to_norm_proc"], self.states["retrieve_checklist_start"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["retrieve_checklist_start"], self.states["landing_gear_up"], self.is_gear_up, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["landing_gear_up"], self.states["flap_handle_up"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["flap_handle_up"], self.states["throttles_clb_detent"], self.is_flaps_retracted, self.on_speak_action))
@@ -91,7 +95,11 @@ class TarsAgent:
         self.fsm.add_transition(Transition(self.states["pressurization_check"], self.states["alti_set_std"], self.can_transition_timeout, lambda: self.on_speak_action("Altimeter set to standard pressure")))
         self.fsm.add_transition(Transition(self.states["alti_set_std"], self.states["crosscheck_alti"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["crosscheck_alti"], self.states["announce_checklist_completed"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["announce_checklist_completed"], self.states["announce_start_checklist_retrieve"], self.can_transition_timeout, lambda: self.on_speak_action("Start checklist: Engine Failure/Precautionary Shutdown Procedure and Checklist")))
+
+        self.fsm.add_transition(Transition(self.states["announce_checklist_completed"], self.states["finished"], self.is_not_failed, self.on_speak_action))
+        
+        
+        self.fsm.add_transition(Transition(self.states["announce_checklist_completed"], self.states["announce_start_checklist_retrieve"], self.is_failed, lambda: self.on_speak_action("Start checklist: Engine Failure/Precautionary Shutdown Procedure and Checklist")))
         self.fsm.add_transition(Transition(self.states["announce_start_checklist_retrieve"], self.states["retrieve_checklist_start_checklist"], self.can_transition_timeout, self.on_speak_action))
         self.fsm.add_transition(Transition(self.states["retrieve_checklist_start_checklist"], self.states["throttle_affected_engine_cutoff"], self.can_transition_timeout, lambda: self.on_speak_action("Affected thrust lever, confirm and cutoff")))
         self.fsm.add_transition(Transition(self.states["throttle_affected_engine_cutoff"], self.states["caution_text_readout"], self.can_transition_timeout, self.on_speak_action))
@@ -156,6 +164,25 @@ class TarsAgent:
         if self.agent.control_throttle_i is not None and self.agent.control_throttle_i == 1:
             return True
         return False
+    
+    def is_engine_spool_even(self):
+        if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
+            if self.agent.e1_n1_percent_i > 50 and self.agent.e2_n1_percent_i > 50:  # Both engines above idle
+                diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
+                if diff <= 5:  # Assuming a threshold of 5% for even spool
+                    return True
+        return False
+    
+    def is_n1_percent_above_90(self):
+        if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
+            if self.agent.e1_n1_percent_i >= 90 and self.agent.e2_n1_percent_i >= 90:
+                return True
+        return False
+    
+    def is_fadec_bug_to(self):
+        if self.agent.n1_match_bug_i is not None and self.agent.n1_match_bug_i >= 0: # Assuming FADEC bug set to TO position is represented by a value >= 0
+            return True
+        return False
 
     def is_brake_released_sensed(self):
         if self.agent.park_brakes_i is not None and self.agent.park_brakes_i == 0:
@@ -164,19 +191,19 @@ class TarsAgent:
 
     def is_airspeed_alive(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i > 10:
-            speak_wait("Airspeed's alive")
+            #speak_wait("Airspeed's alive")
             return True
         return False
 
     def is_seventy_kts(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 70:
-            speak_wait("Seventy Knots")
+            #speak_wait("Seventy Knots")
             return True
         return False
 
     def is_v_one(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 90:
-            speak_wait("Rotate")
+            #speak_wait("Rotate")
             return True
         return False
 
@@ -184,16 +211,26 @@ class TarsAgent:
         if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 100:
             return True
         return False
+    
+    def is_v2_plus_12(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 132:
+            return True
+        return False
 
     def is_pitch_maintained(self):
         if self.agent.pitch_i is not None and self.agent.pitch_i >= 7:
-            time.sleep(1)  # Simulate time to maintain pitch
+            #time.sleep(1)  # Simulate time to maintain pitch
             if self.agent.pitch_i >= 8:
                 return True
         return False
 
     def is_positive_rate(self):
-        if self.agent.vertical_sped_i is not None and self.agent.vertical_sped_i > 100:
+        if self.agent.vertical_speed_i is not None and self.agent.vertical_speed_i > 100:
+            return True
+        return False
+    
+    def is_400_ft(self):
+        if self.agent.altitude_i is not None and self.agent.altitude_i >= 400:
             return True
         return False
 
@@ -205,6 +242,19 @@ class TarsAgent:
     def is_alarm(self):
         if self.agent.master_warning_i is not None and self.agent.master_warning_i == 1:
             return True
+        return False
+    
+    def is_failed(self):
+        if self.agent.e1_n1_percent_i is not None and self.agent.e1_n1_percent_i < 50:
+            return True
+        if self.agent.e2_n1_percent_i is not None and self.agent.e2_n1_percent_i < 50:
+            return True
+        return False
+
+    def is_not_failed(self):
+        if self.agent.e1_n1_percent_i is not None and self.agent.e1_n1_percent_i >= 50:
+            if self.agent.e2_n1_percent_i is not None and self.agent.e2_n1_percent_i >= 50:
+                return True
         return False
     
     def is_master_warning_reset(self):
@@ -351,6 +401,7 @@ class TarsAgent:
         assert isinstance(agent_object, Echo)
 
     def double_input_callback(self, io_type, name, value_type, value, my_data):
+        #start_time = time.perf_counter()
         #igs.info(f"Input {name} written to {value}")
         agent_object = my_data
         assert isinstance(agent_object, Echo)
@@ -362,34 +413,39 @@ class TarsAgent:
             agent_object.roll_i = value
         elif name == "heading":
             agent_object.heading_i = value
-        elif name == "verticalSpeed":
-            agent_object.vertical_sped_i = value
+        elif name == "vertical_speed":
+            agent_object.vertical_speed_i = value
         elif name == "altitude":
             agent_object.altitude_i = value
-        elif name == "controlThrottle":
+        elif name == "control_throttle":
+            #print(f"Input {name} written to {value}")
             agent_object.control_throttle_i = value
-        elif name == "controlFlaps":
+        elif name == "control_flaps":
             agent_object.control_flaps_i = value
-        elif name == "controlGear":
+        elif name == "control_gear":
             agent_object.control_gear_i = value
-        elif name == "speedBrakes":
+        elif name == "speed_brakes":
             agent_object.speed_brakes_i = value
-        elif name == "parkBrake":
+        elif name == "park_brake":
             agent_object.park_brakes_i = value
         elif name == "l_throttle":
+            #print(f"Input {name} written to {value}")
             agent_object.l_throttle_i = value
         elif name == "r_throttle":
+            #print(f"Input {name} written to {value}")
             agent_object.r_throttle_i = value
-        elif name == "cas":
-            agent_object.cas_i = value
         elif name == "n1_match_bug":
             agent_object.n1_match_bug_i = value
-        elif name == "n1_percent":
-            agent_object.n1_percent_i = value
+        elif name == "e1_n1_percent":
+            agent_object.e1_n1_percent_i = value
+        elif name == "e2_n1_percent":
+            agent_object.e2_n1_percent_i = value
         elif name == "slip":
             agent_object.slip_i = value
-        elif name == "engine_fires":
-            agent_object.engine_fires_i = value
+        elif name == "engine_fire_l":
+            agent_object.engine_fire_l_i = value
+        elif name == "engine_fire_r":
+            agent_object.engine_fire_r_i = value
         elif name == "test_knob":
             agent_object.test_knob_i = value
         elif name == "l_gen_switch":    
@@ -410,12 +466,8 @@ class TarsAgent:
             agent_object.master_caution_i = value
         elif name == "yaw_damper":
             agent_object.yaw_damper_i = value
-        elif name == "autopilot_master":
-            agent_object.autopilot_master_i = value
         elif name == "autopilot_heading_set":
             agent_object.autopilot_heading_set_i = value
-        elif name == "autopilot_state":
-            agent_object.autopilot_state_i = value
         elif name == "pax_safety":
             agent_object.pax_safety_i = value
         elif name == "flight_director":
@@ -424,7 +476,9 @@ class TarsAgent:
             agent_object.speed_mode_i = value
         elif name == "heading_mode":
             agent_object.heading_mode_i = value
-        
+        #end_time = time.perf_counter()
+        #elapsed_time = end_time - start_time
+        #print(f"Elapsed time for processing {name}: {elapsed_time:.4f} seconds")
 
     def string_input_callback(self, io_type, name, value_type, value, my_data):
         igs.info(f"Input {name} written to {value}")
@@ -498,33 +552,31 @@ class TarsAgent:
         igs.input_create("pitch", igs.DOUBLE_T, None)
         igs.input_create("roll", igs.DOUBLE_T, None)
         igs.input_create("heading", igs.DOUBLE_T, None)
-        igs.input_create("verticalSpeed", igs.DOUBLE_T, None)
+        igs.input_create("vertical_speed", igs.DOUBLE_T, None)
         igs.input_create("altitude", igs.DOUBLE_T, None)
-        igs.input_create("controlThrottle", igs.DOUBLE_T, None)
-        igs.input_create("controlFlaps", igs.DOUBLE_T, None)
-        igs.input_create("controlGear", igs.DOUBLE_T, None)
-        igs.input_create("speedBrakes", igs.DOUBLE_T, None)
-        igs.input_create("parkBrake", igs.DOUBLE_T, None)
+        igs.input_create("control_throttle", igs.DOUBLE_T, None)
+        igs.input_create("control_flaps", igs.DOUBLE_T, None)
+        igs.input_create("control_gear", igs.DOUBLE_T, None)
+        igs.input_create("speed_brakes", igs.DOUBLE_T, None)
+        igs.input_create("park_brake", igs.DOUBLE_T, None)
         igs.input_create("l_throttle", igs.DOUBLE_T, None)
         igs.input_create("r_throttle", igs.DOUBLE_T, None)
-        igs.input_create("cas", igs.DOUBLE_T, None)
         igs.input_create("n1_match_bug", igs.DOUBLE_T, None)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        igs.input_create("n1_percent", igs.DOUBLE_T, None)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        igs.input_create("e1_n1_percent", igs.DOUBLE_T, None)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        igs.input_create("e2_n1_percent", igs.DOUBLE_T, None)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         igs.input_create("slip", igs.DOUBLE_T, None)  # positive is right, negative is left
-        igs.input_create("engine_fires", igs.DOUBLE_T, None)  # [0, 0] first means E1, second means E2
-        igs.input_create("generators_off", igs.DOUBLE_T, None)  # [0, 0] first means L generator, second means R generator
+        igs.input_create("engine_fire_l", igs.DOUBLE_T, None)  # [0, 0] first means E1, second means E2
+        igs.input_create("engine_fire_r", igs.DOUBLE_T, None)  # [0, 0] first means E1, second means E2
         igs.input_create("pax_safety", igs.DOUBLE_T, None)  # 0 is off, 1 is on
         igs.input_create("master_warning", igs.DOUBLE_T, None)  # readonly 0 is off, 1 is on
         igs.input_create("master_caution", igs.DOUBLE_T, None)  # readonly 0 is off, 1 is on
         igs.input_create("flight_director", igs.DOUBLE_T, None)  # Not sure how to set FD up using a comm
         igs.input_create("speed_mode", igs.DOUBLE_T, None)  # Mustang/airspeedmach
         igs.input_create("heading_mode", igs.DOUBLE_T, None)  # Mustang/heading
-        igs.input_create("autopilot_master", igs.DOUBLE_T, None)  # 0 is off, 1 is FD 2 is AP + FD
         igs.input_create("fuel_boost_l", igs.DOUBLE_T, None)  # 0 is off, 1 is on
         igs.input_create("fuel_boost_r", igs.DOUBLE_T, None)  # 0 is off, 1 is on
         igs.input_create("test_knob", igs.DOUBLE_T, None)  # 0 to 11 for each test position
         igs.input_create("autopilot_heading_set", igs.DOUBLE_T, None)  # 0 to 360
-        igs.input_create("autopilot_state", igs.DOUBLE_T, None)  # need to understand this seems to be an integer that represents the state of the autopilot
         igs.input_create("yaw_damper", igs.DOUBLE_T, None)  # 0 is off, 1 is on
         igs.input_create("l_ign_switch", igs.DOUBLE_T, None)  # 0 is off, 1 is on
         igs.input_create("r_ign_switch", igs.DOUBLE_T, None)  # 0 is off, 1 is on
@@ -537,36 +589,34 @@ class TarsAgent:
         igs.observe_input("pitch", self.double_input_callback, self.agent)
         igs.observe_input("roll", self.double_input_callback, self.agent)
         igs.observe_input("heading", self.double_input_callback, self.agent)
-        igs.observe_input("verticalSpeed", self.double_input_callback, self.agent)
+        igs.observe_input("vertical_speed", self.double_input_callback, self.agent)
         igs.observe_input("altitude", self.double_input_callback, self.agent)
-        igs.observe_input("controlThrottle", self.double_input_callback, self.agent)
-        igs.observe_input("controlFlaps", self.double_input_callback, self.agent)
-        igs.observe_input("controlGear", self.double_input_callback, self.agent)
-        igs.observe_input("speedBrakes", self.double_input_callback, self.agent)
-        igs.observe_input("parkBrake", self.double_input_callback, self.agent)
+        igs.observe_input("control_throttle", self.double_input_callback, self.agent)
+        igs.observe_input("control_flaps", self.double_input_callback, self.agent)
+        igs.observe_input("control_gear", self.double_input_callback, self.agent)
+        igs.observe_input("speed_brakes", self.double_input_callback, self.agent)
+        igs.observe_input("park_brake", self.double_input_callback, self.agent)
         igs.observe_input("l_throttle", self.double_input_callback, self.agent)
         igs.observe_input("r_throttle", self.double_input_callback, self.agent)
-        igs.observe_input("cas", self.double_input_callback, self.agent)
         igs.observe_input("n1_match_bug", self.double_input_callback, self.agent)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        igs.observe_input("n1_percent", self.double_input_callback, self.agent)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        igs.observe_input("e1_n1_percent", self.double_input_callback, self.agent)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        igs.observe_input("e2_n1_percent", self.double_input_callback, self.agent)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         igs.observe_input("slip", self.double_input_callback, self.agent)  # positive is right, negative is left
-        igs.observe_input("engine_fires", self.double_input_callback, self.agent)  # [0, 0] first means E1, second means E2
-        igs.observe_input("generators_off", self.double_input_callback, self.agent)  # [0, 0] first means L generator, second means R generator
+        igs.observe_input("engine_fire_l", self.double_input_callback, self.agent)  
+        igs.observe_input("engine_fire_r", self.double_input_callback, self.agent)  
         igs.observe_input("pax_safety", self.double_input_callback, self.agent)  # 0 is off, 1 is on
         igs.observe_input("master_warning", self.double_input_callback, self.agent)  # readonly 0 is off, 1 is on
         igs.observe_input("master_caution", self.double_input_callback, self.agent)  # readonly 0 is off, 1 is on
         igs.observe_input("flight_director", self.double_input_callback, self.agent)  # Not sure how to set FD up using a comm
         igs.observe_input("speed_mode", self.double_input_callback, self.agent)  # Mustang/airspeedmach
         igs.observe_input("heading_mode", self.double_input_callback, self.agent)  # Mustang/heading
-        igs.observe_input("autopilot_master", self.double_input_callback, self.agent)  # 0 is off, 1 is FD 2 is AP + FD
+        igs.observe_input("l_ign_switch", self.double_input_callback, self.agent)  # 0 is off, 1 is on
+        igs.observe_input("r_ign_switch", self.double_input_callback, self.agent)
         igs.observe_input("fuel_boost_l", self.double_input_callback, self.agent)  # 0 is off, 1 is on
         igs.observe_input("fuel_boost_r", self.double_input_callback, self.agent)  # 0 is off, 1 is on
         igs.observe_input("test_knob", self.double_input_callback, self.agent)  # 0 to 11 for each test position
         igs.observe_input("autopilot_heading_set", self.double_input_callback, self.agent)  # 0 to 360
-        igs.observe_input("autopilot_state", self.double_input_callback, self.agent)  # need to understand this seems to be an integer that represents the state of the autopilot
         igs.observe_input("yaw_damper", self.double_input_callback, self.agent)  # 0 is off, 1 is on
-        igs.observe_input("l_ign_switch", self.double_input_callback, self.agent)  # 0 is off, 1 is on
-        igs.observe_input("r_ign_switch", self.double_input_callback, self.agent)  # 0 is off, 1 is on
         igs.observe_input("l_gen_switch", self.double_input_callback, self.agent)  # 0 is reset, 1 is off 2 is on
         igs.observe_input("r_gen_switch", self.double_input_callback, self.agent)  # 0 is reset, 1 is off 2 is on
         igs.observe_input("transfer_knob", self.double_input_callback, self.agent)  # 0 is left, 1 is off 2 is right

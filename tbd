@@ -1,0 +1,19 @@
+Right now the application is waiting for an emergency to happen which makes no sense even though the scenario is always of an engine failure, because the onset of the bird strike can vary the agent needs to have a NOMINAL STATE that can be changed to NON-NOMINAL then emergency
+
+MetaState.default = NOMINAL
+IF Master warning || Master caution || Engine fire L || engine fire Right
+Metastate = EMERGENCY 
+while(emergency.procedure is not finished)
+{
+
+}
+emergency.procedure = NON-NOMINAL
+while(non-nominal.procedure is not finished)
+{
+
+}
+Metastate = NOMINAL
+
+That means I need to enrich the task allocation table with the new states and transitions (it was previously modeled only for the emergency scenario)
+
+need to parameterize speeds such as v1, v2, rotate speed, etc.

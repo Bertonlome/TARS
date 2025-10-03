@@ -1003,9 +1003,9 @@ class Ui_MainWindow(object):
         self.row_1_col_1_container_2 = QWidget(self.row_1_container)
         self.row_1_col_1_container_2.setObjectName(u"row_1_col_1_container_2")
         self.row_1_col_1_container_2.setStyleSheet(u"QWidget#row_1_col_1_container_2{\n"
-"    border: 2px solid rgba(51, 51, 51, 150);\n"
+"    border: 2px solid rgba(40, 44, 52, 255);\n"
 "    border-radius: 10px;\n"
-"    background-color: rgba(51, 51, 51, 150);\n"
+"	background-color: rgba(33, 37, 43, 255);\n"
 "}")
         self.row_1_col_1_container = QVBoxLayout(self.row_1_col_1_container_2)
         self.row_1_col_1_container.setSpacing(16)
@@ -1050,7 +1050,7 @@ class Ui_MainWindow(object):
         self.tars_action_icon = QLabel(self.row_1_col_1_container_2)
         self.tars_action_icon.setObjectName(u"tars_action_icon")
         self.tars_action_icon.setMinimumSize(QSize(64, 64))
-        self.tars_action_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-comment-bubble.png"))
+        self.tars_action_icon.setPixmap(QPixmap(u":/icons/images/icons/com-pa.svg"))
         self.tars_action_icon.setScaledContents(True)
 
         self.row_1_col_1_container.addWidget(self.tars_action_icon, 0, Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignVCenter)
@@ -1085,9 +1085,9 @@ class Ui_MainWindow(object):
         sizePolicy1.setHeightForWidth(self.row_1_col_2_container.sizePolicy().hasHeightForWidth())
         self.row_1_col_2_container.setSizePolicy(sizePolicy1)
         self.row_1_col_2_container.setStyleSheet(u"QWidget#row_1_col_2_container{\n"
-"    border: 2px solid rgba(51, 51, 51, 150);\n"
+"    border: 2px solid rgba(40, 44, 52, 255);\n"
 "    border-radius: 10px;\n"
-"    background-color: rgba(51, 51, 51, 150);\n"
+"	background-color: rgba(33, 37, 43, 255);\n"
 "};")
         self.row_1_col_2_VBox_2 = QVBoxLayout(self.row_1_col_2_container)
         self.row_1_col_2_VBox_2.setObjectName(u"row_1_col_2_VBox_2")
@@ -1415,9 +1415,9 @@ class Ui_MainWindow(object):
         self.interaction_container = QWidget(self.home)
         self.interaction_container.setObjectName(u"interaction_container")
         self.interaction_container.setStyleSheet(u"QWidget#interaction_container {\n"
-"    border: 2px solid rgba(51, 51, 51, 150);\n"
+"    border: 2px solid rgba(40, 44, 52, 255);\n"
 "    border-radius: 10px;\n"
-"    background-color: rgba(51, 51, 51, 150);\n"
+"	background-color: rgba(33, 37, 43, 255);\n"
 "}\n"
 "")
         self.verticalLayout_23 = QVBoxLayout(self.interaction_container)

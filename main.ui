@@ -1732,9 +1732,9 @@ li.checked::marker { content: &quot;\2612&quot;; }
                            <widget class="QWidget" name="row_1_col_1_container_2" native="true">
                             <property name="styleSheet">
                              <string notr="true">QWidget#row_1_col_1_container_2{
-    border: 2px solid rgba(51, 51, 51, 150);
+    border: 2px solid rgba(40, 44, 52, 255);
     border-radius: 10px;
-    background-color: rgba(51, 51, 51, 150);
+	background-color: rgba(33, 37, 43, 255);
 }</string>
                             </property>
                             <layout class="QVBoxLayout" name="row_1_col_1_container">
@@ -1827,7 +1827,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                 <string/>
                                </property>
                                <property name="pixmap">
-                                <pixmap resource="resources.qrc">:/icons/images/icons/cil-comment-bubble.png</pixmap>
+                                <pixmap resource="resources.qrc">:/icons/images/icons/com-pa.svg</pixmap>
                                </property>
                                <property name="scaledContents">
                                 <bool>true</bool>
@@ -1893,9 +1893,9 @@ li.checked::marker { content: &quot;\2612&quot;; }
                             </property>
                             <property name="styleSheet">
                              <string notr="true">QWidget#row_1_col_2_container{
-    border: 2px solid rgba(51, 51, 51, 150);
+    border: 2px solid rgba(40, 44, 52, 255);
     border-radius: 10px;
-    background-color: rgba(51, 51, 51, 150);
+	background-color: rgba(33, 37, 43, 255);
 };</string>
                             </property>
                             <layout class="QVBoxLayout" name="row_1_col_2_VBox_2">
@@ -2435,9 +2435,9 @@ background-color: rgba(0, 26, 56, 200);}</string>
                         <widget class="QWidget" name="interaction_container" native="true">
                          <property name="styleSheet">
                           <string notr="true">QWidget#interaction_container {
-    border: 2px solid rgba(51, 51, 51, 150);
+    border: 2px solid rgba(40, 44, 52, 255);
     border-radius: 10px;
-    background-color: rgba(51, 51, 51, 150);
+	background-color: rgba(33, 37, 43, 255);
 }
 </string>
                          </property>
