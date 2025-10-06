@@ -1,0 +1,13 @@
+{
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.autoSearchPaths": true,
+    "python.analysis.extraPaths": [
+        "./",
+        "./Core",
+        "./modules",
+        "./pages"
+    ],
+    "python.analysis.stubPath": "./",
+    "python.languageServer": "Pylance"
+}

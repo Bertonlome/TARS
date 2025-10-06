@@ -16,12 +16,13 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplication, QCheckBox,
-    QComboBox, QCommandLinkButton, QFrame, QGridLayout,
-    QHBoxLayout, QHeaderView, QLabel, QLayout,
-    QLineEdit, QMainWindow, QPlainTextEdit, QPushButton,
-    QRadioButton, QScrollArea, QScrollBar, QSizePolicy,
-    QSlider, QSpacerItem, QStackedWidget, QTableWidget,
-    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget)
+    QComboBox, QCommandLinkButton, QFrame, QGraphicsView,
+    QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QLayout, QLineEdit, QMainWindow, QPlainTextEdit,
+    QPushButton, QRadioButton, QScrollArea, QScrollBar,
+    QSizePolicy, QSlider, QSpacerItem, QStackedWidget,
+    QTabWidget, QTableWidget, QTableWidgetItem, QTextEdit,
+    QVBoxLayout, QWidget)
 import resources_rc
 
 class Ui_MainWindow(object):
@@ -1837,11 +1838,39 @@ class Ui_MainWindow(object):
         self.briefing.setObjectName(u"briefing")
         self.verticalLayout_20 = QVBoxLayout(self.briefing)
         self.verticalLayout_20.setObjectName(u"verticalLayout_20")
-        self.label = QLabel(self.briefing)
-        self.label.setObjectName(u"label")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.tabWidget = QTabWidget(self.briefing)
+        self.tabWidget.setObjectName(u"tabWidget")
+        self.tabWidget.setStyleSheet(u"QTabWidget::pane { background-color: #2b2b2b; }\n"
+"QTabBar::tab { background-color: #3c3c3c; }\n"
+"QTabBar::tab:selected { background-color: #0078d4; }")
+        self.normal_operation_IA_page = QWidget()
+        self.normal_operation_IA_page.setObjectName(u"normal_operation_IA_page")
+        self.normal_operation_IA_page.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);\n"
+"    border-radius: 10px;\n"
+"	background-color: rgba(33, 37, 43, 255)")
+        self.verticalLayout_24 = QVBoxLayout(self.normal_operation_IA_page)
+        self.verticalLayout_24.setObjectName(u"verticalLayout_24")
+        self.normal_operation_ia_graph = QGraphicsView(self.normal_operation_IA_page)
+        self.normal_operation_ia_graph.setObjectName(u"normal_operation_ia_graph")
 
-        self.verticalLayout_20.addWidget(self.label)
+        self.verticalLayout_24.addWidget(self.normal_operation_ia_graph)
+
+        self.tabWidget.addTab(self.normal_operation_IA_page, "")
+        self.contingency_planning_IA_page = QWidget()
+        self.contingency_planning_IA_page.setObjectName(u"contingency_planning_IA_page")
+        self.contingency_planning_IA_page.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);\n"
+"    border-radius: 10px;\n"
+"	background-color: rgba(33, 37, 43, 255)")
+        self.verticalLayout_25 = QVBoxLayout(self.contingency_planning_IA_page)
+        self.verticalLayout_25.setObjectName(u"verticalLayout_25")
+        self.contingency_planning_IA_graph = QGraphicsView(self.contingency_planning_IA_page)
+        self.contingency_planning_IA_graph.setObjectName(u"contingency_planning_IA_graph")
+
+        self.verticalLayout_25.addWidget(self.contingency_planning_IA_graph)
+
+        self.tabWidget.addTab(self.contingency_planning_IA_page, "")
+
+        self.verticalLayout_20.addWidget(self.tabWidget)
 
         self.stackedWidget.addWidget(self.briefing)
 
@@ -1986,6 +2015,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         self.stackedWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -2142,7 +2172,8 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem23.setText(QCoreApplication.translate("MainWindow", u"Line", None));
         self.tableWidget.setSortingEnabled(__sortingEnabled)
 
-        self.label.setText(QCoreApplication.translate("MainWindow", u"NEW PAGE TEST", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Tab 1", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.btn_message.setText(QCoreApplication.translate("MainWindow", u"Message", None))
         self.btn_print.setText(QCoreApplication.translate("MainWindow", u"Print", None))
         self.btn_logout.setText(QCoreApplication.translate("MainWindow", u"Logout", None))

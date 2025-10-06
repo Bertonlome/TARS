@@ -5,6 +5,12 @@ Provides common functionality for all page modules
 
 from PySide6 import QtWidgets, QtCore, QtGui
 from abc import abstractmethod
+from typing import TYPE_CHECKING
+
+# Import for type hints only (prevents circular imports)
+if TYPE_CHECKING:
+    from modules.ui_main import Ui_MainWindow
+    from main import MainWindow
 
 class BasePage(QtCore.QObject):
     """
@@ -12,10 +18,10 @@ class BasePage(QtCore.QObject):
     Provides common interface and functionality.
     """
     
-    def __init__(self, widgets, main_window):
+    def __init__(self, widgets: 'Ui_MainWindow', main_window: 'MainWindow'):
         super().__init__()
-        self.widgets = widgets
-        self.main_window = main_window
+        self.widgets: 'Ui_MainWindow' = widgets
+        self.main_window: 'MainWindow' = main_window
         self.is_initialized = False
         
     @abstractmethod

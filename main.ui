@@ -3410,13 +3410,45 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                      <widget class="QWidget" name="briefing">
                       <layout class="QVBoxLayout" name="verticalLayout_20">
                        <item>
-                        <widget class="QLabel" name="label">
-                         <property name="text">
-                          <string>NEW PAGE TEST</string>
+                        <widget class="QTabWidget" name="tabWidget">
+                         <property name="styleSheet">
+                          <string notr="true">QTabWidget::pane { background-color: #2b2b2b; }
+QTabBar::tab { background-color: #3c3c3c; }
+QTabBar::tab:selected { background-color: #0078d4; }</string>
                          </property>
-                         <property name="alignment">
-                          <set>Qt::AlignmentFlag::AlignCenter</set>
+                         <property name="currentIndex">
+                          <number>0</number>
                          </property>
+                         <widget class="QWidget" name="normal_operation_IA_page">
+                          <property name="styleSheet">
+                           <string notr="true">border: 2px solid rgba(40, 44, 52, 255);
+    border-radius: 10px;
+	background-color: rgba(33, 37, 43, 255)</string>
+                          </property>
+                          <attribute name="title">
+                           <string>Tab 1</string>
+                          </attribute>
+                          <layout class="QVBoxLayout" name="verticalLayout_24">
+                           <item>
+                            <widget class="QGraphicsView" name="normal_operation_ia_graph"/>
+                           </item>
+                          </layout>
+                         </widget>
+                         <widget class="QWidget" name="contingency_planning_IA_page">
+                          <property name="styleSheet">
+                           <string notr="true">border: 2px solid rgba(40, 44, 52, 255);
+    border-radius: 10px;
+	background-color: rgba(33, 37, 43, 255)</string>
+                          </property>
+                          <attribute name="title">
+                           <string>Tab 2</string>
+                          </attribute>
+                          <layout class="QVBoxLayout" name="verticalLayout_25">
+                           <item>
+                            <widget class="QGraphicsView" name="contingency_planning_IA_graph"/>
+                           </item>
+                          </layout>
+                         </widget>
                         </widget>
                        </item>
                       </layout>

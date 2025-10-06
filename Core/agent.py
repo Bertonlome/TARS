@@ -5,6 +5,13 @@ from Core.fsm import FiniteStateMachine, State, Transition
 from Core.tts import speak_wait
 import csv
 
+# Direct import for better IDE support
+try:
+    import ingescape as igs
+except ImportError:
+    # Fallback if already imported via echo
+    pass
+
 # Agent Class
 class TarsAgent:
     def __init__(self, agent_name="TARS Agent", device="wlp0s20f3", port=5670, verbose=False):

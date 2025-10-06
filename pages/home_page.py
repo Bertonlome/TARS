@@ -6,6 +6,12 @@ Main landing page for the TARS GUI application
 from pages.base_page import BasePage
 from PySide6 import QtCore
 from PySide6.QtWidgets import QGraphicsOpacityEffect
+from typing import TYPE_CHECKING
+
+# Import for type hints only (prevents circular imports)
+if TYPE_CHECKING:
+    from modules.ui_main import Ui_MainWindow
+    from main import MainWindow
 
 class HomePage(BasePage):
     """
@@ -17,16 +23,20 @@ class HomePage(BasePage):
     task_done_signal = QtCore.Signal()
     task_cancel_signal = QtCore.Signal()
     
-    def __init__(self, widgets, main_window):
+    def __init__(self, widgets: 'Ui_MainWindow', main_window: 'MainWindow'):
         """
         Initialize the home page
         
         Args:
-            widgets: UI widgets object
+            widgets: UI widgets object (Ui_MainWindow instance)
             main_window: Main window instance
         """
         super().__init__(widgets, main_window)
         self.page_widget = widgets.home
+        
+        # Explicitly declare widgets type for better IDE support
+        self.widgets: 'Ui_MainWindow' = widgets
+        self.main_window: 'MainWindow' = main_window
         
         # Initialize countdown timers
         self.current_countdown_timer = QtCore.QTimer(self.main_window)
