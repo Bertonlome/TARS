@@ -51,7 +51,7 @@ def load_tasks(csv_path: Path = None):
     demo = [
         ("Confirm takeoff clearance", 1, 0, 0, 0),
         ("Align with runway centerline", 1, 1, 0, 0),
-        ("Check winds", 1, 1, 0, 1),
+        ("Check winds", 1, 1, 1, 1),
         ("Hold brakes", 1, 1, 0, 0),
         ("Advance thrust", 0, 1, 0, 0),
         ("Airspeed alive callout", 1, 1, 0, 0),
@@ -70,8 +70,9 @@ class ClickNode(QGraphicsEllipseItem):
     def __init__(self, row: int, role: str, center: QPointF, radius: float, scene_parent):
         super().__init__(0, 0, radius*2, radius*2)
         self.setPos(center - QPointF(radius, radius))
-        self.setBrush(QBrush(Qt.yellow))
-        self.setPen(QPen(Qt.black, 1.2))
+        # Start with dashed white circle (no fill)
+        self.setBrush(QBrush())  # No fill color
+        self.setPen(QPen(Qt.white, 2.0, Qt.DashLine))  # Dashed white outline
         self.setZValue(10)
         self.setFlag(QGraphicsItem.ItemIsSelectable, True)
         self.row = row
@@ -89,13 +90,13 @@ class ClickNode(QGraphicsEllipseItem):
         """Update visual appearance based on selection state"""
         self.is_selected = selected
         if selected:
-            # Highlight selected nodes
+            # Selected: filled green circle with solid border
             self.setBrush(QBrush(Qt.green))
-            self.setPen(QPen(Qt.darkGreen, 2.0))
+            self.setPen(QPen(Qt.darkGreen, 2.0, Qt.SolidLine))
         else:
-            # Default appearance
-            self.setBrush(QBrush(Qt.yellow))
-            self.setPen(QPen(Qt.black, 1.2))
+            # Not selected: dashed white circle with no fill
+            self.setBrush(QBrush())  # No fill color (transparent)
+            self.setPen(QPen(Qt.white, 2.0, Qt.DashLine))  # Dashed white outline
 
 class SupportNode(QGraphicsRectItem):
     """Rectangle marker for supporter (purely visual)."""
@@ -110,9 +111,10 @@ class SupportNode(QGraphicsRectItem):
 # ---------------------------- View/Scene ----------------------------
 
 class InterdependenceScene(QGraphicsScene):
-    def __init__(self, tasks: list[Task], parent=None):
+    def __init__(self, tasks: list[Task], parent=None, selection_callback=None):
         super().__init__(parent)
         self.tasks = tasks
+        self.selection_callback = selection_callback  # Callback to notify parent of selection changes
 
         # Layout constants
         self.margin_left = 350
@@ -123,7 +125,7 @@ class InterdependenceScene(QGraphicsScene):
             "HUMAN": 380,
             "TARS": 820
         }
-        self.node_r = 10
+        self.node_r = 20
 
         # State: which performer is currently selected at each row
         self.selected: dict[int, str] = {}  # row -> "HUMAN"/"TARS"
@@ -196,21 +198,20 @@ class InterdependenceScene(QGraphicsScene):
                 node = ClickNode(row, "HUMAN", QPointF(self.col_x["HUMAN"], y), self.node_r, self)
                 self.addItem(node)
                 self.nodes[(row, "HUMAN")] = node  # Store reference
-                # supporter marker & dashed line
+                # Only add support rectangle (not the dashed line yet)
                 if t.human_supports:
                     sup = SupportNode(QPointF(self.col_x["TARS"], y))
                     self.addItem(sup)
-                    self._add_dashed(self.col_x["HUMAN"], self.col_x["TARS"], y)
 
             # TARS performer
             if t.agent_can:
                 node = ClickNode(row, "TARS", QPointF(self.col_x["TARS"], y), self.node_r, self)
                 self.addItem(node)
                 self.nodes[(row, "TARS")] = node  # Store reference
+                # Only add support rectangle (not the dashed line yet)
                 if t.agent_supports:
                     sup = SupportNode(QPointF(self.col_x["HUMAN"], y))
                     self.addItem(sup)
-                    self._add_dashed(self.col_x["TARS"], self.col_x["HUMAN"], y)
 
     def _add_dashed(self, x1, x2, y):
         """Add dashed support line"""
@@ -235,6 +236,9 @@ class InterdependenceScene(QGraphicsScene):
                 # Set selected state based on whether this node is the selected one
                 node.set_selected(node_role == role)
         
+        # Update support lines based on current selections
+        self._update_support_lines()
+        
         # Update connecting paths
         self._update_path()
         print(f"Selected {role} for task {row}: {self.tasks[row].name}")
@@ -244,6 +248,32 @@ class InterdependenceScene(QGraphicsScene):
             print(f"  Changed from {old_selection} to {role}")
         else:
             print(f"  Confirmed selection: {role}")
+        
+        # Notify parent of selection change
+        if self.selection_callback:
+            self.selection_callback()
+
+    def _update_support_lines(self):
+        """Update support lines based on current selections"""
+        # Remove old support lines
+        for item in self.dashed_items:
+            self.removeItem(item)
+        self.dashed_items.clear()
+        
+        # Add support lines only for selected performers who have support
+        for row, selected_role in self.selected.items():
+            task = self.tasks[row]
+            y = self._row_y(row)
+            
+            if selected_role == "HUMAN" and task.human_supports:
+                # Human is selected and can support TARS
+                self._add_dashed(self.col_x["HUMAN"], self.col_x["TARS"], y)
+                print(f"  Added support line: HUMAN -> TARS for task {row}")
+                
+            elif selected_role == "TARS" and task.agent_supports:
+                # TARS is selected and can support HUMAN
+                self._add_dashed(self.col_x["TARS"], self.col_x["HUMAN"], y)
+                print(f"  Added support line: TARS -> HUMAN for task {row}")
 
     def _update_path(self):
         """Update the solid path between selected performers"""
@@ -295,6 +325,41 @@ class InterdependenceScene(QGraphicsScene):
         # Force scene update
         self.update()
 
+    def hide_non_selected_nodes(self):
+        """Hide all non-selected performer nodes to show final selection"""
+        print("Hiding non-selected nodes...")
+        
+        hidden_count = 0
+        visible_count = 0
+        
+        for (row, role), node in self.nodes.items():
+            if row in self.selected and self.selected[row] == role:
+                # This node is selected, keep it visible
+                node.setVisible(True)
+                visible_count += 1
+            else:
+                # This node is not selected, hide it
+                node.setVisible(False)
+                hidden_count += 1
+        
+        print(f"  Hidden {hidden_count} non-selected nodes")
+        print(f"  Kept {visible_count} selected nodes visible")
+        
+        # Force scene update to reflect changes
+        self.update()
+
+    def show_all_nodes(self):
+        """Show all performer nodes (reset from validation state)"""
+        print("Showing all nodes...")
+        
+        for (row, role), node in self.nodes.items():
+            node.setVisible(True)
+        
+        print("  All nodes are now visible")
+        
+        # Force scene update to reflect changes
+        self.update()
+
 class BriefingPage(BasePage):
     """
     Briefing page functionality with interdependence analysis
@@ -310,6 +375,13 @@ class BriefingPage(BasePage):
         # Interdependence analysis attributes
         self.tasks = None
         self.interdependence_scene = None
+        
+        # Validation state
+        self.validation_active = False
+        self.original_button_text = ""
+        
+        # Track completion state
+        self.all_tasks_assigned = False
         
     def initialize_page(self):
         """
@@ -335,8 +407,11 @@ class BriefingPage(BasePage):
             # Load tasks from CSV or use demo data
             self.tasks = load_tasks()
             
-            # Create and setup the interdependence scene
-            self.interdependence_scene = InterdependenceScene(self.tasks)
+            # Create and setup the interdependence scene with callback
+            self.interdependence_scene = InterdependenceScene(
+                self.tasks, 
+                selection_callback=self._check_all_tasks_assigned
+            )
             
             # Connect the scene to the QGraphicsView widget
             if hasattr(self.widgets, 'normal_operation_ia_graph'):
@@ -352,6 +427,10 @@ class BriefingPage(BasePage):
                 )
                 
                 print("Interdependence analysis setup completed")
+                
+                # Set initial button state (should be disabled initially)
+                self._check_all_tasks_assigned()
+                
             else:
                 print("Warning: normal_operation_ia_graph widget not found in UI")
                 
@@ -381,7 +460,23 @@ class BriefingPage(BasePage):
         """
         Connect signals specific to the briefing page
         """
-        # Example: Connect buttons, input fields, etc.
+        # Connect validate briefing button
+        try:
+            if hasattr(self.widgets, 'validate_briefing_button'):
+                self.widgets.validate_briefing_button.clicked.connect(self.toggle_validation_state)
+                
+                # Store initial button text and ensure initial styling
+                self.original_button_text = self.widgets.validate_briefing_button.text()
+                self._set_button_to_disabled_state()  # Ensure initial state is correct
+                
+                print("Validate briefing button connected")
+                
+            else:
+                print("Warning: validate_briefing_button not found in UI")
+        except Exception as e:
+            print(f"Error connecting validate briefing button: {e}")
+        
+        # Example: Connect other buttons, input fields, etc.
         # self.widgets.briefing.btn_start_mission.clicked.connect(self.start_mission)
         # self.widgets.briefing.btn_load_briefing.clicked.connect(self.load_briefing_file)
         
@@ -496,6 +591,185 @@ class BriefingPage(BasePage):
         """
         print("Exporting briefing...")
         # Add export logic here
+    
+    # Validation methods
+    def toggle_validation_state(self):
+        """
+        Toggle between validation and reset states
+        """
+        if not hasattr(self, 'validation_active'):
+            self.validation_active = False
+        
+        # Only allow toggle if all tasks are assigned    
+        if not self.all_tasks_assigned and not self.validation_active:
+            print("Cannot validate: Not all tasks have been assigned performers")
+            return
+            
+        if not self.validation_active:
+            # Currently in normal state, validate the briefing
+            self.validate_briefing()
+            self._set_button_to_reset_state()
+            self.validation_active = True
+        else:
+            # Currently in validated state, reset the validation
+            self.reset_validation()
+            self._set_button_to_validate_state()
+            self.validation_active = False
+    
+    def _set_button_to_reset_state(self):
+        """Set button appearance and text for reset state"""
+        if hasattr(self.widgets, 'validate_briefing_button'):
+            button = self.widgets.validate_briefing_button
+            
+            # Change text to reset
+            button.setText("Reset Selection")
+            
+            # Apply darker pressed/active styling
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid rgba(0, 134, 96, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(0, 134, 96, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: white !important;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0, 120, 86, 255) !important;
+                    border-color: rgba(0, 120, 86, 255) !important;
+                }
+                QPushButton:pressed {
+                    background-color: rgba(0, 100, 72, 255) !important;
+                    border-color: rgba(0, 100, 72, 255) !important;
+                }
+            """)
+    
+    def _set_button_to_validate_state(self):
+        """Set button appearance and text for validate state"""
+        if hasattr(self.widgets, 'validate_briefing_button'):
+            button = self.widgets.validate_briefing_button
+            
+            # Change text back to validate
+            button.setText("Validate Briefing")
+            
+            # Apply original styling
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid rgba(0, 168, 120, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(0, 168, 120, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: white !important;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0, 150, 108, 255) !important;
+                    border-color: rgba(0, 150, 108, 255) !important;
+                }
+                QPushButton:pressed {
+                    background-color: rgba(0, 134, 96, 255) !important;
+                    border-color: rgba(0, 134, 96, 255) !important;
+                }
+            """)
+
+    def _check_all_tasks_assigned(self):
+        """Check if all tasks have been assigned performers"""
+        if not self.interdependence_scene or not self.tasks:
+            return False
+        
+        # Check if we have selections for all tasks
+        total_tasks = len(self.tasks)
+        assigned_tasks = len(self.interdependence_scene.selected)
+        
+        all_assigned = assigned_tasks == total_tasks
+        
+        # Update button state if assignment status changed
+        if all_assigned != self.all_tasks_assigned:
+            self.all_tasks_assigned = all_assigned
+            self._update_button_state()
+            
+        return all_assigned
+    
+    def _update_button_state(self):
+        """Update button enabled/disabled state and styling"""
+        if hasattr(self.widgets, 'validate_briefing_button'):
+            button = self.widgets.validate_briefing_button
+            
+            if self.all_tasks_assigned:
+                # All tasks assigned - enable button
+                button.setEnabled(True)
+                if self.validation_active:
+                    self._set_button_to_reset_state()
+                else:
+                    self._set_button_to_validate_state()
+            else:
+                # Not all tasks assigned - disable button
+                button.setEnabled(False)
+                self._set_button_to_disabled_state()
+    
+    def _set_button_to_disabled_state(self):
+        """Set button appearance for disabled state"""
+        if hasattr(self.widgets, 'validate_briefing_button'):
+            button = self.widgets.validate_briefing_button
+            
+            # Show how many tasks still need assignment
+            button.setText("Assign all tasks")
+            
+            # Apply disabled styling with !important to override Qt Designer styles
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid rgba(128, 128, 128, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(128, 128, 128, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: rgba(255, 255, 255, 180) !important;
+                }
+                QPushButton:disabled {
+                    border: 2px solid rgba(100, 100, 100, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: rgba(255, 255, 255, 120) !important;
+                }
+                QPushButton:hover:disabled {
+                    border: 2px solid rgba(100, 100, 100, 255) !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
+                }
+            """)
+
+    def validate_briefing(self):
+        """
+        Validate the briefing and hide non-selected nodes for feedback
+        """
+        print("Validating briefing...")
+        
+        if self.interdependence_scene:
+            # Hide non-selected nodes to show user's final selection
+            self.interdependence_scene.hide_non_selected_nodes()
+            
+            # Get current selections for feedback
+            selections = self.get_selected_performers()
+            
+            if selections:
+                print(f"Briefing validated with {len(selections)} tasks assigned:")
+                for task_id, performer in selections.items():
+                    task_name = self.tasks[task_id].name if self.tasks else f"Task {task_id}"
+                    print(f"  {task_name}: {performer}")
+            else:
+                print("Warning: No tasks have been assigned to performers")
+        else:
+            print("Error: Interdependence scene not available")
+    
+    def reset_validation(self):
+        """
+        Reset validation state and show all nodes again
+        """
+        print("Resetting validation...")
+        
+        if self.interdependence_scene:
+            # Show all nodes again
+            self.interdependence_scene.show_all_nodes()
+            print("Validation reset - all nodes visible again")
+        else:
+            print("Error: Interdependence scene not available")
         
     # Interdependence analysis methods
     def get_selected_performers(self):

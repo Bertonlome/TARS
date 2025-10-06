@@ -1836,6 +1836,7 @@ class Ui_MainWindow(object):
         self.stackedWidget.addWidget(self.widgets)
         self.briefing = QWidget()
         self.briefing.setObjectName(u"briefing")
+        self.briefing.setStyleSheet(u"font: 600 16pt \"JetBrains Mono\";")
         self.verticalLayout_20 = QVBoxLayout(self.briefing)
         self.verticalLayout_20.setObjectName(u"verticalLayout_20")
         self.tabWidget = QTabWidget(self.briefing)
@@ -1854,6 +1855,11 @@ class Ui_MainWindow(object):
         self.normal_operation_ia_graph.setObjectName(u"normal_operation_ia_graph")
 
         self.verticalLayout_24.addWidget(self.normal_operation_ia_graph)
+
+        self.validate_briefing_button = QPushButton(self.normal_operation_IA_page)
+        self.validate_briefing_button.setObjectName(u"validate_briefing_button")
+
+        self.verticalLayout_24.addWidget(self.validate_briefing_button)
 
         self.tabWidget.addTab(self.normal_operation_IA_page, "")
         self.contingency_planning_IA_page = QWidget()
@@ -2172,6 +2178,7 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem23.setText(QCoreApplication.translate("MainWindow", u"Line", None));
         self.tableWidget.setSortingEnabled(__sortingEnabled)
 
+        self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Tab 1", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.btn_message.setText(QCoreApplication.translate("MainWindow", u"Message", None))

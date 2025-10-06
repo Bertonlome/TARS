@@ -3408,6 +3408,9 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                       </layout>
                      </widget>
                      <widget class="QWidget" name="briefing">
+                      <property name="styleSheet">
+                       <string notr="true">font: 600 16pt &quot;JetBrains Mono&quot;;</string>
+                      </property>
                       <layout class="QVBoxLayout" name="verticalLayout_20">
                        <item>
                         <widget class="QTabWidget" name="tabWidget">
@@ -3431,6 +3434,13 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                           <layout class="QVBoxLayout" name="verticalLayout_24">
                            <item>
                             <widget class="QGraphicsView" name="normal_operation_ia_graph"/>
+                           </item>
+                           <item>
+                            <widget class="QPushButton" name="validate_briefing_button">
+                             <property name="text">
+                              <string>PushButton</string>
+                             </property>
+                            </widget>
                            </item>
                           </layout>
                          </widget>
