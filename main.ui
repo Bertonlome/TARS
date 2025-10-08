@@ -3455,7 +3455,14 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                           </attribute>
                           <layout class="QVBoxLayout" name="verticalLayout_25">
                            <item>
-                            <widget class="QGraphicsView" name="contingency_planning_IA_graph"/>
+                            <widget class="QGraphicsView" name="contingency_planning_ia_graph"/>
+                           </item>
+                           <item>
+                            <widget class="QPushButton" name="validate_cont_planning_button">
+                             <property name="text">
+                              <string>Validate Contingency Plan</string>
+                             </property>
+                            </widget>
                            </item>
                           </layout>
                          </widget>

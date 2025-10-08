@@ -1869,10 +1869,15 @@ class Ui_MainWindow(object):
 "	background-color: rgba(33, 37, 43, 255)")
         self.verticalLayout_25 = QVBoxLayout(self.contingency_planning_IA_page)
         self.verticalLayout_25.setObjectName(u"verticalLayout_25")
-        self.contingency_planning_IA_graph = QGraphicsView(self.contingency_planning_IA_page)
-        self.contingency_planning_IA_graph.setObjectName(u"contingency_planning_IA_graph")
+        self.contingency_planning_ia_graph = QGraphicsView(self.contingency_planning_IA_page)
+        self.contingency_planning_ia_graph.setObjectName(u"contingency_planning_ia_graph")
 
-        self.verticalLayout_25.addWidget(self.contingency_planning_IA_graph)
+        self.verticalLayout_25.addWidget(self.contingency_planning_ia_graph)
+
+        self.validate_cont_planning_button = QPushButton(self.contingency_planning_IA_page)
+        self.validate_cont_planning_button.setObjectName(u"validate_cont_planning_button")
+
+        self.verticalLayout_25.addWidget(self.validate_cont_planning_button)
 
         self.tabWidget.addTab(self.contingency_planning_IA_page, "")
 
@@ -2180,6 +2185,7 @@ class Ui_MainWindow(object):
 
         self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Normal Operations", None))
+        self.validate_cont_planning_button.setText(QCoreApplication.translate("MainWindow", u"Validate Contingency Plan", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Contingency Planning", None))
         self.btn_message.setText(QCoreApplication.translate("MainWindow", u"Message", None))
         self.btn_print.setText(QCoreApplication.translate("MainWindow", u"Print", None))

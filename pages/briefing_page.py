@@ -24,31 +24,38 @@ if TYPE_CHECKING:
 # ---------------------------- Data ----------------------------
 
 class Task:
-    def __init__(self, procedure_name, name, human_can, agent_can, human_supports, agent_supports):
+    def __init__(self, procedure_name, name, category, task_type, human_can, agent_can, human_supports, agent_supports):
         self.procedure_name = procedure_name
         self.name = name
+        self.category = category  # NORM, EMER, ABNORM
+        self.task_type = task_type  # SOP, Checklist, Memory Item, etc.
         self.human_can = bool(int(human_can)) if str(human_can).strip() != "" else False
         self.agent_can = bool(int(agent_can)) if str(agent_can).strip() != "" else False
         self.human_supports = bool(int(human_supports)) if str(human_supports).strip() != "" else False
         self.agent_supports = bool(int(agent_supports)) if str(agent_supports).strip() != "" else False
 
-def load_tasks(csv_path: Path = None):
-    """Load tasks from CSV or return demo data"""
+def load_tasks(csv_path: Path = None, category_filter: list = None):
+    """Load tasks from CSV or return demo data
+    
+    Args:
+        csv_path: Path to CSV file
+        category_filter: List of categories to include (e.g., ['NORM'] or ['EMER', 'ABNORM'])
+    """
     if csv_path and csv_path.exists():
         tasks = []
         
         def color_to_capability(color_value):
-            """Convert color values to capability (1 for green, 0 for red/yellow/empty)"""
+            """Convert color values to capability (1 for green and yellow and orange, 0 for red/empty)"""
             if isinstance(color_value, str):
                 color_value = color_value.strip().lower()
-                return 1 if color_value == "green" else 0
+                return 1 if color_value in ["green", "yellow", "orange"] else 0
             return 0
         
         def color_to_support(color_value):
-            """Convert color values to support (1 for green/yellow, 0 for red/empty)"""
+            """Convert color values to support (1 for green/yellow/orange, 0 for red/empty)"""
             if isinstance(color_value, str):
                 color_value = color_value.strip().lower()
-                return 1 if color_value in ["green", "yellow"] else 0
+                return 1 if color_value in ["green", "yellow", "orange"] else 0
             return 0
         
         with open(csv_path, newline="", encoding="utf-8") as f:
@@ -56,6 +63,8 @@ def load_tasks(csv_path: Path = None):
             for row in reader:
                 # Get values from your CSV columns
                 procedure_name = row.get("Procedure", "").strip()
+                category = row.get("Category", "").strip()
+                task_type = row.get("Type", "").strip()
                 task_name = row.get("Task Object", "").strip()
                 human_capability = row.get("Human*", "").strip()
                 agent_capability = row.get("TARS", "").strip()
@@ -64,6 +73,10 @@ def load_tasks(csv_path: Path = None):
                 
                 # Skip empty rows
                 if not task_name or not procedure_name:
+                    continue
+                
+                # Filter by category if specified
+                if category_filter and category not in category_filter:
                     continue
                 
                 # Convert colors to numbers
@@ -75,6 +88,8 @@ def load_tasks(csv_path: Path = None):
                 tasks.append(Task(
                     procedure_name,
                     task_name,
+                    category,
+                    task_type,
                     human_can,
                     agent_can,
                     human_supports,
@@ -82,20 +97,33 @@ def load_tasks(csv_path: Path = None):
                 ))
         return tasks
 
-    # Hardcoded demo data for normal operations
+    # Hardcoded demo data for normal operations (backward compatibility)
     demo = [
-        ("pre-takeoff", "Confirm takeoff clearance", 1, 0, 0, 0),
-        ("pre-takeoff", "Align with runway centerline", 1, 1, 0, 0),
-        ("pre-takeoff", "Check winds", 1, 1, 1, 1),
-        ("pre-takeoff", "Hold brakes", 1, 1, 0, 0),
-        ("takeoff", "Advance thrust", 0, 1, 0, 0),
-        ("takeoff", "Airspeed alive callout", 1, 1, 0, 0),
-        ("takeoff", "80 knots cross-check", 1, 1, 1, 0),
-        ("takeoff", "Rotate", 1, 0, 0, 0),
-        ("takeoff", "Positive rate", 1, 1, 0, 0),
-        ("takeoff", "Gear up", 1, 1, 0, 1),
+        ("pre-takeoff", "Confirm takeoff clearance", "NORM", "SOP", 1, 0, 0, 0),
+        ("pre-takeoff", "Align with runway centerline", "NORM", "SOP", 1, 1, 0, 0),
+        ("pre-takeoff", "Check winds", "NORM", "SOP", 1, 1, 1, 1),
+        ("pre-takeoff", "Hold brakes", "NORM", "SOP", 1, 1, 0, 0),
+        ("takeoff", "Advance thrust", "NORM", "SOP", 0, 1, 0, 0),
+        ("takeoff", "Airspeed alive callout", "NORM", "SOP", 1, 1, 0, 0),
+        ("takeoff", "80 knots cross-check", "NORM", "SOP", 1, 1, 1, 0),
+        ("takeoff", "Rotate", "NORM", "SOP", 1, 0, 0, 0),
+        ("takeoff", "Positive rate", "NORM", "SOP", 1, 1, 0, 0),
+        ("takeoff", "Gear up", "NORM", "SOP", 1, 1, 0, 1),
     ]
+    
+    # Filter demo data by category if specified
+    if category_filter:
+        demo = [task for task in demo if task[2] in category_filter]
+    
     return [Task(*t) for t in demo]
+
+def load_normal_tasks(csv_path: Path = None):
+    """Load only normal operation tasks (Category == NORM)"""
+    return load_tasks(csv_path, category_filter=['NORM'])
+
+def load_contingency_tasks(csv_path: Path = None):
+    """Load only contingency tasks (Category == EMER or ABNORM)"""
+    return load_tasks(csv_path, category_filter=['EMER', 'ABNORM'])
 
 # ---------------------------- Scene items ----------------------------
 
@@ -117,7 +145,7 @@ class ClickNode(QGraphicsEllipseItem):
 
     def mousePressEvent(self, event):
         """Handle node click"""
-        print(f"Node clicked: Row {self.row}, Role {self.role}")
+        #print(f"Node clicked: Row {self.row}, Role {self.role}")
         self.scene_parent.on_node_clicked(self.row, self.role)
         super().mousePressEvent(event)
     
@@ -376,13 +404,7 @@ class InterdependenceScene(QGraphicsScene):
         
         # Update connecting paths
         self._update_path()
-        print(f"Selected {role} for task {row}: {self.tasks[row].name}")
-        
-        # If selection changed, log it
-        if old_selection != role:
-            print(f"  Changed from {old_selection} to {role}")
-        else:
-            print(f"  Confirmed selection: {role}")
+        #print(f"Selected {role} for task {row}: {self.tasks[row].name}")
         
         # Notify parent of selection change
         if self.selection_callback:
@@ -403,12 +425,12 @@ class InterdependenceScene(QGraphicsScene):
             if selected_role == "HUMAN" and task.human_supports:
                 # Human is selected and can support TARS
                 self._add_dashed(self.col_x["HUMAN"], self.col_x["TARS"], y)
-                print(f"  Added support line: HUMAN -> TARS for task {row}")
+                #print(f"  Added support line: HUMAN -> TARS for task {row}")
                 
             elif selected_role == "TARS" and task.agent_supports:
                 # TARS is selected and can support HUMAN
                 self._add_dashed(self.col_x["TARS"], self.col_x["HUMAN"], y)
-                print(f"  Added support line: TARS -> HUMAN for task {row}")
+                #print(f"  Added support line: TARS -> HUMAN for task {row}")
 
     def _update_path(self):
         """Update the solid path between selected performers"""
@@ -418,7 +440,7 @@ class InterdependenceScene(QGraphicsScene):
         self.path_items.clear()
 
         # Debug: Print current selections
-        print(f"Current selections: {self.selected}")
+        #print(f"Current selections: {self.selected}")
 
         # Build path only through rows that have a selection
         pen = QPen(Qt.black, 3.0, Qt.SolidLine)  # Made thicker for visibility
@@ -432,21 +454,21 @@ class InterdependenceScene(QGraphicsScene):
                 x1 = self.col_x[self.selected[i]]
                 x2 = self.col_x[self.selected[i+1]]
 
-                print(f"Creating path from task {i} to {i+1}: ({x1}, {y1}) -> ({x2}, {y2})")
+                #print(f"Creating path from task {i} to {i+1}: ({x1}, {y1}) -> ({x2}, {y2})")
 
                 path = QPainterPath(QPointF(x1, y1))
                 # straight vertical if x1==x2; else a simple 2-segment line looks good
                 if x1 == x2:
                     # Vertical line for same performer
                     path.lineTo(QPointF(x2, y2))
-                    print(f"  Vertical path created")
+                    #print(f"  Vertical path created")
                 else:
                     # Angled path for different performers
                     mid_y = (y1 + y2) / 2
                     path.lineTo(QPointF(x1, mid_y))
                     path.lineTo(QPointF(x2, mid_y))
                     path.lineTo(QPointF(x2, y2))
-                    print(f"  Angled path created via ({x1}, {mid_y}) -> ({x2}, {mid_y})")
+                    #print(f"  Angled path created via ({x1}, {mid_y}) -> ({x2}, {mid_y})")
 
                 item = QGraphicsPathItem(path)
                 item.setPen(pen)
@@ -455,14 +477,14 @@ class InterdependenceScene(QGraphicsScene):
                 self.path_items.append(item)
                 paths_created += 1
 
-        print(f"Total paths created: {paths_created}")
+        #print(f"Total paths created: {paths_created}")
         
         # Force scene update
         self.update()
 
     def hide_non_selected_nodes(self):
         """Hide all non-selected performer nodes to show final selection"""
-        print("Hiding non-selected nodes...")
+        #print("Hiding non-selected nodes...")
         
         hidden_count = 0
         visible_count = 0
@@ -477,20 +499,20 @@ class InterdependenceScene(QGraphicsScene):
                 node.setVisible(False)
                 hidden_count += 1
         
-        print(f"  Hidden {hidden_count} non-selected nodes")
-        print(f"  Kept {visible_count} selected nodes visible")
+        #print(f"  Hidden {hidden_count} non-selected nodes")
+        #print(f"  Kept {visible_count} selected nodes visible")
         
         # Force scene update to reflect changes
         self.update()
 
     def show_all_nodes(self):
         """Show all performer nodes (reset from validation state)"""
-        print("Showing all nodes...")
+        #print("Showing all nodes...")
         
         for (row, role), node in self.nodes.items():
             node.setVisible(True)
         
-        print("  All nodes are now visible")
+        #print("  All nodes are now visible")
         
         # Force scene update to reflect changes
         self.update()
@@ -507,16 +529,21 @@ class BriefingPage(BasePage):
         self.briefing_data = {}
         self.current_mission = None
         
-        # Interdependence analysis attributes
-        self.tasks = None
-        self.interdependence_scene = None
+        # Interdependence analysis attributes - separate for normal and contingency
+        self.normal_tasks = None
+        self.contingency_tasks = None
+        self.normal_interdependence_scene = None
+        self.contingency_interdependence_scene = None
         
-        # Validation state
-        self.validation_active = False
-        self.original_button_text = ""
+        # Validation state - separate for normal and contingency
+        self.normal_validation_active = False
+        self.contingency_validation_active = False
+        self.original_briefing_button_text = ""
+        self.original_contingency_button_text = ""
         
-        # Track completion state
-        self.all_tasks_assigned = False
+        # Track completion state - separate for normal and contingency
+        self.all_normal_tasks_assigned = False
+        self.all_contingency_tasks_assigned = False
         
     def initialize_page(self):
         """
@@ -532,50 +559,95 @@ class BriefingPage(BasePage):
         
         # Connect signals
         self.connect_briefing_signals()
-        
-        # Load initial data
-        self.load_briefing_data()
-        
+
     def setup_interdependence_analysis(self):
-        """Setup the interdependence analysis table"""
+        """Setup both normal and contingency interdependence analysis tables"""
         try:
-            # Load tasks from CSV or use demo data
-            csv_file_path = Path(__file__).parent / "table_data_with_opd.csv"
-            self.tasks = load_tasks(csv_file_path)
+            # Load tasks from CSV
+            csv_file_path = Path(__file__).parent / "IA.csv"
             
-            # Create and setup the interdependence scene with callback
-            self.interdependence_scene = InterdependenceScene(
-                self.tasks, 
-                selection_callback=self._check_all_tasks_assigned
-            )
+            # Load normal operation tasks (Category == NORM)
+            self.normal_tasks = load_normal_tasks(csv_file_path)
+            print(f"Loaded {len(self.normal_tasks)} normal operation tasks")
             
-            # Connect the scene to the QGraphicsView widget
-            if hasattr(self.widgets, 'normal_operation_ia_graph'):
-                self.widgets.normal_operation_ia_graph.setScene(self.interdependence_scene)
-                # Enable mouse interaction
-                self.widgets.normal_operation_ia_graph.setDragMode(QGraphicsView.RubberBandDrag)
-                self.widgets.normal_operation_ia_graph.setRenderHint(QPainter.Antialiasing, True)
-                
-                # Enable scrollbars for large content instead of fitting everything
-                self.widgets.normal_operation_ia_graph.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-                self.widgets.normal_operation_ia_graph.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-                
-                # Set a reasonable scale (1.0 = normal size, no shrinking)
-                self.widgets.normal_operation_ia_graph.resetTransform()
-                
-                # Optionally, scroll to top-left to show the beginning
-                self.widgets.normal_operation_ia_graph.ensureVisible(0, 0, 50, 50)
-                
-                print("Interdependence analysis setup completed")
-                
-                # Set initial button state (should be disabled initially)
-                self._check_all_tasks_assigned()
-                
-            else:
-                print("Warning: normal_operation_ia_graph widget not found in UI")
+            # Load contingency tasks (Category == EMER or ABNORM)
+            self.contingency_tasks = load_contingency_tasks(csv_file_path)
+            print(f"Loaded {len(self.contingency_tasks)} contingency tasks")
+            
+            # Setup normal operations graph
+            self._setup_normal_operations_graph()
+            
+            # Setup contingency planning graph  
+            self._setup_contingency_planning_graph()
                 
         except Exception as e:
             print(f"Error setting up interdependence analysis: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _setup_normal_operations_graph(self):
+        """Setup the normal operations interdependence graph"""
+        if not self.normal_tasks:
+            print("No normal operation tasks to display")
+            return
+            
+        # Create scene for normal operations
+        self.normal_interdependence_scene = InterdependenceScene(
+            self.normal_tasks, 
+            selection_callback=self._check_normal_tasks_assigned
+        )
+        
+        # Connect to normal_operation_ia_graph widget
+        if hasattr(self.widgets, 'normal_operation_ia_graph'):
+            self._configure_graphics_view(
+                self.widgets.normal_operation_ia_graph, 
+                self.normal_interdependence_scene,
+                "Normal Operations"
+            )
+        else:
+            print("Warning: normal_operation_ia_graph widget not found in UI")
+
+    def _setup_contingency_planning_graph(self):
+        """Setup the contingency planning interdependence graph"""
+        if not self.contingency_tasks:
+            print("No contingency tasks to display")
+            return
+            
+        # Create scene for contingency planning
+        self.contingency_interdependence_scene = InterdependenceScene(
+            self.contingency_tasks, 
+            selection_callback=self._check_contingency_tasks_assigned
+        )
+        
+        # Connect to contingency_planning_ia_graph widget
+        if hasattr(self.widgets, 'contingency_planning_ia_graph'):
+            self._configure_graphics_view(
+                self.widgets.contingency_planning_ia_graph, 
+                self.contingency_interdependence_scene,
+                "Contingency Planning"
+            )
+        else:
+            print("Warning: contingency_planning_ia_graph widget not found in UI")
+
+    def _configure_graphics_view(self, graphics_view, scene, graph_name):
+        """Configure a QGraphicsView with the given scene"""
+        graphics_view.setScene(scene)
+        
+        # Enable mouse interaction
+        graphics_view.setDragMode(QGraphicsView.RubberBandDrag)
+        graphics_view.setRenderHint(QPainter.Antialiasing, True)
+        
+        # Enable scrollbars for large content
+        graphics_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        graphics_view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        # Set normal scale (no shrinking)
+        graphics_view.resetTransform()
+        
+        # Start at top-left
+        graphics_view.ensureVisible(0, 0, 50, 50)
+        
+        print(f"{graph_name} interdependence graph setup completed")
         
     def setup_briefing_ui(self):
         """
@@ -603,161 +675,121 @@ class BriefingPage(BasePage):
         # Connect validate briefing button
         try:
             if hasattr(self.widgets, 'validate_briefing_button'):
-                self.widgets.validate_briefing_button.clicked.connect(self.toggle_validation_state)
+                self.widgets.validate_briefing_button.clicked.connect(self.toggle_normal_validation_state)
                 
                 # Store initial button text and ensure initial styling
-                self.original_button_text = self.widgets.validate_briefing_button.text()
-                self._set_button_to_disabled_state()  # Ensure initial state is correct
+                self.original_briefing_button_text = self.widgets.validate_briefing_button.text()
+                self._set_normal_button_to_disabled_state()  # Ensure initial state is correct
                 
-                print("Validate briefing button connected")
+                #print("Validate briefing button connected")
                 
             else:
                 print("Warning: validate_briefing_button not found in UI")
         except Exception as e:
             print(f"Error connecting validate briefing button: {e}")
+            
+        # Connect validate contingency planning button
+        try:
+            if hasattr(self.widgets, 'validate_cont_planning_button'):
+                self.widgets.validate_cont_planning_button.clicked.connect(self.toggle_contingency_validation_state)
+                
+                # Store initial button text and ensure initial styling
+                self.original_contingency_button_text = self.widgets.validate_cont_planning_button.text()
+                self._set_contingency_button_to_disabled_state()  # Ensure initial state is correct
+                
+                #print("Validate contingency planning button connected")
+                
+            else:
+                print("Warning: validate_cont_planning_button not found in UI")
+        except Exception as e:
+            print(f"Error connecting validate contingency planning button: {e}")
         
         # Example: Connect other buttons, input fields, etc.
         # self.widgets.briefing.btn_start_mission.clicked.connect(self.start_mission)
         # self.widgets.briefing.btn_load_briefing.clicked.connect(self.load_briefing_file)
         
-        print("Briefing signals connected")
+        #print("Briefing signals connected")
     
-    def load_briefing_data(self):
-        """
-        Load briefing data when page initializes
-        """
-        # Example: Load mission data, weather info, etc.
-        self.briefing_data = {
-            'mission_type': 'Training',
-            'duration': '2 hours',
-            'weather': 'Clear',
-            'objectives': [
-                'Navigate to waypoint Alpha',
-                'Perform system checks',
-                'Return to base'
-            ]
-        }
         
-        # Update UI with loaded data
-        self.update_briefing_display()
-        
-    def update_briefing_display(self):
-        """
-        Update the briefing display with current data
-        """
-        # Example: Update labels, lists, etc. with briefing data
-        print(f"Briefing updated: {self.briefing_data}")
-
-        # Note: These widget references are available for interdependence analysis
-        # self.widgets.normal_operation_IA_page - the tab containing the analysis
-        # self.widgets.normal_operation_ia_graph - the QGraphicsView for the graph
-
-        # You can add actual UI updates here when you have specific widgets
-    
-    def on_page_show(self):
-        """
-        Called every time the briefing page is shown
-        """
-        print("Briefing page shown")
-        
-        # Example: Refresh data, update displays, etc.
-        self.refresh_briefing_info()
-        
-        # Example: Start any timers or background processes
-        self.start_page_updates()
-    
-    def on_page_hide(self):
-        """
-        Called when leaving the briefing page
-        """
-        print("Briefing page hidden")
-        
-        # Example: Save current state, stop timers, etc.
-        self.save_briefing_state()
-        
-        # Example: Stop any background processes
-        self.stop_page_updates()
-    
-    def refresh_briefing_info(self):
-        """
-        Refresh briefing information when page is shown
-        """
-        # Example: Update weather, mission status, etc.
-        print("Refreshing briefing information...")
-        
-        # Refresh interdependence analysis if needed
-        if self.interdependence_scene:
-            print("Interdependence analysis ready")
-    
-    def start_page_updates(self):
-        """
-        Start any periodic updates needed for this page
-        """
-        # Example: Start timers for real-time updates
-        pass
-    
-    def stop_page_updates(self):
-        """
-        Stop periodic updates when leaving the page
-        """
-        # Example: Stop timers
-        pass
-    
-    def save_briefing_state(self):
-        """
-        Save current briefing state when leaving page
-        """
-        # Example: Save user inputs, selections, etc.
-        pass
-    
-    # Custom methods for briefing functionality
-    def start_mission(self):
-        """
-        Start a mission from the briefing
-        """
-        print("Starting mission from briefing...")
-        # Add mission start logic here
-    
-    def load_briefing_file(self):
-        """
-        Load a briefing from file
-        """
-        print("Loading briefing file...")
-        # Add file loading logic here
-    
-    def export_briefing(self):
-        """
-        Export current briefing
-        """
-        print("Exporting briefing...")
-        # Add export logic here
-    
     # Validation methods
-    def toggle_validation_state(self):
+    def toggle_normal_validation_state(self):
         """
-        Toggle between validation and reset states
+        Toggle between validation and reset states for normal operations
         """
-        if not hasattr(self, 'validation_active'):
-            self.validation_active = False
-        
-        # Only allow toggle if all tasks are assigned    
-        if not self.all_tasks_assigned and not self.validation_active:
-            print("Cannot validate: Not all tasks have been assigned performers")
+        # Only allow toggle if all normal tasks are assigned    
+        if not self.all_normal_tasks_assigned and not self.normal_validation_active:
+            print("Cannot validate normal operations: Not all tasks have been assigned performers")
             return
             
-        if not self.validation_active:
+        if not self.normal_validation_active:
             # Currently in normal state, validate the briefing
-            self.validate_briefing()
-            self._set_button_to_reset_state()
-            self.validation_active = True
+            self.validate_normal_briefing()
+            self._set_normal_button_to_reset_state()
+            self.normal_validation_active = True
         else:
             # Currently in validated state, reset the validation
-            self.reset_validation()
-            self._set_button_to_validate_state()
-            self.validation_active = False
+            self.reset_normal_validation()
+            self._set_normal_button_to_validate_state()
+            self.normal_validation_active = False
     
-    def _set_button_to_reset_state(self):
-        """Set button appearance and text for reset state"""
+    def toggle_contingency_validation_state(self):
+        """
+        Toggle between validation and reset states for contingency planning
+        """
+        # Only allow toggle if all contingency tasks are assigned    
+        if not self.all_contingency_tasks_assigned and not self.contingency_validation_active:
+            print("Cannot validate contingency planning: Not all tasks have been assigned performers")
+            return
+            
+        if not self.contingency_validation_active:
+            # Currently in normal state, validate the contingency planning
+            self.validate_contingency_planning()
+            self._set_contingency_button_to_reset_state()
+            self.contingency_validation_active = True
+        else:
+            # Currently in validated state, reset the validation
+            self.reset_contingency_validation()
+            self._set_contingency_button_to_validate_state()
+            self.contingency_validation_active = False
+    
+    def validate_normal_briefing(self):
+        """Handle validation for normal operations interdependence analysis"""
+        #print(f"Normal validation method called. Current state: {self.normal_validation_active}")
+        
+        #print("Starting normal operations validation analysis...")
+        
+        # Load normal tasks if not already loaded
+        if not hasattr(self, 'normal_loaded') or not self.normal_loaded:
+            self.load_normal_tasks()
+        
+        #print(f"Normal validation mode activated: {self.normal_validation_active}")
+        
+    def reset_normal_validation(self):
+        """Reset the normal operations validation analysis"""
+        #print("Resetting normal operations validation analysis...")
+        
+        #print(f"Manual reset of normal interdependence analysis: {self.normal_validation_active}")
+            
+    def validate_contingency_planning(self):
+        """Handle validation for contingency planning interdependence analysis"""
+        #print(f"Contingency validation method called. Current state: {self.contingency_validation_active}")
+        
+        #print("Starting contingency planning validation analysis...")
+        
+        # Load contingency tasks if not already loaded
+        if not hasattr(self, 'contingency_loaded') or not self.contingency_loaded:
+            self.load_contingency_tasks()
+        
+        #print(f"Contingency validation mode activated: {self.contingency_validation_active}")
+        
+    def reset_contingency_validation(self):
+        """Reset the contingency planning validation analysis"""
+        print("Resetting contingency planning validation analysis...")
+        
+        print(f"Manual reset of contingency planning interdependence analysis: {self.contingency_validation_active}")
+    
+    def _set_normal_button_to_reset_state(self):
+        """Set normal operation button appearance and text for reset state"""
         if hasattr(self.widgets, 'validate_briefing_button'):
             button = self.widgets.validate_briefing_button
             
@@ -783,13 +815,13 @@ class BriefingPage(BasePage):
                 }
             """)
     
-    def _set_button_to_validate_state(self):
-        """Set button appearance and text for validate state"""
+    def _set_normal_button_to_validate_state(self):
+        """Set normal operation button appearance and text for validate state"""
         if hasattr(self.widgets, 'validate_briefing_button'):
             button = self.widgets.validate_briefing_button
             
             # Change text back to validate
-            button.setText("Validate Briefing")
+            button.setText(getattr(self, 'original_briefing_button_text', 'Validate Briefing'))
             
             # Apply original styling
             button.setStyleSheet("""
@@ -810,40 +842,112 @@ class BriefingPage(BasePage):
                 }
             """)
 
-    def _check_all_tasks_assigned(self):
-        """Check if all tasks have been assigned performers"""
-        if not self.interdependence_scene or not self.tasks:
+    def _set_normal_button_to_disabled_state(self):
+        """Set normal operation button appearance and text for disabled state"""
+        if hasattr(self.widgets, 'validate_briefing_button'):
+            button = self.widgets.validate_briefing_button
+            
+            # Change text to indicate validation not available
+            button.setText("Cannot Validate")
+            
+            # Apply disabled styling
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid gray !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: rgba(255, 255, 255, 120) !important;
+                }
+                QPushButton:hover:disabled {
+                    border: 2px solid rgba(100, 100, 100, 255) !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
+                }
+            """)
+
+    def _check_normal_tasks_assigned(self):
+        """Check if all normal operation tasks have been assigned performers"""
+        if not self.normal_interdependence_scene or not self.normal_tasks:
             return False
         
-        # Check if we have selections for all tasks
-        total_tasks = len(self.tasks)
-        assigned_tasks = len(self.interdependence_scene.selected)
+        # Check if we have selections for all normal operation tasks
+        total_tasks = len(self.normal_tasks)
+        assigned_tasks = len(self.normal_interdependence_scene.selected)
         
         all_assigned = assigned_tasks == total_tasks
         
         # Update button state if assignment status changed
-        if all_assigned != self.all_tasks_assigned:
-            self.all_tasks_assigned = all_assigned
-            self._update_button_state()
+        if all_assigned != self.all_normal_tasks_assigned:
+            self.all_normal_tasks_assigned = all_assigned
+            self._update_normal_button_state()
+            
+        # Print current status
+        if total_tasks > 0:
+            if all_assigned:
+                print(f"All {total_tasks} normal operation tasks assigned!")
+            else:
+                print(f"Normal tasks assigned: {assigned_tasks}/{total_tasks}")
             
         return all_assigned
     
-    def _update_button_state(self):
-        """Update button enabled/disabled state and styling"""
+    def _check_contingency_tasks_assigned(self):
+        """Check if all contingency tasks have been assigned performers"""
+        if not self.contingency_interdependence_scene or not self.contingency_tasks:
+            return False
+        
+        # Check if we have selections for all contingency tasks
+        total_tasks = len(self.contingency_tasks)
+        assigned_tasks = len(self.contingency_interdependence_scene.selected)
+        
+        all_assigned = assigned_tasks == total_tasks
+        
+        # Update button state if assignment status changed
+        if all_assigned != self.all_contingency_tasks_assigned:
+            self.all_contingency_tasks_assigned = all_assigned
+            self._update_contingency_button_state()
+            
+        # Print current status
+        if total_tasks > 0:
+            if all_assigned:
+                print(f"All {total_tasks} contingency tasks assigned!")
+            else:
+                print(f"Contingency tasks assigned: {assigned_tasks}/{total_tasks}")
+            
+        return all_assigned
+    
+    def _update_normal_button_state(self):
+        """Update normal operation button enabled/disabled state and styling"""
         if hasattr(self.widgets, 'validate_briefing_button'):
             button = self.widgets.validate_briefing_button
             
-            if self.all_tasks_assigned:
+            if self.all_normal_tasks_assigned:
                 # All tasks assigned - enable button
                 button.setEnabled(True)
-                if self.validation_active:
-                    self._set_button_to_reset_state()
+                if self.normal_validation_active:
+                    self._set_normal_button_to_reset_state()
                 else:
-                    self._set_button_to_validate_state()
+                    self._set_normal_button_to_validate_state()
             else:
                 # Not all tasks assigned - disable button
                 button.setEnabled(False)
-                self._set_button_to_disabled_state()
+                self._set_normal_button_to_disabled_state()
+                
+    def _update_contingency_button_state(self):
+        """Update contingency planning button enabled/disabled state and styling"""
+        if hasattr(self.widgets, 'validate_cont_planning_button'):
+            button = self.widgets.validate_cont_planning_button
+            
+            if self.all_contingency_tasks_assigned:
+                # All tasks assigned - enable button
+                button.setEnabled(True)
+                if self.contingency_validation_active:
+                    self._set_contingency_button_to_reset_state()
+                else:
+                    self._set_contingency_button_to_validate_state()
+            else:
+                # Not all tasks assigned - disable button
+                button.setEnabled(False)
+                self._set_contingency_button_to_disabled_state()
     
     def _set_button_to_disabled_state(self):
         """Set button appearance for disabled state"""
@@ -874,6 +978,84 @@ class BriefingPage(BasePage):
                     background-color: rgba(100, 100, 100, 255) !important;
                 }
             """)
+    
+    # Contingency planning button styling methods
+    def _set_contingency_button_to_reset_state(self):
+        """Set contingency planning button appearance and text for reset state"""
+        if hasattr(self.widgets, 'validate_cont_planning_button'):
+            button = self.widgets.validate_cont_planning_button
+            
+            # Change text to reset
+            button.setText("Reset Selection")
+            
+            # Apply darker pressed/active styling
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid rgba(0, 134, 96, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(0, 134, 96, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: white !important;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0, 120, 86, 255) !important;
+                    border-color: rgba(0, 120, 86, 255) !important;
+                }
+                QPushButton:pressed {
+                    background-color: rgba(0, 100, 72, 255) !important;
+                    border-color: rgba(0, 100, 72, 255) !important;
+                }
+            """)
+    
+    def _set_contingency_button_to_validate_state(self):
+        """Set contingency planning button appearance and text for validate state"""
+        if hasattr(self.widgets, 'validate_cont_planning_button'):
+            button = self.widgets.validate_cont_planning_button
+            
+            # Change text back to validate
+            button.setText(getattr(self, 'original_contingency_button_text', 'Validate Contingency Planning'))
+            
+            # Apply original styling
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid rgba(0, 168, 120, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(0, 168, 120, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: white !important;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0, 150, 108, 255) !important;
+                    border-color: rgba(0, 150, 108, 255) !important;
+                }
+                QPushButton:pressed {
+                    background-color: rgba(0, 134, 96, 255) !important;
+                    border-color: rgba(0, 134, 96, 255) !important;
+                }
+            """)
+
+    def _set_contingency_button_to_disabled_state(self):
+        """Set contingency planning button appearance and text for disabled state"""
+        if hasattr(self.widgets, 'validate_cont_planning_button'):
+            button = self.widgets.validate_cont_planning_button
+            
+            # Change text to indicate validation not available
+            button.setText("Cannot Validate")
+            
+            # Apply disabled styling
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid gray !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: rgba(255, 255, 255, 120) !important;
+                }
+                QPushButton:hover:disabled {
+                    border: 2px solid rgba(100, 100, 100, 255) !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
+                }
+            """)
 
     def validate_briefing(self):
         """
@@ -881,9 +1063,9 @@ class BriefingPage(BasePage):
         """
         print("Validating briefing...")
         
-        if self.interdependence_scene:
+        if self.normal_interdependence_scene:
             # Hide non-selected nodes to show user's final selection
-            self.interdependence_scene.hide_non_selected_nodes()
+            self.normal_interdependence_scene.hide_non_selected_nodes()
             
             # Get current selections for feedback
             selections = self.get_selected_performers()
@@ -891,7 +1073,7 @@ class BriefingPage(BasePage):
             if selections:
                 print(f"Briefing validated with {len(selections)} tasks assigned:")
                 for task_id, performer in selections.items():
-                    task_name = self.tasks[task_id].name if self.tasks else f"Task {task_id}"
+                    task_name = self.normal_tasks[task_id].name if self.normal_tasks else f"Task {task_id}"
                     print(f"  {task_name}: {performer}")
             else:
                 print("Warning: No tasks have been assigned to performers")
@@ -904,23 +1086,23 @@ class BriefingPage(BasePage):
         """
         print("Resetting validation...")
         
-        if self.interdependence_scene:
+        if self.normal_interdependence_scene:
             # Show all nodes again
-            self.interdependence_scene.show_all_nodes()
+            self.normal_interdependence_scene.show_all_nodes()
             print("Validation reset - all nodes visible again")
         else:
-            print("Error: Interdependence scene not available")
+            print("Error: Normal interdependence scene not available")
         
     # Interdependence analysis methods
     def get_selected_performers(self):
         """Get currently selected performers for each task"""
-        if self.interdependence_scene:
-            return self.interdependence_scene.selected.copy()
+        if self.normal_interdependence_scene:
+            return self.normal_interdependence_scene.selected.copy()
         return {}
     
     def reset_interdependence_analysis(self):
         """Reset all performer selections"""
-        if self.interdependence_scene:
-            self.interdependence_scene.selected.clear()
-            self.interdependence_scene._update_path()
+        if self.normal_interdependence_scene:
+            self.normal_interdependence_scene.selected.clear()
+            self.normal_interdependence_scene._update_path()
             print("Interdependence analysis reset")
