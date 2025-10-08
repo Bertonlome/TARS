@@ -3429,7 +3429,7 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
 	background-color: rgba(33, 37, 43, 255)</string>
                           </property>
                           <attribute name="title">
-                           <string>Tab 1</string>
+                           <string>Normal Operations</string>
                           </attribute>
                           <layout class="QVBoxLayout" name="verticalLayout_24">
                            <item>
@@ -3451,7 +3451,7 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
 	background-color: rgba(33, 37, 43, 255)</string>
                           </property>
                           <attribute name="title">
-                           <string>Tab 2</string>
+                           <string>Contingency Planning</string>
                           </attribute>
                           <layout class="QVBoxLayout" name="verticalLayout_25">
                            <item>

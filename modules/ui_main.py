@@ -2179,8 +2179,8 @@ class Ui_MainWindow(object):
         self.tableWidget.setSortingEnabled(__sortingEnabled)
 
         self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Tab 1", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Tab 2", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Normal Operations", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Contingency Planning", None))
         self.btn_message.setText(QCoreApplication.translate("MainWindow", u"Message", None))
         self.btn_print.setText(QCoreApplication.translate("MainWindow", u"Print", None))
         self.btn_logout.setText(QCoreApplication.translate("MainWindow", u"Logout", None))

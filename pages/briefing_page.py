@@ -9,7 +9,7 @@ from PySide6.QtGui import QPen, QBrush, QPainterPath, QFont, QPainter, QColor
 from PySide6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsItem,
     QGraphicsEllipseItem, QGraphicsRectItem, QGraphicsLineItem,
-    QGraphicsPathItem, QGraphicsSimpleTextItem
+    QGraphicsPathItem, QGraphicsSimpleTextItem, QGraphicsTextItem
 )
 from pages.base_page import BasePage
 from typing import TYPE_CHECKING
@@ -24,7 +24,8 @@ if TYPE_CHECKING:
 # ---------------------------- Data ----------------------------
 
 class Task:
-    def __init__(self, name, human_can, agent_can, human_supports, agent_supports):
+    def __init__(self, procedure_name, name, human_can, agent_can, human_supports, agent_supports):
+        self.procedure_name = procedure_name
         self.name = name
         self.human_can = bool(int(human_can)) if str(human_can).strip() != "" else False
         self.agent_can = bool(int(agent_can)) if str(agent_can).strip() != "" else False
@@ -35,30 +36,64 @@ def load_tasks(csv_path: Path = None):
     """Load tasks from CSV or return demo data"""
     if csv_path and csv_path.exists():
         tasks = []
+        
+        def color_to_capability(color_value):
+            """Convert color values to capability (1 for green, 0 for red/yellow/empty)"""
+            if isinstance(color_value, str):
+                color_value = color_value.strip().lower()
+                return 1 if color_value == "green" else 0
+            return 0
+        
+        def color_to_support(color_value):
+            """Convert color values to support (1 for green/yellow, 0 for red/empty)"""
+            if isinstance(color_value, str):
+                color_value = color_value.strip().lower()
+                return 1 if color_value in ["green", "yellow"] else 0
+            return 0
+        
         with open(csv_path, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Get values from your CSV columns
+                procedure_name = row.get("Procedure", "").strip()
+                task_name = row.get("Task Object", "").strip()
+                human_capability = row.get("Human*", "").strip()
+                agent_capability = row.get("TARS", "").strip()
+                agent_support = row.get("TARS*", "").strip()
+                human_support = row.get("Human", "").strip()
+                
+                # Skip empty rows
+                if not task_name or not procedure_name:
+                    continue
+                
+                # Convert colors to numbers
+                human_can = color_to_capability(human_capability)
+                agent_can = color_to_capability(agent_capability)
+                human_supports = color_to_support(human_support)
+                agent_supports = color_to_support(agent_support)
+                
                 tasks.append(Task(
-                    row.get("task","").strip(),
-                    row.get("human_can","0"),
-                    row.get("agent_can","0"),
-                    row.get("human_supports","0"),
-                    row.get("agent_supports","0"),
+                    procedure_name,
+                    task_name,
+                    human_can,
+                    agent_can,
+                    human_supports,
+                    agent_supports,
                 ))
         return tasks
 
     # Hardcoded demo data for normal operations
     demo = [
-        ("Confirm takeoff clearance", 1, 0, 0, 0),
-        ("Align with runway centerline", 1, 1, 0, 0),
-        ("Check winds", 1, 1, 1, 1),
-        ("Hold brakes", 1, 1, 0, 0),
-        ("Advance thrust", 0, 1, 0, 0),
-        ("Airspeed alive callout", 1, 1, 0, 0),
-        ("80 knots cross-check", 1, 1, 1, 0),
-        ("Rotate", 1, 0, 0, 0),
-        ("Positive rate", 1, 1, 0, 0),
-        ("Gear up", 1, 1, 0, 1),
+        ("pre-takeoff", "Confirm takeoff clearance", 1, 0, 0, 0),
+        ("pre-takeoff", "Align with runway centerline", 1, 1, 0, 0),
+        ("pre-takeoff", "Check winds", 1, 1, 1, 1),
+        ("pre-takeoff", "Hold brakes", 1, 1, 0, 0),
+        ("takeoff", "Advance thrust", 0, 1, 0, 0),
+        ("takeoff", "Airspeed alive callout", 1, 1, 0, 0),
+        ("takeoff", "80 knots cross-check", 1, 1, 1, 0),
+        ("takeoff", "Rotate", 1, 0, 0, 0),
+        ("takeoff", "Positive rate", 1, 1, 0, 0),
+        ("takeoff", "Gear up", 1, 1, 0, 1),
     ]
     return [Task(*t) for t in demo]
 
@@ -119,13 +154,17 @@ class InterdependenceScene(QGraphicsScene):
         # Layout constants
         self.margin_left = 350
         self.margin_right = 10
-        self.margin_top = 160
-        self.row_h = 100
+        self.margin_top = 180
+        self.row_h = 80  # Reduced row height for more compact layout
+        self.procedure_spacing = 120  # Extra space between procedures
         self.col_x = {
             "HUMAN": 380,
             "TARS": 820
         }
         self.node_r = 20
+
+        # Group tasks by procedure
+        self.procedures = self._group_tasks_by_procedure()
 
         # State: which performer is currently selected at each row
         self.selected: dict[int, str] = {}  # row -> "HUMAN"/"TARS"
@@ -141,52 +180,132 @@ class InterdependenceScene(QGraphicsScene):
         self._build_nodes_and_supporters()
         self._update_path()
 
+    def _group_tasks_by_procedure(self):
+        """Group tasks by procedure name and maintain order"""
+        procedures = {}
+        procedure_order = []
+        
+        for i, task in enumerate(self.tasks):
+            if task.procedure_name not in procedures:
+                procedures[task.procedure_name] = []
+                procedure_order.append(task.procedure_name)
+            procedures[task.procedure_name].append((i, task))
+        
+        # Return ordered list of (procedure_name, [(task_index, task), ...])
+        return [(proc_name, procedures[proc_name]) for proc_name in procedure_order]
+
+    def _create_wrapped_text_item(self, text: str, max_width_chars: int = 25) -> tuple[QGraphicsTextItem, int]:
+        """Create a QGraphicsTextItem with text wrapping for long task names
+        
+        Returns:
+            tuple: (QGraphicsTextItem, number_of_lines)
+        """
+        # Check if wrapping is needed
+        if len(text) > max_width_chars:
+            # Simple word wrapping: split long text into lines
+            words = text.split()
+            lines = []
+            current_line = ""
+            
+            for word in words:
+                # Check if adding this word would exceed the limit
+                test_line = current_line + (" " if current_line else "") + word
+                if len(test_line) <= max_width_chars:
+                    current_line = test_line
+                else:
+                    # Start a new line
+                    if current_line:
+                        lines.append(current_line)
+                    current_line = word
+            
+            # Add the last line
+            if current_line:
+                lines.append(current_line)
+            
+            # Join with line breaks and add indentation to each line
+            display_text = "\n".join(f"  {line}" for line in lines)
+            num_lines = len(lines)
+        else:
+            # Single line with indentation
+            display_text = f"  {text}"
+            num_lines = 1
+        
+        # Create QGraphicsTextItem for multi-line support
+        text_item = QGraphicsTextItem(display_text)
+        text_item.setDefaultTextColor(QColor("#ffffff"))
+        
+        # Set font
+        font = QFont()
+        font.setPointSize(14)
+        text_item.setFont(font)
+        
+        return text_item, num_lines
+
     def _build_static(self):
         """Build static elements (title, headers, labels)"""
-        # Title
+        # Main title
         title = QGraphicsSimpleTextItem("NORMAL Operation Briefing and task allocation")
         f = QFont()
         f.setPointSize(20)
-        #f.setBold(True)
         title.setFont(f)
-        title.setBrush(QBrush(QColor("#ffffff")))  # Set the font color here
+        title.setBrush(QBrush(QColor("#ffffff")))
         title.setPos(self.margin_left, 20)
         self.addItem(title)
 
-        # Column headers
-        for col, x in self.col_x.items():
-            h = QGraphicsSimpleTextItem(col)
-            hf = QFont()
-            hf.setPointSize(16)
-            #hf.setBold(True)
-            h.setFont(hf)
-            h.setPos(x - 30, self.margin_top - 60)
-            h.setBrush(QBrush(QColor("#ffffff")))  # Set the font color here
-            self.addItem(h)
+        # Build procedure sections
+        current_y = self.margin_top
+        
+        for proc_name, tasks_in_proc in self.procedures:
+            # Procedure title
+            proc_title = QGraphicsSimpleTextItem(proc_name.upper())
+            proc_font = QFont()
+            proc_font.setPointSize(18)
+            proc_font.setBold(True)
+            proc_title.setFont(proc_font)
+            proc_title.setBrush(QBrush(QColor("#ffffff")))  # White color for procedure titles
+            
+            # Center the title between HUMAN and TARS columns
+            center_x = (self.col_x["HUMAN"] + self.col_x["TARS"]) / 2
+            title_width = proc_title.boundingRect().width()
+            centered_x = center_x - (title_width / 2)
+            proc_title.setPos(centered_x, current_y - 100)
+            self.addItem(proc_title)
+            
+            # Column headers for this procedure (HUMAN and TARS above each procedure)
+            for col, x in self.col_x.items():
+                h = QGraphicsSimpleTextItem(col)
+                hf = QFont()
+                hf.setPointSize(16)
+                h.setFont(hf)
+                h.setPos(x - 30, current_y - 60)  # Position just above the procedure tasks
+                h.setBrush(QBrush(QColor("#ffffff")))
+                self.addItem(h)
+            
+            # Task labels and row guide lines for this procedure
+            for local_index, (task_index, task) in enumerate(tasks_in_proc):
+                y = current_y + local_index * self.row_h
+                
+                # Task label with text wrapping
+                label, num_lines = self._create_wrapped_text_item(task.name, max_width_chars=20)
+                label.setPos(20, y - 10)
+                self.addItem(label)
 
-        # Task labels and row guide lines
-        for i, t in enumerate(self.tasks):
-            y = self._row_y(i)
-            label = QGraphicsSimpleTextItem(t.name)
-            lf = QFont()
-            lf.setPointSize(14)
-            label.setFont(lf)
-            label.setPos(20, y - 10)
-            label.setBrush(QBrush(QColor("#ffffff")))  # Set the font color here
-            self.addItem(label)
-
-            # faint row line
-            pen = QPen(Qt.lightGray, 0.8, Qt.DotLine)
-            self.addLine(self.margin_left-80, y, self.col_x["TARS"]+200, y, pen)
+                # Faint row line
+                pen = QPen(Qt.lightGray, 0.8, Qt.DotLine)
+                self.addLine(self.margin_left-80, y, self.col_x["TARS"]+200, y, pen)
+            
+            # Update current_y for next procedure (add space between procedures)
+            current_y += len(tasks_in_proc) * self.row_h + self.procedure_spacing
 
         # Scene rect adjusted to fit actual content bounds
-        content_left = 0  # Where task labels start
-        content_right = self.col_x["TARS"] + 100  # Add padding after TARS column
-        content_top = 20   # Where title starts
-        height = self._row_y(len(self.tasks)-1) + 120
+        content_left = 0
+        content_right = self.col_x["TARS"] + 100
+        content_top = 20
+        # Calculate total height based on all procedures
+        total_height = current_y + 50  # Add some bottom padding
         width = content_right - content_left
         
-        self.setSceneRect(content_left, content_top, width, height)
+        self.setSceneRect(content_left, content_top, width, total_height)
 
     def _build_nodes_and_supporters(self):
         """Build clickable performer nodes and supporter rectangles"""
@@ -221,7 +340,23 @@ class InterdependenceScene(QGraphicsScene):
         self.dashed_items.append(line)
 
     def _row_y(self, row: int) -> float:
-        """Get Y coordinate for row"""
+        """Get Y coordinate for row based on procedure grouping"""
+        # Find which procedure this row belongs to
+        current_y = self.margin_top
+        
+        for proc_name, tasks_in_proc in self.procedures:
+            # Check if the row is in this procedure
+            task_indices = [task_index for task_index, _ in tasks_in_proc]
+            
+            if row in task_indices:
+                # Find the position within this procedure
+                local_index = task_indices.index(row)
+                return current_y + local_index * self.row_h
+            
+            # Move to next procedure
+            current_y += len(tasks_in_proc) * self.row_h + self.procedure_spacing
+        
+        # Fallback to old calculation if not found
         return self.margin_top + row * self.row_h
 
     def on_node_clicked(self, row: int, role: str):
@@ -405,7 +540,8 @@ class BriefingPage(BasePage):
         """Setup the interdependence analysis table"""
         try:
             # Load tasks from CSV or use demo data
-            self.tasks = load_tasks()
+            csv_file_path = Path(__file__).parent / "table_data_with_opd.csv"
+            self.tasks = load_tasks(csv_file_path)
             
             # Create and setup the interdependence scene with callback
             self.interdependence_scene = InterdependenceScene(
@@ -420,11 +556,15 @@ class BriefingPage(BasePage):
                 self.widgets.normal_operation_ia_graph.setDragMode(QGraphicsView.RubberBandDrag)
                 self.widgets.normal_operation_ia_graph.setRenderHint(QPainter.Antialiasing, True)
                 
-                # Fit the scene content in the view to eliminate shifting
-                self.widgets.normal_operation_ia_graph.fitInView(
-                    self.interdependence_scene.sceneRect(), 
-                    Qt.KeepAspectRatio
-                )
+                # Enable scrollbars for large content instead of fitting everything
+                self.widgets.normal_operation_ia_graph.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+                self.widgets.normal_operation_ia_graph.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+                
+                # Set a reasonable scale (1.0 = normal size, no shrinking)
+                self.widgets.normal_operation_ia_graph.resetTransform()
+                
+                # Optionally, scroll to top-left to show the beginning
+                self.widgets.normal_operation_ia_graph.ensureVisible(0, 0, 50, 50)
                 
                 print("Interdependence analysis setup completed")
                 
