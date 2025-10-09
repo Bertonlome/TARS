@@ -684,6 +684,25 @@ class BriefingPage(BasePage):
         except Exception as e:
             print(f"Error connecting validate contingency planning button: {e}")
         
+        # Connect load allocation buttons
+        try:
+            if hasattr(self.widgets, 'load_allocation_button'):
+                self.widgets.load_allocation_button.clicked.connect(self.load_normal_allocation)
+                print("Load normal allocation button connected")
+            else:
+                print("Warning: load_allocation_button not found in UI")
+        except Exception as e:
+            print(f"Error connecting load normal allocation button: {e}")
+            
+        try:
+            if hasattr(self.widgets, 'load_allocation_button_2'):
+                self.widgets.load_allocation_button_2.clicked.connect(self.load_contingency_allocation)
+                print("Load contingency allocation button connected")
+            else:
+                print("Warning: load_allocation_button_2 not found in UI")
+        except Exception as e:
+            print(f"Error connecting load contingency allocation button: {e}")
+        
         # Example: Connect other buttons, input fields, etc.
         # self.widgets.briefing.btn_start_mission.clicked.connect(self.start_mission)
         # self.widgets.briefing.btn_load_briefing.clicked.connect(self.load_briefing_file)
@@ -949,6 +968,169 @@ class BriefingPage(BasePage):
             
         except Exception as e:
             print(f"Error exporting briefing: {e}")
+
+    def load_normal_allocation(self):
+        """Load complete briefing allocation (both normal and contingency) from CSV file"""
+        self._load_complete_briefing_from_file()
+    
+    def load_contingency_allocation(self):
+        """Load complete briefing allocation (both normal and contingency) from CSV file"""
+        self._load_complete_briefing_from_file()
+    
+    def _load_complete_briefing_from_file(self):
+        """Load complete briefing allocation (normal + contingency) from CSV file with file dialog"""
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        import csv
+        
+        print("Loading complete briefing allocation from file...")
+        
+        # Open file dialog to select CSV file
+        file_path, _ = QFileDialog.getOpenFileName(
+            None,
+            "Load Complete Briefing Allocation", 
+            str(Path.home()),
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        
+        if not file_path:
+            print("No file selected")
+            return
+            
+        try:
+            # Read the CSV file and separate normal vs contingency data
+            normal_allocation_data = {}
+            contingency_allocation_data = {}
+            
+            with open(file_path, 'r', newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                
+                # Validate header format
+                expected_headers = ['Procedure', 'Category', 'Type', 'Task Object', 'Value', 'Human Role', 'Autonomy Role']
+                if not all(header in reader.fieldnames for header in expected_headers):
+                    QMessageBox.warning(None, "Invalid File Format", 
+                                      f"The selected CSV file does not have the expected format.\n"
+                                      f"Expected headers: {', '.join(expected_headers)}")
+                    return
+                
+                # Parse allocation data and separate by category
+                for row in reader:
+                    procedure = row['Procedure'].strip()
+                    category = row['Category'].strip()
+                    task_object = row['Task Object'].strip()
+                    value = row['Value'].strip()
+                    human_role = row['Human Role'].strip()
+                    autonomy_role = row['Autonomy Role'].strip()
+                    
+                    # Determine performer based on roles
+                    if human_role == "performer":
+                        performer = "HUMAN"
+                    elif autonomy_role == "performer":
+                        performer = "TARS"
+                    else:
+                        print(f"Warning: Could not determine performer for task {task_object}")
+                        continue
+                    
+                    # Store allocation data based on category
+                    allocation_key = (procedure, task_object, value)
+                    
+                    if category == "NORM":
+                        normal_allocation_data[allocation_key] = performer
+                    elif category in ["EMER", "ABNORM"]:
+                        contingency_allocation_data[allocation_key] = performer
+            
+            # Apply allocations to both task sets
+            normal_applied = self._apply_allocation_to_normal_tasks(normal_allocation_data)
+            contingency_applied = self._apply_allocation_to_contingency_tasks(contingency_allocation_data)
+            
+            total_applied = normal_applied + contingency_applied
+            print(f"Successfully loaded complete briefing from {file_path}")
+            print(f"  - Normal operations: {normal_applied} tasks")
+            print(f"  - Contingency planning: {contingency_applied} tasks")
+            print(f"  - Total: {total_applied} task allocations")
+            
+            # Show success message to user
+            QMessageBox.information(None, "Briefing Loaded Successfully", 
+                                  f"Loaded complete briefing configuration:\n"
+                                  f"• Normal operations: {normal_applied} tasks\n"
+                                  f"• Contingency planning: {contingency_applied} tasks\n"
+                                  f"• Total: {total_applied} task allocations")
+                
+        except Exception as e:
+            print(f"Error loading briefing file: {e}")
+            QMessageBox.critical(None, "Error Loading File", 
+                               f"An error occurred while loading the briefing file:\n{str(e)}")
+    
+    def _apply_allocation_to_normal_tasks(self, allocation_data):
+        """Apply loaded allocation data to normal operation tasks"""
+        if not self.normal_interdependence_scene or not self.normal_tasks:
+            print("Normal tasks not available for allocation")
+            return 0
+            
+        applied_count = 0
+        
+        for task_id, task in enumerate(self.normal_tasks):
+            allocation_key = (task.procedure_name, task.name, task.value)
+            
+            if allocation_key in allocation_data:
+                performer = allocation_data[allocation_key]
+                
+                # Set the selection in the scene
+                self.normal_interdependence_scene.selected[task_id] = performer
+                
+                # Update visual representation
+                if (task_id, "HUMAN") in self.normal_interdependence_scene.nodes:
+                    human_node = self.normal_interdependence_scene.nodes[(task_id, "HUMAN")]
+                    human_node.set_selected(performer == "HUMAN")
+                    
+                if (task_id, "TARS") in self.normal_interdependence_scene.nodes:
+                    tars_node = self.normal_interdependence_scene.nodes[(task_id, "TARS")]
+                    tars_node.set_selected(performer == "TARS")
+                
+                applied_count += 1
+                print(f"Applied normal allocation: {task.name} -> {performer}")
+        
+        # Update path visualization and check assignment status
+        self.normal_interdependence_scene._update_path()
+        self._check_normal_tasks_assigned()
+        
+        print(f"Applied {applied_count} allocations to normal operation tasks")
+        return applied_count
+    
+    def _apply_allocation_to_contingency_tasks(self, allocation_data):
+        """Apply loaded allocation data to contingency planning tasks"""
+        if not self.contingency_interdependence_scene or not self.contingency_tasks:
+            print("Contingency tasks not available for allocation")
+            return 0
+            
+        applied_count = 0
+        
+        for task_id, task in enumerate(self.contingency_tasks):
+            allocation_key = (task.procedure_name, task.name, task.value)
+            
+            if allocation_key in allocation_data:
+                performer = allocation_data[allocation_key]
+                
+                # Set the selection in the scene
+                self.contingency_interdependence_scene.selected[task_id] = performer
+                
+                # Update visual representation
+                if (task_id, "HUMAN") in self.contingency_interdependence_scene.nodes:
+                    human_node = self.contingency_interdependence_scene.nodes[(task_id, "HUMAN")]
+                    human_node.set_selected(performer == "HUMAN")
+                    
+                if (task_id, "TARS") in self.contingency_interdependence_scene.nodes:
+                    tars_node = self.contingency_interdependence_scene.nodes[(task_id, "TARS")]
+                    tars_node.set_selected(performer == "TARS")
+                
+                applied_count += 1
+                print(f"Applied contingency allocation: {task.name} -> {performer}")
+        
+        # Update path visualization and check assignment status
+        self.contingency_interdependence_scene._update_path()
+        self._check_contingency_tasks_assigned()
+        
+        print(f"Applied {applied_count} allocations to contingency planning tasks")
+        return applied_count
 
     def _set_normal_button_to_reset_state(self):
         """Set normal operation button appearance and text for reset state"""
