@@ -3440,7 +3440,7 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                              <item>
                               <widget class="QPushButton" name="load_allocation_button">
                                <property name="text">
-                                <string>Load task allocation</string>
+                                <string>Load Briefing Package</string>
                                </property>
                                <property name="icon">
                                 <iconset resource="resources.qrc">
@@ -3477,7 +3477,7 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                              <item>
                               <widget class="QPushButton" name="load_allocation_button_2">
                                <property name="text">
-                                <string>Load Allocation</string>
+                                <string>Load Briefing Package</string>
                                </property>
                                <property name="icon">
                                 <iconset resource="resources.qrc">

@@ -87,7 +87,7 @@ class FSMWorker(QtCore.QObject):
             
             # Print performance report every 10 seconds
             if current_time - self.last_performance_report >= 10.0:
-                self.print_performance_report()
+                #self.print_performance_report()
                 self.last_performance_report = current_time
 
             # Check transitions with performance timing

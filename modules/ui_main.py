@@ -2207,10 +2207,10 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem23.setText(QCoreApplication.translate("MainWindow", u"Line", None));
         self.tableWidget.setSortingEnabled(__sortingEnabled)
 
-        self.load_allocation_button.setText(QCoreApplication.translate("MainWindow", u"Load task allocation", None))
+        self.load_allocation_button.setText(QCoreApplication.translate("MainWindow", u"Load Briefing Package", None))
         self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"Validate Briefing Plan", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Normal Operations", None))
-        self.load_allocation_button_2.setText(QCoreApplication.translate("MainWindow", u"Load Allocation", None))
+        self.load_allocation_button_2.setText(QCoreApplication.translate("MainWindow", u"Load Briefing Package", None))
         self.validate_cont_planning_button.setText(QCoreApplication.translate("MainWindow", u"Validate Contingency Plan", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Contingency Planning", None))
         self.btn_message.setText(QCoreApplication.translate("MainWindow", u"Message", None))

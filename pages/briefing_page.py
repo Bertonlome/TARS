@@ -69,8 +69,8 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
                 task_name = row.get("Task Object", "").strip()
                 value = row.get("Value", "").strip()
                 human_capability = row.get("Human*", "").strip()
-                agent_capability = row.get("TARS", "").strip()
-                agent_support = row.get("TARS*", "").strip()
+                agent_capability = row.get("TARS*", "").strip()
+                agent_support = row.get("TARS", "").strip()
                 human_support = row.get("Human", "").strip()
                 
                 # Skip empty rows
@@ -148,7 +148,6 @@ class ClickNode(QGraphicsEllipseItem):
 
     def mousePressEvent(self, event):
         """Handle node click"""
-        #print(f"Node clicked: Row {self.row}, Role {self.role}")
         self.scene_parent.on_node_clicked(self.row, self.role)
         super().mousePressEvent(event)
     
@@ -317,8 +316,10 @@ class InterdependenceScene(QGraphicsScene):
                 y = current_y + local_index * self.row_h
                 
                 # Task label with text wrapping
-                label, num_lines = self._create_wrapped_text_item(task.name, max_width_chars=20)
-                label.setPos(20, y - 10)
+                label, num_lines = self._create_wrapped_text_item(task.name + " " + task.value, max_width_chars=60)
+                # Right-align the label by positioning it based on its width
+                label_width = label.boundingRect().width()
+                label.setPos(250 - label_width, y - 10)  # Subtract width to right-align
                 self.addItem(label)
 
                 # Faint row line
@@ -348,8 +349,8 @@ class InterdependenceScene(QGraphicsScene):
                 node = ClickNode(row, "HUMAN", QPointF(self.col_x["HUMAN"], y), self.node_r, self)
                 self.addItem(node)
                 self.nodes[(row, "HUMAN")] = node  # Store reference
-                # Only add support rectangle (not the dashed line yet)
-                if t.human_supports:
+                # Show support rectangle in TARS column if TARS can support this task
+                if t.agent_supports:
                     sup = SupportNode(QPointF(self.col_x["TARS"], y))
                     self.addItem(sup)
 
@@ -358,8 +359,8 @@ class InterdependenceScene(QGraphicsScene):
                 node = ClickNode(row, "TARS", QPointF(self.col_x["TARS"], y), self.node_r, self)
                 self.addItem(node)
                 self.nodes[(row, "TARS")] = node  # Store reference
-                # Only add support rectangle (not the dashed line yet)
-                if t.agent_supports:
+                # Show support rectangle in HUMAN column if HUMAN can support this task
+                if t.human_supports:
                     sup = SupportNode(QPointF(self.col_x["HUMAN"], y))
                     self.addItem(sup)
 
@@ -407,7 +408,6 @@ class InterdependenceScene(QGraphicsScene):
         
         # Update connecting paths
         self._update_path()
-        #print(f"Selected {role} for task {row}: {self.tasks[row].name}")
         
         # Notify parent of selection change
         if self.selection_callback:
@@ -420,20 +420,18 @@ class InterdependenceScene(QGraphicsScene):
             self.removeItem(item)
         self.dashed_items.clear()
         
-        # Add support lines only for selected performers who have support
+        # Add support lines only for selected performers who have support available
         for row, selected_role in self.selected.items():
             task = self.tasks[row]
             y = self._row_y(row)
             
-            if selected_role == "HUMAN" and task.human_supports:
-                # Human is selected and can support TARS
-                self._add_dashed(self.col_x["HUMAN"], self.col_x["TARS"], y)
-                #print(f"  Added support line: HUMAN -> TARS for task {row}")
-                
-            elif selected_role == "TARS" and task.agent_supports:
-                # TARS is selected and can support HUMAN
+            if selected_role == "HUMAN" and task.agent_supports:
+                # Human is selected as performer and TARS can support
                 self._add_dashed(self.col_x["TARS"], self.col_x["HUMAN"], y)
-                #print(f"  Added support line: TARS -> HUMAN for task {row}")
+                
+            elif selected_role == "TARS" and task.human_supports:
+                # TARS is selected as performer and HUMAN can support
+                self._add_dashed(self.col_x["HUMAN"], self.col_x["TARS"], y)
 
     def _update_path(self):
         """Update the solid path between selected performers"""
@@ -442,8 +440,6 @@ class InterdependenceScene(QGraphicsScene):
             self.removeItem(item)
         self.path_items.clear()
 
-        # Debug: Print current selections
-        #print(f"Current selections: {self.selected}")
 
         # Build path only through rows that have a selection
         pen = QPen(Qt.black, 3.0, Qt.SolidLine)  # Made thicker for visibility
@@ -457,21 +453,18 @@ class InterdependenceScene(QGraphicsScene):
                 x1 = self.col_x[self.selected[i]]
                 x2 = self.col_x[self.selected[i+1]]
 
-                #print(f"Creating path from task {i} to {i+1}: ({x1}, {y1}) -> ({x2}, {y2})")
 
                 path = QPainterPath(QPointF(x1, y1))
                 # straight vertical if x1==x2; else a simple 2-segment line looks good
                 if x1 == x2:
                     # Vertical line for same performer
                     path.lineTo(QPointF(x2, y2))
-                    #print(f"  Vertical path created")
                 else:
                     # Angled path for different performers
                     mid_y = (y1 + y2) / 2
                     path.lineTo(QPointF(x1, mid_y))
                     path.lineTo(QPointF(x2, mid_y))
                     path.lineTo(QPointF(x2, y2))
-                    #print(f"  Angled path created via ({x1}, {mid_y}) -> ({x2}, {mid_y})")
 
                 item = QGraphicsPathItem(path)
                 item.setPen(pen)
@@ -480,14 +473,12 @@ class InterdependenceScene(QGraphicsScene):
                 self.path_items.append(item)
                 paths_created += 1
 
-        #print(f"Total paths created: {paths_created}")
         
         # Force scene update
         self.update()
 
     def hide_non_selected_nodes(self):
         """Hide all non-selected performer nodes to show final selection"""
-        #print("Hiding non-selected nodes...")
         
         hidden_count = 0
         visible_count = 0
@@ -502,20 +493,14 @@ class InterdependenceScene(QGraphicsScene):
                 node.setVisible(False)
                 hidden_count += 1
         
-        #print(f"  Hidden {hidden_count} non-selected nodes")
-        #print(f"  Kept {visible_count} selected nodes visible")
-        
         # Force scene update to reflect changes
         self.update()
 
     def show_all_nodes(self):
         """Show all performer nodes (reset from validation state)"""
-        #print("Showing all nodes...")
         
         for (row, role), node in self.nodes.items():
             node.setVisible(True)
-        
-        #print("  All nodes are now visible")
         
         # Force scene update to reflect changes
         self.update()
@@ -645,8 +630,6 @@ class BriefingPage(BasePage):
         # Start at top-left
         graphics_view.ensureVisible(0, 0, 50, 50)
         
-        print(f"{graph_name} interdependence graph setup completed")
-        
     
     def connect_briefing_signals(self):
         """
@@ -661,7 +644,6 @@ class BriefingPage(BasePage):
                 self.original_briefing_button_text = self.widgets.validate_briefing_button.text()
                 self._set_normal_button_to_disabled_state()  # Ensure initial state is correct
                 
-                #print("Validate briefing button connected")
                 
             else:
                 print("Warning: validate_briefing_button not found in UI")
@@ -677,7 +659,6 @@ class BriefingPage(BasePage):
                 self.original_contingency_button_text = self.widgets.validate_cont_planning_button.text()
                 self._set_contingency_button_to_disabled_state()  # Ensure initial state is correct
                 
-                #print("Validate contingency planning button connected")
                 
             else:
                 print("Warning: validate_cont_planning_button not found in UI")
@@ -688,7 +669,6 @@ class BriefingPage(BasePage):
         try:
             if hasattr(self.widgets, 'load_allocation_button'):
                 self.widgets.load_allocation_button.clicked.connect(self.load_normal_allocation)
-                print("Load normal allocation button connected")
             else:
                 print("Warning: load_allocation_button not found in UI")
         except Exception as e:
@@ -697,7 +677,6 @@ class BriefingPage(BasePage):
         try:
             if hasattr(self.widgets, 'load_allocation_button_2'):
                 self.widgets.load_allocation_button_2.clicked.connect(self.load_contingency_allocation)
-                print("Load contingency allocation button connected")
             else:
                 print("Warning: load_allocation_button_2 not found in UI")
         except Exception as e:
@@ -706,9 +685,6 @@ class BriefingPage(BasePage):
         # Example: Connect other buttons, input fields, etc.
         # self.widgets.briefing.btn_start_mission.clicked.connect(self.start_mission)
         # self.widgets.briefing.btn_load_briefing.clicked.connect(self.load_briefing_file)
-        
-        #print("Briefing signals connected")
-    
         
     # Validation methods
     def toggle_normal_validation_state(self):
@@ -727,7 +703,7 @@ class BriefingPage(BasePage):
             
         if not self.normal_validation_active:
             # Currently in normal state, validate the briefing
-            self.validate_normal_briefing()
+            self.validate_briefing()
             self._set_normal_button_to_reset_state()
             self.normal_validation_active = True
             if self.contingency_validation_active:
@@ -769,13 +745,10 @@ class BriefingPage(BasePage):
     
     def _set_buttons_to_export_state(self):
         """Set both buttons to export state when dual validation is complete"""
-        print("Setting buttons to export state...")
-        
         # Set normal button to export state
         if hasattr(self.widgets, 'validate_briefing_button'):
             button = self.widgets.validate_briefing_button
             button.setText("Export Briefing")
-            print("Set normal button text to 'Export Briefing'")
             button.setStyleSheet("""
                 QPushButton {
                     border: 2px solid rgba(255, 165, 0, 255) !important;
@@ -798,7 +771,6 @@ class BriefingPage(BasePage):
         if hasattr(self.widgets, 'validate_cont_planning_button'):
             button = self.widgets.validate_cont_planning_button
             button.setText("Export Briefing")
-            print("Set contingency button text to 'Export Briefing'")
             button.setStyleSheet("""
                 QPushButton {
                     border: 2px solid rgba(255, 165, 0, 255) !important;
@@ -817,69 +789,27 @@ class BriefingPage(BasePage):
                 }
             """)
     
-    def validate_normal_briefing(self):
-        """Handle validation for normal operations interdependence analysis"""
-        print("Starting normal operations validation analysis...")
-        print(f"Validating {len(self.normal_tasks)} normal operation tasks")
-        
-        if self.normal_interdependence_scene:
-            # Hide non-selected nodes to show user's final selection
-            self.normal_interdependence_scene.hide_non_selected_nodes()
-            
-            # Get current selections for feedback
-            selections = self.get_selected_performers()
-            
-            if selections:
-                print(f"Normal operations validated with {len(selections)} tasks assigned:")
-                for task_id, performer in selections.items():
-                    task_name = self.normal_tasks[task_id].name if self.normal_tasks else f"Task {task_id}"
-                    print(f"  {task_name}: {performer}")
-            else:
-                print("Warning: No normal operation tasks have been assigned to performers")
-        else:
-            print("Error: Normal interdependence scene not available")
-
     def reset_normal_validation(self):
         """Reset the normal operations validation analysis"""
-        print("Resetting normal operations validation analysis...")
-        
         if self.normal_interdependence_scene:
             # Show all nodes again
             self.normal_interdependence_scene.show_all_nodes()
-            print("Normal validation reset - all nodes visible again")
         else:
             print("Error: Normal interdependence scene not available")
             
     def validate_contingency_planning(self):
         """Handle validation for contingency planning interdependence analysis"""
-        print("Starting contingency planning validation analysis...")
-        print(f"Validating {len(self.contingency_tasks)} contingency tasks")
-        
         if self.contingency_interdependence_scene:
             # Hide non-selected nodes to show user's final selection
             self.contingency_interdependence_scene.hide_non_selected_nodes()
-            
-            # Get current contingency selections for feedback
-            contingency_selections = self.get_contingency_selected_performers()
-            
-            if contingency_selections:
-                print(f"Contingency planning validated with {len(contingency_selections)} tasks assigned:")
-                for task_id, performer in contingency_selections.items():
-                    task_name = self.contingency_tasks[task_id].name if self.contingency_tasks else f"Task {task_id}"
-                    print(f"  {task_name}: {performer}")
-            else:
-                print("Warning: No contingency tasks have been assigned to performers")
         else:
             print("Error: Contingency interdependence scene not available")
 
     def reset_contingency_validation(self):
         """Reset the contingency planning validation analysis"""
-        print("Resetting contingency planning validation analysis...")
-        
         if self.contingency_interdependence_scene:
             # Show all nodes again
             self.contingency_interdependence_scene.show_all_nodes()
-            print("Contingency validation reset - all nodes visible again")
         else:
             print("Error: Contingency interdependence scene not available")
     
@@ -888,25 +818,23 @@ class BriefingPage(BasePage):
         import csv
         from pathlib import Path
         from datetime import datetime
-        
-        print("Exporting briefing...")
-        
         # Create export data list
         export_data = []
-        
         # Export normal operations tasks
         normal_selections = self.get_selected_performers()
         for task_id, performer in normal_selections.items():
             if task_id < len(self.normal_tasks):
                 task = self.normal_tasks[task_id]
                 
-                # Determine roles based on performer selection
+                # Determine roles based on performer selection and task capabilities
                 if performer == "HUMAN":
-                    human_role = "performer" 
-                    autonomy_role = "supporter"
+                    human_role = "performer"
+                    # Only assign autonomy as supporter if the task supports it
+                    autonomy_role = "supporter" if task.agent_supports else ""
                 else:  # performer == "TARS"
-                    human_role = "supporter"
                     autonomy_role = "performer"
+                    # Only assign human as supporter if the task supports it
+                    human_role = "supporter" if task.human_supports else ""
                 
                 export_data.append([
                     task.procedure_name,   # Procedure
@@ -924,13 +852,15 @@ class BriefingPage(BasePage):
             if task_id < len(self.contingency_tasks):
                 task = self.contingency_tasks[task_id]
                 
-                # Determine roles based on performer selection
+                # Determine roles based on performer selection and task capabilities
                 if performer == "HUMAN":
                     human_role = "performer"
-                    autonomy_role = "supporter" 
+                    # Only assign autonomy as supporter if the task supports it
+                    autonomy_role = "supporter" if task.agent_supports else ""
                 else:  # performer == "TARS"
-                    human_role = "supporter"
                     autonomy_role = "performer"
+                    # Only assign human as supporter if the task supports it
+                    human_role = "supporter" if task.human_supports else ""
                 
                 export_data.append([
                     task.procedure_name,   # Procedure
@@ -981,9 +911,6 @@ class BriefingPage(BasePage):
         """Load complete briefing allocation (normal + contingency) from CSV file with file dialog"""
         from PySide6.QtWidgets import QFileDialog, QMessageBox
         import csv
-        
-        print("Loading complete briefing allocation from file...")
-        
         # Open file dialog to select CSV file
         file_path, _ = QFileDialog.getOpenFileName(
             None,
@@ -1022,12 +949,12 @@ class BriefingPage(BasePage):
                     autonomy_role = row['Autonomy Role'].strip()
                     
                     # Determine performer based on roles
-                    if human_role == "performer":
+                    if human_role.strip() == "performer":
                         performer = "HUMAN"
-                    elif autonomy_role == "performer":
+                    elif autonomy_role.strip() == "performer":
                         performer = "TARS"
                     else:
-                        print(f"Warning: Could not determine performer for task {task_object}")
+                        print(f"Warning: Could not determine performer for task {task_object} (human_role='{human_role}', autonomy_role='{autonomy_role}')")
                         continue
                     
                     # Store allocation data based on category
@@ -1043,11 +970,6 @@ class BriefingPage(BasePage):
             contingency_applied = self._apply_allocation_to_contingency_tasks(contingency_allocation_data)
             
             total_applied = normal_applied + contingency_applied
-            print(f"Successfully loaded complete briefing from {file_path}")
-            print(f"  - Normal operations: {normal_applied} tasks")
-            print(f"  - Contingency planning: {contingency_applied} tasks")
-            print(f"  - Total: {total_applied} task allocations")
-            
             # Show success message to user
             QMessageBox.information(None, "Briefing Loaded Successfully", 
                                   f"Loaded complete briefing configuration:\n"
@@ -1087,13 +1009,11 @@ class BriefingPage(BasePage):
                     tars_node.set_selected(performer == "TARS")
                 
                 applied_count += 1
-                print(f"Applied normal allocation: {task.name} -> {performer}")
         
         # Update path visualization and check assignment status
         self.normal_interdependence_scene._update_path()
         self._check_normal_tasks_assigned()
         
-        print(f"Applied {applied_count} allocations to normal operation tasks")
         return applied_count
     
     def _apply_allocation_to_contingency_tasks(self, allocation_data):
@@ -1123,13 +1043,11 @@ class BriefingPage(BasePage):
                     tars_node.set_selected(performer == "TARS")
                 
                 applied_count += 1
-                print(f"Applied contingency allocation: {task.name} -> {performer}")
         
         # Update path visualization and check assignment status
         self.contingency_interdependence_scene._update_path()
         self._check_contingency_tasks_assigned()
         
-        print(f"Applied {applied_count} allocations to contingency planning tasks")
         return applied_count
 
     def _set_normal_button_to_reset_state(self):
@@ -1225,13 +1143,6 @@ class BriefingPage(BasePage):
             self.all_normal_tasks_assigned = all_assigned
             self._update_normal_button_state()
             
-        # Print current status
-        if total_tasks > 0:
-            if all_assigned:
-                print(f"All {total_tasks} normal operation tasks assigned!")
-            else:
-                print(f"Normal tasks assigned: {assigned_tasks}/{total_tasks}")
-            
         return all_assigned
     
     def _check_contingency_tasks_assigned(self):
@@ -1249,13 +1160,6 @@ class BriefingPage(BasePage):
         if all_assigned != self.all_contingency_tasks_assigned:
             self.all_contingency_tasks_assigned = all_assigned
             self._update_contingency_button_state()
-            
-        # Print current status
-        if total_tasks > 0:
-            if all_assigned:
-                print(f"All {total_tasks} contingency tasks assigned!")
-            else:
-                print(f"Contingency tasks assigned: {assigned_tasks}/{total_tasks}")
             
         return all_assigned
     
@@ -1405,22 +1309,10 @@ class BriefingPage(BasePage):
         """
         Validate the briefing and hide non-selected nodes for feedback
         """
-        print("Validating briefing...")
-        
         if self.normal_interdependence_scene:
             # Hide non-selected nodes to show user's final selection
             self.normal_interdependence_scene.hide_non_selected_nodes()
-            
             # Get current selections for feedback
-            selections = self.get_selected_performers()
-            
-            if selections:
-                print(f"Briefing validated with {len(selections)} tasks assigned:")
-                for task_id, performer in selections.items():
-                    task_name = self.normal_tasks[task_id].name if self.normal_tasks else f"Task {task_id}"
-                    print(f"  {task_name}: {performer}")
-            else:
-                print("Warning: No tasks have been assigned to performers")
         else:
             print("Error: Interdependence scene not available")
     
@@ -1428,12 +1320,9 @@ class BriefingPage(BasePage):
         """
         Reset validation state and show all nodes again
         """
-        print("Resetting validation...")
-        
         if self.normal_interdependence_scene:
             # Show all nodes again
             self.normal_interdependence_scene.show_all_nodes()
-            print("Validation reset - all nodes visible again")
         else:
             print("Error: Normal interdependence scene not available")
         
@@ -1455,4 +1344,3 @@ class BriefingPage(BasePage):
         if self.normal_interdependence_scene:
             self.normal_interdependence_scene.selected.clear()
             self.normal_interdependence_scene._update_path()
-            print("Interdependence analysis reset")
