@@ -24,11 +24,12 @@ if TYPE_CHECKING:
 # ---------------------------- Data ----------------------------
 
 class Task:
-    def __init__(self, procedure_name, name, category, task_type, human_can, agent_can, human_supports, agent_supports):
+    def __init__(self, procedure_name, name, category, task_type, value, human_can, agent_can, human_supports, agent_supports):
         self.procedure_name = procedure_name
         self.name = name
         self.category = category  # NORM, EMER, ABNORM
         self.task_type = task_type  # SOP, Checklist, Memory Item, etc.
+        self.value = value  # Task value (e.g., "CONFIRM", "PITOT-STATIC", etc.)
         self.human_can = bool(int(human_can)) if str(human_can).strip() != "" else False
         self.agent_can = bool(int(agent_can)) if str(agent_can).strip() != "" else False
         self.human_supports = bool(int(human_supports)) if str(human_supports).strip() != "" else False
@@ -66,6 +67,7 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
                 category = row.get("Category", "").strip()
                 task_type = row.get("Type", "").strip()
                 task_name = row.get("Task Object", "").strip()
+                value = row.get("Value", "").strip()
                 human_capability = row.get("Human*", "").strip()
                 agent_capability = row.get("TARS", "").strip()
                 agent_support = row.get("TARS*", "").strip()
@@ -90,6 +92,7 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
                     task_name,
                     category,
                     task_type,
+                    value,
                     human_can,
                     agent_can,
                     human_supports,
@@ -99,16 +102,16 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
 
     # Hardcoded demo data for normal operations (backward compatibility)
     demo = [
-        ("pre-takeoff", "Confirm takeoff clearance", "NORM", "SOP", 1, 0, 0, 0),
-        ("pre-takeoff", "Align with runway centerline", "NORM", "SOP", 1, 1, 0, 0),
-        ("pre-takeoff", "Check winds", "NORM", "SOP", 1, 1, 1, 1),
-        ("pre-takeoff", "Hold brakes", "NORM", "SOP", 1, 1, 0, 0),
-        ("takeoff", "Advance thrust", "NORM", "SOP", 0, 1, 0, 0),
-        ("takeoff", "Airspeed alive callout", "NORM", "SOP", 1, 1, 0, 0),
-        ("takeoff", "80 knots cross-check", "NORM", "SOP", 1, 1, 1, 0),
-        ("takeoff", "Rotate", "NORM", "SOP", 1, 0, 0, 0),
-        ("takeoff", "Positive rate", "NORM", "SOP", 1, 1, 0, 0),
-        ("takeoff", "Gear up", "NORM", "SOP", 1, 1, 0, 1),
+        ("pre-takeoff", "Confirm takeoff clearance", "NORM", "SOP", "CONFIRM", 1, 0, 0, 0),
+        ("pre-takeoff", "Align with runway centerline", "NORM", "SOP", "ALIGN", 1, 1, 0, 0),
+        ("pre-takeoff", "Check winds", "NORM", "SOP", "CHECK", 1, 1, 1, 1),
+        ("pre-takeoff", "Hold brakes", "NORM", "SOP", "HOLD", 1, 1, 0, 0),
+        ("takeoff", "Advance thrust", "NORM", "SOP", "ADVANCE", 0, 1, 0, 0),
+        ("takeoff", "Airspeed alive callout", "NORM", "SOP", "CALLOUT", 1, 1, 0, 0),
+        ("takeoff", "80 knots cross-check", "NORM", "SOP", "80 KTS", 1, 1, 1, 0),
+        ("takeoff", "Rotate", "NORM", "SOP", "ROTATE", 1, 0, 0, 0),
+        ("takeoff", "Positive rate", "NORM", "SOP", "POS RATE", 1, 1, 0, 0),
+        ("takeoff", "Gear up", "NORM", "SOP", "GEAR UP", 1, 1, 0, 1),
     ]
     
     # Filter demo data by category if specified
@@ -538,8 +541,8 @@ class BriefingPage(BasePage):
         # Validation state - separate for normal and contingency
         self.normal_validation_active = False
         self.contingency_validation_active = False
-        self.original_briefing_button_text = ""
-        self.original_contingency_button_text = ""
+        self.original_briefing_button_text = "Validate Briefing"
+        self.original_contingency_button_text = "Validate Contingency Plan"
         
         # Track completion state - separate for normal and contingency
         self.all_normal_tasks_assigned = False
@@ -550,13 +553,8 @@ class BriefingPage(BasePage):
         Initialize the briefing page UI and connections
         """
         print("Initializing Briefing Page...")
-        
-        # Set up UI elements
-        self.setup_briefing_ui()
-        
         # Set up interdependence analysis
         self.setup_interdependence_analysis()
-        
         # Connect signals
         self.connect_briefing_signals()
 
@@ -649,24 +647,6 @@ class BriefingPage(BasePage):
         
         print(f"{graph_name} interdependence graph setup completed")
         
-    def setup_briefing_ui(self):
-        """
-        Set up UI elements specific to the briefing page
-        """
-        # Example: If you have specific widgets on the briefing page
-        # You can access them through self.widgets.briefing.findChild()
-        
-        # Example: Set page title or labels
-        try:
-            # Look for common widget names that might exist
-            if hasattr(self.widgets.briefing, 'label_title'):
-                self.widgets.briefing.label_title.setText("Mission Briefing")
-            
-            # Add more UI setup as needed
-            print("Briefing UI setup completed")
-            
-        except Exception as e:
-            print(f"Note: Some UI elements not found (this is normal): {e}")
     
     def connect_briefing_signals(self):
         """
@@ -714,8 +694,13 @@ class BriefingPage(BasePage):
     # Validation methods
     def toggle_normal_validation_state(self):
         """
-        Toggle between validation and reset states for normal operations
+        Toggle between validation and reset states for normal operations, or export if both validations complete
         """
+        # Check if both validations are complete - if so, export
+        if self.normal_validation_active and self.contingency_validation_active:
+            self.export_briefing()
+            return
+            
         # Only allow toggle if all normal tasks are assigned    
         if not self.all_normal_tasks_assigned and not self.normal_validation_active:
             print("Cannot validate normal operations: Not all tasks have been assigned performers")
@@ -726,6 +711,9 @@ class BriefingPage(BasePage):
             self.validate_normal_briefing()
             self._set_normal_button_to_reset_state()
             self.normal_validation_active = True
+            if self.contingency_validation_active:
+                # If contingency already validated, set both buttons to export state
+                self._set_buttons_to_export_state()
         else:
             # Currently in validated state, reset the validation
             self.reset_normal_validation()
@@ -734,8 +722,13 @@ class BriefingPage(BasePage):
     
     def toggle_contingency_validation_state(self):
         """
-        Toggle between validation and reset states for contingency planning
+        Toggle between validation and reset states for contingency planning, or export if both validations complete
         """
+        # Check if both validations are complete - if so, export
+        if self.normal_validation_active and self.contingency_validation_active:
+            self.export_briefing()
+            return
+            
         # Only allow toggle if all contingency tasks are assigned    
         if not self.all_contingency_tasks_assigned and not self.contingency_validation_active:
             print("Cannot validate contingency planning: Not all tasks have been assigned performers")
@@ -746,48 +739,217 @@ class BriefingPage(BasePage):
             self.validate_contingency_planning()
             self._set_contingency_button_to_reset_state()
             self.contingency_validation_active = True
+            if self.normal_validation_active:
+                # If normal already validated, set both buttons to export state
+                self._set_buttons_to_export_state()
         else:
             # Currently in validated state, reset the validation
             self.reset_contingency_validation()
             self._set_contingency_button_to_validate_state()
             self.contingency_validation_active = False
     
+    def _set_buttons_to_export_state(self):
+        """Set both buttons to export state when dual validation is complete"""
+        print("Setting buttons to export state...")
+        
+        # Set normal button to export state
+        if hasattr(self.widgets, 'validate_briefing_button'):
+            button = self.widgets.validate_briefing_button
+            button.setText("Export Briefing")
+            print("Set normal button text to 'Export Briefing'")
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid rgba(255, 165, 0, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(255, 165, 0, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: white !important;
+                }
+                QPushButton:hover {
+                    background-color: rgba(255, 140, 0, 255) !important;
+                    border-color: rgba(255, 140, 0, 255) !important;
+                }
+                QPushButton:pressed {
+                    background-color: rgba(255, 120, 0, 255) !important;
+                    border-color: rgba(255, 120, 0, 255) !important;
+                }
+            """)
+        
+        # Set contingency button to export state
+        if hasattr(self.widgets, 'validate_cont_planning_button'):
+            button = self.widgets.validate_cont_planning_button
+            button.setText("Export Briefing")
+            print("Set contingency button text to 'Export Briefing'")
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 2px solid rgba(255, 165, 0, 255) !important;
+                    border-radius: 5px !important;
+                    background-color: rgba(255, 165, 0, 255) !important;
+                    font: 600 16pt "JetBrains Mono" !important;
+                    color: white !important;
+                }
+                QPushButton:hover {
+                    background-color: rgba(255, 140, 0, 255) !important;
+                    border-color: rgba(255, 140, 0, 255) !important;
+                }
+                QPushButton:pressed {
+                    background-color: rgba(255, 120, 0, 255) !important;
+                    border-color: rgba(255, 120, 0, 255) !important;
+                }
+            """)
+    
     def validate_normal_briefing(self):
         """Handle validation for normal operations interdependence analysis"""
-        #print(f"Normal validation method called. Current state: {self.normal_validation_active}")
+        print("Starting normal operations validation analysis...")
+        print(f"Validating {len(self.normal_tasks)} normal operation tasks")
         
-        #print("Starting normal operations validation analysis...")
-        
-        # Load normal tasks if not already loaded
-        if not hasattr(self, 'normal_loaded') or not self.normal_loaded:
-            self.load_normal_tasks()
-        
-        #print(f"Normal validation mode activated: {self.normal_validation_active}")
-        
+        if self.normal_interdependence_scene:
+            # Hide non-selected nodes to show user's final selection
+            self.normal_interdependence_scene.hide_non_selected_nodes()
+            
+            # Get current selections for feedback
+            selections = self.get_selected_performers()
+            
+            if selections:
+                print(f"Normal operations validated with {len(selections)} tasks assigned:")
+                for task_id, performer in selections.items():
+                    task_name = self.normal_tasks[task_id].name if self.normal_tasks else f"Task {task_id}"
+                    print(f"  {task_name}: {performer}")
+            else:
+                print("Warning: No normal operation tasks have been assigned to performers")
+        else:
+            print("Error: Normal interdependence scene not available")
+
     def reset_normal_validation(self):
         """Reset the normal operations validation analysis"""
-        #print("Resetting normal operations validation analysis...")
+        print("Resetting normal operations validation analysis...")
         
-        #print(f"Manual reset of normal interdependence analysis: {self.normal_validation_active}")
+        if self.normal_interdependence_scene:
+            # Show all nodes again
+            self.normal_interdependence_scene.show_all_nodes()
+            print("Normal validation reset - all nodes visible again")
+        else:
+            print("Error: Normal interdependence scene not available")
             
     def validate_contingency_planning(self):
         """Handle validation for contingency planning interdependence analysis"""
-        #print(f"Contingency validation method called. Current state: {self.contingency_validation_active}")
+        print("Starting contingency planning validation analysis...")
+        print(f"Validating {len(self.contingency_tasks)} contingency tasks")
         
-        #print("Starting contingency planning validation analysis...")
-        
-        # Load contingency tasks if not already loaded
-        if not hasattr(self, 'contingency_loaded') or not self.contingency_loaded:
-            self.load_contingency_tasks()
-        
-        #print(f"Contingency validation mode activated: {self.contingency_validation_active}")
-        
+        if self.contingency_interdependence_scene:
+            # Hide non-selected nodes to show user's final selection
+            self.contingency_interdependence_scene.hide_non_selected_nodes()
+            
+            # Get current contingency selections for feedback
+            contingency_selections = self.get_contingency_selected_performers()
+            
+            if contingency_selections:
+                print(f"Contingency planning validated with {len(contingency_selections)} tasks assigned:")
+                for task_id, performer in contingency_selections.items():
+                    task_name = self.contingency_tasks[task_id].name if self.contingency_tasks else f"Task {task_id}"
+                    print(f"  {task_name}: {performer}")
+            else:
+                print("Warning: No contingency tasks have been assigned to performers")
+        else:
+            print("Error: Contingency interdependence scene not available")
+
     def reset_contingency_validation(self):
         """Reset the contingency planning validation analysis"""
         print("Resetting contingency planning validation analysis...")
         
-        print(f"Manual reset of contingency planning interdependence analysis: {self.contingency_validation_active}")
+        if self.contingency_interdependence_scene:
+            # Show all nodes again
+            self.contingency_interdependence_scene.show_all_nodes()
+            print("Contingency validation reset - all nodes visible again")
+        else:
+            print("Error: Contingency interdependence scene not available")
     
+    def export_briefing(self):
+        """Export the briefing selections to CSV format"""
+        import csv
+        from pathlib import Path
+        from datetime import datetime
+        
+        print("Exporting briefing...")
+        
+        # Create export data list
+        export_data = []
+        
+        # Export normal operations tasks
+        normal_selections = self.get_selected_performers()
+        for task_id, performer in normal_selections.items():
+            if task_id < len(self.normal_tasks):
+                task = self.normal_tasks[task_id]
+                
+                # Determine roles based on performer selection
+                if performer == "HUMAN":
+                    human_role = "performer" 
+                    autonomy_role = "supporter"
+                else:  # performer == "TARS"
+                    human_role = "supporter"
+                    autonomy_role = "performer"
+                
+                export_data.append([
+                    task.procedure_name,   # Procedure
+                    task.category,         # Category  
+                    task.task_type,        # Type
+                    task.name,             # Task Object
+                    task.value,            # Value
+                    human_role,            # Human Role
+                    autonomy_role          # Autonomy Role
+                ])
+        
+        # Export contingency tasks
+        contingency_selections = self.get_contingency_selected_performers()
+        for task_id, performer in contingency_selections.items():
+            if task_id < len(self.contingency_tasks):
+                task = self.contingency_tasks[task_id]
+                
+                # Determine roles based on performer selection
+                if performer == "HUMAN":
+                    human_role = "performer"
+                    autonomy_role = "supporter" 
+                else:  # performer == "TARS"
+                    human_role = "supporter"
+                    autonomy_role = "performer"
+                
+                export_data.append([
+                    task.procedure_name,   # Procedure
+                    task.category,         # Category
+                    task.task_type,        # Type
+                    task.name,             # Task Object
+                    task.value,            # Value
+                    human_role,            # Human Role
+                    autonomy_role          # Autonomy Role
+                ])
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        export_filename = f"briefing_export_{timestamp}.csv"
+        export_path = Path(__file__).parent / export_filename
+        
+        # Write to CSV
+        try:
+            with open(export_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                
+                # Write header
+                writer.writerow([
+                    'Procedure', 'Category', 'Type', 'Task Object', 
+                    'Value', 'Human Role', 'Autonomy Role'
+                ])
+                
+                # Write data
+                writer.writerows(export_data)
+            
+            print(f"Briefing exported successfully to: {export_path}")
+            print(f"Exported {len(export_data)} task assignments")
+            print(f"  - Normal operations: {len(normal_selections)} tasks")
+            print(f"  - Contingency planning: {len(contingency_selections)} tasks")
+            
+        except Exception as e:
+            print(f"Error exporting briefing: {e}")
+
     def _set_normal_button_to_reset_state(self):
         """Set normal operation button appearance and text for reset state"""
         if hasattr(self.widgets, 'validate_briefing_button'):
@@ -1098,6 +1260,12 @@ class BriefingPage(BasePage):
         """Get currently selected performers for each task"""
         if self.normal_interdependence_scene:
             return self.normal_interdependence_scene.selected.copy()
+        return {}
+    
+    def get_contingency_selected_performers(self):
+        """Get currently selected performers for each contingency task"""
+        if self.contingency_interdependence_scene:
+            return self.contingency_interdependence_scene.selected.copy()
         return {}
     
     def reset_interdependence_analysis(self):

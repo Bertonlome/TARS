@@ -3436,11 +3436,26 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                             <widget class="QGraphicsView" name="normal_operation_ia_graph"/>
                            </item>
                            <item>
-                            <widget class="QPushButton" name="validate_briefing_button">
-                             <property name="text">
-                              <string>PushButton</string>
-                             </property>
-                            </widget>
+                            <layout class="QHBoxLayout" name="horizontalLayout_6">
+                             <item>
+                              <widget class="QPushButton" name="load_allocation_button">
+                               <property name="text">
+                                <string>Load task allocation</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/log-add-google.svg</normaloff>:/icons/images/icons/log-add-google.svg</iconset>
+                               </property>
+                              </widget>
+                             </item>
+                             <item>
+                              <widget class="QPushButton" name="validate_briefing_button">
+                               <property name="text">
+                                <string>Validate Briefing Plan</string>
+                               </property>
+                              </widget>
+                             </item>
+                            </layout>
                            </item>
                           </layout>
                          </widget>
@@ -3458,11 +3473,26 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                             <widget class="QGraphicsView" name="contingency_planning_ia_graph"/>
                            </item>
                            <item>
-                            <widget class="QPushButton" name="validate_cont_planning_button">
-                             <property name="text">
-                              <string>Validate Contingency Plan</string>
-                             </property>
-                            </widget>
+                            <layout class="QHBoxLayout" name="horizontalLayout_7">
+                             <item>
+                              <widget class="QPushButton" name="load_allocation_button_2">
+                               <property name="text">
+                                <string>Load Allocation</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/log-add-google.svg</normaloff>:/icons/images/icons/log-add-google.svg</iconset>
+                               </property>
+                              </widget>
+                             </item>
+                             <item>
+                              <widget class="QPushButton" name="validate_cont_planning_button">
+                               <property name="text">
+                                <string>Validate Contingency Plan</string>
+                               </property>
+                              </widget>
+                             </item>
+                            </layout>
                            </item>
                           </layout>
                          </widget>

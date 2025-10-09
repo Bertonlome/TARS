@@ -1856,10 +1856,23 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_24.addWidget(self.normal_operation_ia_graph)
 
+        self.horizontalLayout_6 = QHBoxLayout()
+        self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
+        self.load_allocation_button = QPushButton(self.normal_operation_IA_page)
+        self.load_allocation_button.setObjectName(u"load_allocation_button")
+        icon8 = QIcon()
+        icon8.addFile(u":/icons/images/icons/log-add-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.load_allocation_button.setIcon(icon8)
+
+        self.horizontalLayout_6.addWidget(self.load_allocation_button)
+
         self.validate_briefing_button = QPushButton(self.normal_operation_IA_page)
         self.validate_briefing_button.setObjectName(u"validate_briefing_button")
 
-        self.verticalLayout_24.addWidget(self.validate_briefing_button)
+        self.horizontalLayout_6.addWidget(self.validate_briefing_button)
+
+
+        self.verticalLayout_24.addLayout(self.horizontalLayout_6)
 
         self.tabWidget.addTab(self.normal_operation_IA_page, "")
         self.contingency_planning_IA_page = QWidget()
@@ -1874,10 +1887,21 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_25.addWidget(self.contingency_planning_ia_graph)
 
+        self.horizontalLayout_7 = QHBoxLayout()
+        self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
+        self.load_allocation_button_2 = QPushButton(self.contingency_planning_IA_page)
+        self.load_allocation_button_2.setObjectName(u"load_allocation_button_2")
+        self.load_allocation_button_2.setIcon(icon8)
+
+        self.horizontalLayout_7.addWidget(self.load_allocation_button_2)
+
         self.validate_cont_planning_button = QPushButton(self.contingency_planning_IA_page)
         self.validate_cont_planning_button.setObjectName(u"validate_cont_planning_button")
 
-        self.verticalLayout_25.addWidget(self.validate_cont_planning_button)
+        self.horizontalLayout_7.addWidget(self.validate_cont_planning_button)
+
+
+        self.verticalLayout_25.addLayout(self.horizontalLayout_7)
 
         self.tabWidget.addTab(self.contingency_planning_IA_page, "")
 
@@ -2183,8 +2207,10 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem23.setText(QCoreApplication.translate("MainWindow", u"Line", None));
         self.tableWidget.setSortingEnabled(__sortingEnabled)
 
-        self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
+        self.load_allocation_button.setText(QCoreApplication.translate("MainWindow", u"Load task allocation", None))
+        self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"Validate Briefing Plan", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Normal Operations", None))
+        self.load_allocation_button_2.setText(QCoreApplication.translate("MainWindow", u"Load Allocation", None))
         self.validate_cont_planning_button.setText(QCoreApplication.translate("MainWindow", u"Validate Contingency Plan", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Contingency Planning", None))
         self.btn_message.setText(QCoreApplication.translate("MainWindow", u"Message", None))
