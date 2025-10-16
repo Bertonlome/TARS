@@ -1,0 +1,111 @@
+Procedure,Classification,Type,Category,Task Object,Value,Human Role,Autonomy Role
+BEFORE TAKEOFF,NORM,Checklist,,Takeoff clearance,CONFIRM,performer,supporter
+BEFORE TAKEOFF,NORM,Checklist,,Pitot-Static Switch,PITOT-STATIC,performer,supporter
+BEFORE TAKEOFF,NORM,Checklist,,ENGINE ANTI-ICE Switches,AS REQUIRED,performer,supporter
+BEFORE TAKEOFF,NORM,Checklist,,WINDSHIELD ANTI-ICE Switches,AS REQUIRED,performer,supporter
+BEFORE TAKEOFF,NORM,Checklist,,PAX SAFETY Switch,PAX SAFETY,performer,supporter
+BEFORE TAKEOFF,NORM,Checklist,,LANDING Light Switch,AS DESIRED,performer,supporter
+BEFORE TAKEOFF,NORM,Checklist,,ANTI-COLL Light Switch,ON,performer,supporter
+BEFORE TAKEOFF,NORM,Checklist,,Radar,AS REQUIRED,performer,supporter
+LINE-UP AND HOLD,NORM,SOP,,Runway centerline,ALIGN,performer,
+LINE-UP AND HOLD,NORM,SOP,,Brakes,HOLD,performer,
+TAKEOFF,NORM,SOP,,"""Set thrust""",ANNOUNCE,performer,
+TAKEOFF,NORM,SOP,,THROTTLES,TO Detent,performer,
+TAKEOFF,NORM,Checklist,,Brakes,RELEASE,performer,
+TAKEOFF,NORM,Checklist,,Elevator Control,ROTATE,performer,
+TAKEOFF,NORM,SOP,,Pitch,MAINTAIN 10°,performer,
+TAKEOFF,NORM,SOP,,Slip/Skid,CHECK,performer,supporter
+TAKEOFF,NORM,SOP,,LANDING GEAR,UP,performer,
+AFTER TAKEOFF,NORM,Checklist,,LANDING GEAR Handle,UP,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,Obstacles,CHECK CLEAR,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,FLAP Handle,UP,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,THROTTLES,CLB Detent,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,Anti-Ice/Deice Systems,AS REQUIRED,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,PAX SAFETY Switch,AS REQUIRED,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,LANDING Light Switch,AS REQUIRED,performer,supporter
+LINE-UP AND HOLD,NORM,SOP,,Winds,CHECK,performer,supporter
+TAKEOFF,NORM,Checklist,,CAS,CHECK CLEAR,,performer
+TAKEOFF,NORM,SOP,,FADEC bug,CHECK TO,,performer
+TAKEOFF,NORM,SOP,,Engine spool,CHECK EVEN,,performer
+TAKEOFF,NORM,SOP,,"""Thrust set""",ANNOUNCE,performer,supporter
+TAKEOFF,NORM,Checklist,,Engine Instruments,CHECK NORMAL,,performer
+TAKEOFF,NORM,SOP,,"""Airspeed's alive""",ANNOUNCE,,performer
+TAKEOFF,NORM,SOP,,"""70 kts""",ANNOUNCE,,performer
+TAKEOFF,NORM,SOP,,"""V1""",ANNOUNCE,,performer
+TAKEOFF,NORM,SOP,,"""Rotate""",ANNOUNCE,,performer
+TAKEOFF,NORM,SOP,,Climb rate,CHECK POSITIVE,,performer
+TAKEOFF,NORM,SOP,,"""Positive rate, gear up""",ANNOUNCE,,performer
+AFTER TAKEOFF,NORM,SOP,,Checklist,ORDER START,,performer
+AFTER TAKEOFF,NORM,SOP,,Checklist,RETRIEVE,,performer
+AFTER TAKEOFF,NORM,Checklist,,Airspeed,CHECK V2 + 12,,performer
+AFTER TAKEOFF,NORM,Checklist,,Yaw Damper,AS DESIRED,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,Pressurization,CHECK,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,Altimeters (transition altitude),SET STD,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,Altimeters (transition altitude),CROSSCHECK,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,Checklist,ANNOUNCE COMPLETED,performer,supporter
+AFTER TAKEOFF,NORM,Checklist,,Next Checklist,ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,performer,supporter
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,,Rudder,APPLY,performer,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,"""Reset Master Warning""",ANNOUNCE,performer,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Master Warning,RESET,performer,
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,,Pitch,MAINTAIN 10°,performer,
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,,LANDING GEAR,UP,performer,supporter
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,ATC,LISTEN,performer,supporter
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,ATC,READBACK,performer,
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,,Obstacles,CHECK Clear,performer,
+ENG FAILURE DURING TAKEOFF,EMER,Memory item,,FLAP Handle,UP,performer,
+ENGINE FIRE,EMER,SOP,,"""Idle""",ANNOUNCE,performer,
+ENGINE FIRE,EMER,Memory Item,,Throttle (affected engine),IDLE,performer,
+ENGINE FIRE,EMER,Memory Item,,Illuminated ENGINE FIRE Switch,LIFT COVER AND PUSH,performer,
+ENGINE FIRE,EMER,SOP,,Radio,ALLOCATE,performer,
+ENGINE FIRE,EMER,Checklist,,Immediate Action Item,CHECK DONE,performer,
+ENGINE FIRE,EMER,SOP,,"""cutoff""",ANNOUNCE,performer,
+ENGINE FIRE,EMER,Checklist,,Throttle (affected engine),CUTOFF,performer,
+ENGINE FIRE,EMER,SOP,,"""off then norm""",ANNOUNCE,performer,
+ENGINE FIRE,EMER,Checklist,,FUEL BOOST Switch (affected side),OFF,performer,
+ENGINE FIRE,EMER,Checklist,,FUEL BOOST Switch (affected side),NORM,performer,
+ENGINE FIRE,EMER,SOP,,"""discharge""",ANNOUNCE,performer,
+ENGINE FIRE,EMER,Checklist,,Illuminated BOTTLE ARMED Switch,PUSH,performer,
+ENGINE FIRE,EMER,Checklist,,Rotary Test,FIRE WARN,performer,
+ENGINE FIRE,EMER,Checklist,,Engine fire lights,Check both illuminate,performer,
+ENGINE FIRE,EMER,,,Checklist,ANNOUNCE COMPLETED,performer,
+DECLARE EMERGENCY,EMER,SOP,,ATC,LISTEN,performer,
+DECLARE EMERGENCY,EMER,SOP,,ATC,READBACK,performer,
+DECLARE EMERGENCY,EMER,SOP,,Heading,SET ACCORDINGLY,performer,supporter
+DECLARE EMERGENCY,EMER,SOP,,FLC,SET ACCORDINGLY,performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,Throttle (affected engine),CUTOFF,performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,GEN Switch (affected side),OFF,performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,IGNITION switch (affected side),NORM,performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,Electrical Load,REDUCE as required (<= 300A),performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,Fuel TRANSFER Knob,AS REQUIRED,performer,supporter
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Rudder,TRIM,performer,supporter
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Alarm,ANNOUNCE,,performer
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Flight Director,SET TO MODE,,performer
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,,Airspeed,CHECK V2,,performer
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,"""Speed mode FLC V2, heading mode""",ANNOUNCE,,performer
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Autopilot,SET SPD MODE,performer,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Autopilot,SET HDG MODE,performer,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,ATC,CONTACT,performer,supporter
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Altitude,CHECK 700ft AGL,,performer
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,"""700ft, engage autopilot""",ANNOUNCE,,performer
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,Autopilot,ENGAGE,performer,supporter
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,,Altitude,CHECK 1500ft AGL,,performer
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,,Airspeed,CHECK V2+10,,performer
+ENG FAILURE DURING TAKEOFF,EMER,SOP,,"""Retract flaps""",Announce,,performer
+ENGINE FIRE,EMER,SOP,,"""Affected thrust lever, confirm and idle""",ANNOUNCE,,performer
+ENGINE FIRE,EMER,SOP,,"""TOP""",ANNOUNCE,performer,
+ENGINE FIRE,EMER,SOP,,Chrono,START,performer,
+ENGINE FIRE,EMER,Memory Item,,Engine FIRE LIGHT,CHECK ON AFTER 15s,,performer
+ENGINE FIRE,EMER,SOP,,Checklist,ORDER START,,performer
+ENGINE FIRE,EMER,SOP,,Checklist,RETRIEVE,,performer
+ENGINE FIRE,EMER,SOP,,"""Affected thrust lever, confirm and cutoff""",ANNOUNCE,,performer
+ENGINE FIRE,EMER,SOP,,"""Affected engine fuel boost confirm off then norm""",ANNOUNCE,,performer
+ENGINE FIRE,EMER,Checklist,,Engine FIRE LIGHT,CHECK ON AFTER 30s,,performer
+ENGINE FIRE,EMER,SOP,,"""30 seconds, light remains on, bottle discharge""",ANNOUNCE,,performer
+ENGINE FIRE,EMER,Checklist,,Next Checklist,ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,performer,supporter
+DECLARE EMERGENCY,EMER,SOP,,ATC,ANNOUNCE EMERGENCY,performer,supporter
+DECLARE EMERGENCY,EMER,SOP,,ATC,REQUEST VECTOR,performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,SOP,,Checklist,ORDER START,,performer
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,SOP,,Checklist,RETRIEVE,,performer
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,CAUTION text,READ,performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,Verify ENGINE FIRE Switch (affected side),Is pushed,performer,supporter
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,,Next checklist,SINGLE-ENGINE APPROACH AND LANDING,performer,supporter

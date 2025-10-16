@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplicat
     QTabWidget, QTableWidget, QTableWidgetItem, QTextEdit,
     QVBoxLayout, QWidget)
 import resources_rc
+import resources_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -1851,6 +1852,11 @@ class Ui_MainWindow(object):
 "	background-color: rgba(33, 37, 43, 255)")
         self.verticalLayout_24 = QVBoxLayout(self.normal_operation_IA_page)
         self.verticalLayout_24.setObjectName(u"verticalLayout_24")
+        self.task_type_button_container = QHBoxLayout()
+        self.task_type_button_container.setObjectName(u"task_type_button_container")
+
+        self.verticalLayout_24.addLayout(self.task_type_button_container)
+
         self.normal_operation_ia_graph = QGraphicsView(self.normal_operation_IA_page)
         self.normal_operation_ia_graph.setObjectName(u"normal_operation_ia_graph")
 
@@ -1882,6 +1888,11 @@ class Ui_MainWindow(object):
 "	background-color: rgba(33, 37, 43, 255)")
         self.verticalLayout_25 = QVBoxLayout(self.contingency_planning_IA_page)
         self.verticalLayout_25.setObjectName(u"verticalLayout_25")
+        self.task_type_button_container_2 = QHBoxLayout()
+        self.task_type_button_container_2.setObjectName(u"task_type_button_container_2")
+
+        self.verticalLayout_25.addLayout(self.task_type_button_container_2)
+
         self.contingency_planning_ia_graph = QGraphicsView(self.contingency_planning_IA_page)
         self.contingency_planning_ia_graph.setObjectName(u"contingency_planning_ia_graph")
 
@@ -2050,7 +2061,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         self.stackedWidget.setCurrentIndex(2)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -2062,7 +2073,7 @@ class Ui_MainWindow(object):
         self.titleLeftDescription.setText(QCoreApplication.translate("MainWindow", u"Modern GUI / Flat Style", None))
         self.toggleButton.setText(QCoreApplication.translate("MainWindow", u"Hide", None))
         self.btn_home.setText(QCoreApplication.translate("MainWindow", u"Home", None))
-        self.btn_briefing.setText("")
+        self.btn_briefing.setText(QCoreApplication.translate("MainWindow", u"Briefing", None))
         self.toggleLeftBox.setText(QCoreApplication.translate("MainWindow", u"Left Box", None))
         self.extraLabel.setText(QCoreApplication.translate("MainWindow", u"Left Box", None))
 #if QT_CONFIG(tooltip)

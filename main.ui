@@ -891,7 +891,7 @@ Button */
                    <string notr="true">background-image: url(:/icons/images/icons/user-profiles.svg);</string>
                   </property>
                   <property name="text">
-                   <string/>
+                   <string>Briefing</string>
                   </property>
                  </widget>
                 </item>
@@ -3420,7 +3420,7 @@ QTabBar::tab { background-color: #3c3c3c; }
 QTabBar::tab:selected { background-color: #0078d4; }</string>
                          </property>
                          <property name="currentIndex">
-                          <number>0</number>
+                          <number>1</number>
                          </property>
                          <widget class="QWidget" name="normal_operation_IA_page">
                           <property name="styleSheet">
@@ -3432,6 +3432,9 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                            <string>Normal Operations</string>
                           </attribute>
                           <layout class="QVBoxLayout" name="verticalLayout_24">
+                           <item>
+                            <layout class="QHBoxLayout" name="task_type_button_container"/>
+                           </item>
                            <item>
                             <widget class="QGraphicsView" name="normal_operation_ia_graph"/>
                            </item>
@@ -3469,6 +3472,9 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                            <string>Contingency Planning</string>
                           </attribute>
                           <layout class="QVBoxLayout" name="verticalLayout_25">
+                           <item>
+                            <layout class="QHBoxLayout" name="task_type_button_container_2"/>
+                           </item>
                            <item>
                             <widget class="QGraphicsView" name="contingency_planning_ia_graph"/>
                            </item>
@@ -3834,6 +3840,7 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
  </widget>
  <resources>
   <include location="resources.qrc"/>
+  <include location="../../../.designer/backup/resources.qrc"/>
  </resources>
  <connections/>
 </ui>

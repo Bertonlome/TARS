@@ -24,23 +24,24 @@ if TYPE_CHECKING:
 # ---------------------------- Data ----------------------------
 
 class Task:
-    def __init__(self, procedure_name, name, category, task_type, value, human_can, agent_can, human_supports, agent_supports):
+    def __init__(self, procedure_name, name, classification, task_type, category, value, human_can, agent_can, human_supports, agent_supports):
         self.procedure_name = procedure_name
         self.name = name
-        self.category = category  # NORM, EMER, ABNORM
+        self.classification = classification  # NORM, EMER, ABNORM
         self.task_type = task_type  # SOP, Checklist, Memory Item, etc.
+        self.category = category  # Task category (e.g., "Switch / Lever", "Environment Check", etc.)
         self.value = value  # Task value (e.g., "CONFIRM", "PITOT-STATIC", etc.)
         self.human_can = bool(int(human_can)) if str(human_can).strip() != "" else False
         self.agent_can = bool(int(agent_can)) if str(agent_can).strip() != "" else False
         self.human_supports = bool(int(human_supports)) if str(human_supports).strip() != "" else False
         self.agent_supports = bool(int(agent_supports)) if str(agent_supports).strip() != "" else False
 
-def load_tasks(csv_path: Path = None, category_filter: list = None):
+def load_tasks(csv_path: Path = None, classification_filter: list = None):
     """Load tasks from CSV or return demo data
     
     Args:
         csv_path: Path to CSV file
-        category_filter: List of categories to include (e.g., ['NORM'] or ['EMER', 'ABNORM'])
+        classification_filter: List of categories to include (e.g., ['NORM'] or ['EMER', 'ABNORM'])
     """
     if csv_path and csv_path.exists():
         tasks = []
@@ -64,8 +65,9 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
             for row in reader:
                 # Get values from your CSV columns
                 procedure_name = row.get("Procedure", "").strip()
-                category = row.get("Category", "").strip()
+                classification = row.get("Classification", "").strip()
                 task_type = row.get("Type", "").strip()
+                category = row.get("Category", "").strip()
                 task_name = row.get("Task Object", "").strip()
                 value = row.get("Value", "").strip()
                 human_capability = row.get("Human*", "").strip()
@@ -77,8 +79,8 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
                 if not task_name or not procedure_name:
                     continue
                 
-                # Filter by category if specified
-                if category_filter and category not in category_filter:
+                # Filter by Classification if specified
+                if classification_filter and classification not in classification_filter:
                     continue
                 
                 # Convert colors to numbers
@@ -90,8 +92,9 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
                 tasks.append(Task(
                     procedure_name,
                     task_name,
-                    category,
+                    classification,
                     task_type,
+                    category,
                     value,
                     human_can,
                     agent_can,
@@ -102,31 +105,31 @@ def load_tasks(csv_path: Path = None, category_filter: list = None):
 
     # Hardcoded demo data for normal operations (backward compatibility)
     demo = [
-        ("pre-takeoff", "Confirm takeoff clearance", "NORM", "SOP", "CONFIRM", 1, 0, 0, 0),
-        ("pre-takeoff", "Align with runway centerline", "NORM", "SOP", "ALIGN", 1, 1, 0, 0),
-        ("pre-takeoff", "Check winds", "NORM", "SOP", "CHECK", 1, 1, 1, 1),
-        ("pre-takeoff", "Hold brakes", "NORM", "SOP", "HOLD", 1, 1, 0, 0),
-        ("takeoff", "Advance thrust", "NORM", "SOP", "ADVANCE", 0, 1, 0, 0),
-        ("takeoff", "Airspeed alive callout", "NORM", "SOP", "CALLOUT", 1, 1, 0, 0),
-        ("takeoff", "80 knots cross-check", "NORM", "SOP", "80 KTS", 1, 1, 1, 0),
-        ("takeoff", "Rotate", "NORM", "SOP", "ROTATE", 1, 0, 0, 0),
-        ("takeoff", "Positive rate", "NORM", "SOP", "POS RATE", 1, 1, 0, 0),
-        ("takeoff", "Gear up", "NORM", "SOP", "GEAR UP", 1, 1, 0, 1),
+        ("pre-takeoff", "Confirm takeoff clearance", "NORM", "SOP", "Communication", "CONFIRM", 1, 0, 0, 0),
+        ("pre-takeoff", "Align with runway centerline", "NORM", "SOP", "Flight Control", "ALIGN", 1, 1, 0, 0),
+        ("pre-takeoff", "Check winds", "NORM", "SOP", "Environment Check", "CHECK", 1, 1, 1, 1),
+        ("pre-takeoff", "Hold brakes", "NORM", "SOP", "Flight Control", "HOLD", 1, 1, 0, 0),
+        ("takeoff", "Advance thrust", "NORM", "SOP", "Flight Control", "ADVANCE", 0, 1, 0, 0),
+        ("takeoff", "Airspeed alive callout", "NORM", "SOP", "Communication", "CALLOUT", 1, 1, 0, 0),
+        ("takeoff", "80 knots cross-check", "NORM", "SOP", "Parameter Check", "80 KTS", 1, 1, 1, 0),
+        ("takeoff", "Rotate", "NORM", "SOP", "Flight Control", "ROTATE", 1, 0, 0, 0),
+        ("takeoff", "Positive rate", "NORM", "SOP", "Parameter Check", "POS RATE", 1, 1, 0, 0),
+        ("takeoff", "Gear up", "NORM", "SOP", "Switch / Lever", "GEAR UP", 1, 1, 0, 1),
     ]
     
-    # Filter demo data by category if specified
-    if category_filter:
-        demo = [task for task in demo if task[2] in category_filter]
+    # Filter demo data by classification if specified
+    if classification_filter:
+        demo = [task for task in demo if task[2] in classification_filter]
     
     return [Task(*t) for t in demo]
 
 def load_normal_tasks(csv_path: Path = None):
-    """Load only normal operation tasks (Category == NORM)"""
-    return load_tasks(csv_path, category_filter=['NORM'])
+    """Load only normal operation tasks (Classification == NORM)"""
+    return load_tasks(csv_path, classification_filter=['NORM'])
 
 def load_contingency_tasks(csv_path: Path = None):
-    """Load only contingency tasks (Category == EMER or ABNORM)"""
-    return load_tasks(csv_path, category_filter=['EMER', 'ABNORM'])
+    """Load only contingency tasks (Classification == EMER or ABNORM)"""
+    return load_tasks(csv_path, classification_filter=['EMER', 'ABNORM'])
 
 # ---------------------------- Scene items ----------------------------
 
@@ -205,6 +208,15 @@ class InterdependenceScene(QGraphicsScene):
         # Persistent items
         self.path_items: list[QGraphicsPathItem] = []   # solid path between rows
         self.dashed_items: list[QGraphicsLineItem] = [] # dashed supporter lines
+        
+        # Category filtering state
+        self.active_category_filter = None  # None means no filter, otherwise holds category name
+        
+        # Store all visual elements per task row for filtering
+        self.row_elements: dict[int, list] = {}  # row_index -> [list of QGraphicsItems for that row]
+        
+        # Store all non-task-specific items (titles, headers) separately
+        self.static_header_items = []
 
         self._build_static()
         self._build_nodes_and_supporters()
@@ -271,21 +283,38 @@ class InterdependenceScene(QGraphicsScene):
         
         return text_item, num_lines
 
-    def _build_static(self):
-        """Build static elements (title, headers, labels)"""
+    def _build_static(self, filtered_category=None):
+        """Build static elements (title, headers, labels)
+        
+        Args:
+            filtered_category: If provided, only build elements for tasks in this category
+        """
         # Main title
-        title = QGraphicsSimpleTextItem("NORMAL Operation Briefing and task allocation")
+        title_text = "NORMAL Operation Briefing and task allocation"
+        if filtered_category:
+            title_text = f"NORMAL Operation - {filtered_category} Tasks"
+        
+        title = QGraphicsSimpleTextItem(title_text)
         f = QFont()
         f.setPointSize(20)
         title.setFont(f)
         title.setBrush(QBrush(QColor("#ffffff")))
         title.setPos(self.margin_left, 20)
         self.addItem(title)
+        self.static_header_items.append(title)
 
         # Build procedure sections
         current_y = self.margin_top
         
         for proc_name, tasks_in_proc in self.procedures:
+            # Filter tasks if category filter is active
+            if filtered_category:
+                tasks_in_proc = [(idx, task) for idx, task in tasks_in_proc if task.category == filtered_category]
+            
+            # Skip procedure if no tasks match filter
+            if not tasks_in_proc:
+                continue
+            
             # Procedure title
             proc_title = QGraphicsSimpleTextItem(proc_name.upper())
             proc_font = QFont()
@@ -300,6 +329,7 @@ class InterdependenceScene(QGraphicsScene):
             centered_x = center_x - (title_width / 2)
             proc_title.setPos(centered_x, current_y - 100)
             self.addItem(proc_title)
+            self.static_header_items.append(proc_title)
             
             # Column headers for this procedure (HUMAN and TARS above each procedure)
             for col, x in self.col_x.items():
@@ -310,10 +340,15 @@ class InterdependenceScene(QGraphicsScene):
                 h.setPos(x - 30, current_y - 60)  # Position just above the procedure tasks
                 h.setBrush(QBrush(QColor("#ffffff")))
                 self.addItem(h)
+                self.static_header_items.append(h)
             
             # Task labels and row guide lines for this procedure
             for local_index, (task_index, task) in enumerate(tasks_in_proc):
                 y = current_y + local_index * self.row_h
+                
+                # Initialize list to store all elements for this row
+                if task_index not in self.row_elements:
+                    self.row_elements[task_index] = []
                 
                 # Task label with text wrapping
                 label, num_lines = self._create_wrapped_text_item(task.name + " " + task.value, max_width_chars=60)
@@ -321,10 +356,12 @@ class InterdependenceScene(QGraphicsScene):
                 label_width = label.boundingRect().width()
                 label.setPos(250 - label_width, y - 10)  # Subtract width to right-align
                 self.addItem(label)
+                self.row_elements[task_index].append(label)  # Track this element
 
                 # Faint row line
                 pen = QPen(Qt.lightGray, 0.8, Qt.DotLine)
-                self.addLine(self.margin_left-80, y, self.col_x["TARS"]+200, y, pen)
+                row_line = self.addLine(self.margin_left-80, y, self.col_x["TARS"]+200, y, pen)
+                self.row_elements[task_index].append(row_line)  # Track this element
             
             # Update current_y for next procedure (add space between procedures)
             current_y += len(tasks_in_proc) * self.row_h + self.procedure_spacing
@@ -339,30 +376,48 @@ class InterdependenceScene(QGraphicsScene):
         
         self.setSceneRect(content_left, content_top, width, total_height)
 
-    def _build_nodes_and_supporters(self):
-        """Build clickable performer nodes and supporter rectangles"""
+    def _build_nodes_and_supporters(self, filtered_category=None):
+        """Build clickable performer nodes and supporter rectangles
+        
+        Args:
+            filtered_category: If provided, only build nodes for tasks in this category
+        """
         for row, t in enumerate(self.tasks):
-            y = self._row_y(row)
+            # Skip tasks not in the filtered category
+            if filtered_category and t.category != filtered_category:
+                continue
+            
+            y = self._row_y(row, filtered_category)
+            
+            # Initialize row elements if not exists
+            if row not in self.row_elements:
+                self.row_elements[row] = []
 
             # HUMAN performer
             if t.human_can:
                 node = ClickNode(row, "HUMAN", QPointF(self.col_x["HUMAN"], y), self.node_r, self)
                 self.addItem(node)
                 self.nodes[(row, "HUMAN")] = node  # Store reference
+                self.row_elements[row].append(node)  # Track this element
+                
                 # Show support rectangle in TARS column if TARS can support this task
                 if t.agent_supports:
                     sup = SupportNode(QPointF(self.col_x["TARS"], y))
                     self.addItem(sup)
+                    self.row_elements[row].append(sup)  # Track this element
 
             # TARS performer
             if t.agent_can:
                 node = ClickNode(row, "TARS", QPointF(self.col_x["TARS"], y), self.node_r, self)
                 self.addItem(node)
                 self.nodes[(row, "TARS")] = node  # Store reference
+                self.row_elements[row].append(node)  # Track this element
+                
                 # Show support rectangle in HUMAN column if HUMAN can support this task
                 if t.human_supports:
                     sup = SupportNode(QPointF(self.col_x["HUMAN"], y))
                     self.addItem(sup)
+                    self.row_elements[row].append(sup)  # Track this element
 
     def _add_dashed(self, x1, x2, y):
         """Add dashed support line"""
@@ -371,22 +426,37 @@ class InterdependenceScene(QGraphicsScene):
         line.setZValue(1)
         self.dashed_items.append(line)
 
-    def _row_y(self, row: int) -> float:
-        """Get Y coordinate for row based on procedure grouping"""
+    def _row_y(self, row: int, filtered_category=None) -> float:
+        """Get Y coordinate for row based on procedure grouping
+        
+        Args:
+            row: Task row index
+            filtered_category: If provided, calculate position considering only filtered tasks
+        """
         # Find which procedure this row belongs to
         current_y = self.margin_top
         
         for proc_name, tasks_in_proc in self.procedures:
+            # Filter tasks if category filter is active
+            if filtered_category:
+                filtered_tasks = [(idx, task) for idx, task in tasks_in_proc if task.category == filtered_category]
+            else:
+                filtered_tasks = tasks_in_proc
+            
+            # Skip procedure if no tasks match filter
+            if not filtered_tasks:
+                continue
+            
             # Check if the row is in this procedure
-            task_indices = [task_index for task_index, _ in tasks_in_proc]
+            task_indices = [task_index for task_index, _ in filtered_tasks]
             
             if row in task_indices:
                 # Find the position within this procedure
                 local_index = task_indices.index(row)
                 return current_y + local_index * self.row_h
             
-            # Move to next procedure
-            current_y += len(tasks_in_proc) * self.row_h + self.procedure_spacing
+            # Move to next procedure (only count filtered tasks for spacing)
+            current_y += len(filtered_tasks) * self.row_h + self.procedure_spacing
         
         # Fallback to old calculation if not found
         return self.margin_top + row * self.row_h
@@ -420,10 +490,14 @@ class InterdependenceScene(QGraphicsScene):
             self.removeItem(item)
         self.dashed_items.clear()
         
+        # Skip support line creation if a category filter is active
+        if self.active_category_filter:
+            return
+        
         # Add support lines only for selected performers who have support available
         for row, selected_role in self.selected.items():
             task = self.tasks[row]
-            y = self._row_y(row)
+            y = self._row_y(row, self.active_category_filter)
             
             if selected_role == "HUMAN" and task.agent_supports:
                 # Human is selected as performer and TARS can support
@@ -440,6 +514,9 @@ class InterdependenceScene(QGraphicsScene):
             self.removeItem(item)
         self.path_items.clear()
 
+        # Skip path creation if a category filter is active
+        if self.active_category_filter:
+            return
 
         # Build path only through rows that have a selection
         pen = QPen(Qt.black, 3.0, Qt.SolidLine)  # Made thicker for visibility
@@ -448,8 +525,8 @@ class InterdependenceScene(QGraphicsScene):
         paths_created = 0
         for i in range(len(self.tasks) - 1):
             if i in self.selected and (i+1) in self.selected:
-                y1 = self._row_y(i)
-                y2 = self._row_y(i+1)
+                y1 = self._row_y(i, self.active_category_filter)
+                y2 = self._row_y(i+1, self.active_category_filter)
                 x1 = self.col_x[self.selected[i]]
                 x2 = self.col_x[self.selected[i+1]]
 
@@ -504,6 +581,69 @@ class InterdependenceScene(QGraphicsScene):
         
         # Force scene update to reflect changes
         self.update()
+    
+    def _clear_all_scene_items(self):
+        """Remove all items from the scene"""
+        # Clear all items
+        self.clear()
+        
+        # Reset tracking dictionaries
+        self.row_elements.clear()
+        self.static_header_items.clear()
+        self.nodes.clear()
+        self.path_items.clear()
+        self.dashed_items.clear()
+    
+    def _rebuild_scene(self, filtered_category=None):
+        """Completely rebuild the scene with optional category filter
+        
+        Args:
+            filtered_category: If provided, only show tasks from this category
+        """
+        # Clear everything except selections
+        self._clear_all_scene_items()
+        
+        # Rebuild with filter
+        self._build_static(filtered_category)
+        self._build_nodes_and_supporters(filtered_category)
+        
+        # Restore visual state of all nodes based on current selections
+        self._restore_node_selections()
+        
+        # Update path and support lines
+        self._update_path()
+        self._update_support_lines()
+    
+    def _restore_node_selections(self):
+        """Restore the visual state of nodes based on self.selected dictionary"""
+        for row, selected_role in self.selected.items():
+            # Update all nodes in this row
+            if (row, "HUMAN") in self.nodes:
+                self.nodes[(row, "HUMAN")].set_selected(selected_role == "HUMAN")
+            if (row, "TARS") in self.nodes:
+                self.nodes[(row, "TARS")].set_selected(selected_role == "TARS")
+    
+    def filter_by_category(self, category: str):
+        """Filter the graph to show only tasks from the specified category"""
+        self.active_category_filter = category
+        print(f"Filtering graph to show only category: {category}")
+        
+        # Completely rebuild the scene with only the filtered category
+        self._rebuild_scene(filtered_category=category)
+        
+        # Force scene update
+        self.update()
+    
+    def clear_category_filter(self):
+        """Clear the category filter and show all tasks"""
+        self.active_category_filter = None
+        print("Clearing category filter - showing all tasks")
+        
+        # Completely rebuild the scene with all tasks
+        self._rebuild_scene(filtered_category=None)
+        
+        # Force scene update
+        self.update()
 
 class BriefingPage(BasePage):
     """
@@ -533,6 +673,17 @@ class BriefingPage(BasePage):
         self.all_normal_tasks_assigned = False
         self.all_contingency_tasks_assigned = False
         
+        # Store category radio buttons for reference (now for both tabs)
+        self.category_radio_buttons = {}  # {category: {"TARS": QRadioButton, "HUMAN": QRadioButton, "TARS_2": QRadioButton, "HUMAN_2": QRadioButton}}
+        
+        # Store category filter buttons
+        self.category_filter_buttons = {}  # {category: {"button_1": QPushButton, "button_2": QPushButton}}
+        self.active_filter_category = None
+        
+        # Store clear filter buttons (created dynamically)
+        self.clear_filter_button_1 = None
+        self.clear_filter_button_2 = None
+        
     def initialize_page(self):
         """
         Initialize the briefing page UI and connections
@@ -548,12 +699,12 @@ class BriefingPage(BasePage):
         try:
             # Load tasks from CSV
             csv_file_path = Path(__file__).parent / "IA.csv"
-            
-            # Load normal operation tasks (Category == NORM)
+
+            # Load normal operation tasks (Classification == NORM)
             self.normal_tasks = load_normal_tasks(csv_file_path)
             print(f"Loaded {len(self.normal_tasks)} normal operation tasks")
-            
-            # Load contingency tasks (Category == EMER or ABNORM)
+
+            # Load contingency tasks (Classification == EMER or ABNORM)
             self.contingency_tasks = load_contingency_tasks(csv_file_path)
             print(f"Loaded {len(self.contingency_tasks)} contingency tasks")
             
@@ -562,6 +713,12 @@ class BriefingPage(BasePage):
             
             # Setup contingency planning graph  
             self._setup_contingency_planning_graph()
+            
+            # Auto-select tasks with only one possible performer
+            self._auto_select_single_performer_tasks()
+            
+            # Setup category radio buttons for task allocation
+            self._setup_category_radio_buttons()
                 
         except Exception as e:
             print(f"Error setting up interdependence analysis: {e}")
@@ -630,6 +787,455 @@ class BriefingPage(BasePage):
         # Start at top-left
         graphics_view.ensureVisible(0, 0, 50, 50)
         
+    def _auto_select_single_performer_tasks(self):
+        """Automatically select tasks that have only one possible performer"""
+        print("Auto-selecting tasks with single performer options...")
+        
+        # Auto-select normal operation tasks
+        if self.normal_interdependence_scene and self.normal_tasks:
+            auto_selected_normal = 0
+            for task_id, task in enumerate(self.normal_tasks):
+                # Check if only one performer option is available
+                performers_available = []
+                if task.human_can:
+                    performers_available.append("HUMAN")
+                if task.agent_can:
+                    performers_available.append("TARS")
+                
+                # If exactly one performer is possible, auto-select it
+                if len(performers_available) == 1:
+                    performer = performers_available[0]
+                    self.normal_interdependence_scene.on_node_clicked(task_id, performer)
+                    auto_selected_normal += 1
+                    print(f"Auto-selected {performer} for normal task {task_id}: {task.name}")
+            
+            print(f"Auto-selected {auto_selected_normal} normal operation tasks")
+        
+        # Auto-select contingency planning tasks
+        if self.contingency_interdependence_scene and self.contingency_tasks:
+            auto_selected_contingency = 0
+            for task_id, task in enumerate(self.contingency_tasks):
+                # Check if only one performer option is available
+                performers_available = []
+                if task.human_can:
+                    performers_available.append("HUMAN")
+                if task.agent_can:
+                    performers_available.append("TARS")
+                
+                # If exactly one performer is possible, auto-select it
+                if len(performers_available) == 1:
+                    performer = performers_available[0]
+                    self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
+                    auto_selected_contingency += 1
+                    print(f"Auto-selected {performer} for contingency task {task_id}: {task.name}")
+            
+            print(f"Auto-selected {auto_selected_contingency} contingency planning tasks")
+    
+    def _get_unique_categories(self):
+        """Extract unique task categories from all loaded tasks"""
+        categories = set()
+        
+        # Extract from normal tasks
+        if self.normal_tasks:
+            for task in self.normal_tasks:
+                if task.category:
+                    categories.add(task.category)
+        
+        # Extract from contingency tasks
+        if self.contingency_tasks:
+            for task in self.contingency_tasks:
+                if task.category:
+                    categories.add(task.category)
+        
+        # Return sorted list for consistent ordering
+        return sorted(list(categories))
+    
+    def _setup_category_radio_buttons(self):
+        """Create radio button groups for each task category in both tabs"""
+        from PySide6.QtWidgets import QRadioButton, QPushButton, QVBoxLayout, QButtonGroup
+        from PySide6.QtCore import Qt
+        
+        # Get both container layouts
+        if not hasattr(self.widgets, 'task_type_button_container'):
+            print("Warning: task_type_button_container not found in UI")
+            return
+        
+        if not hasattr(self.widgets, 'task_type_button_container_2'):
+            print("Warning: task_type_button_container_2 not found in UI")
+            return
+        
+        container_1 = self.widgets.task_type_button_container
+        container_2 = self.widgets.task_type_button_container_2
+        
+        # Clear any existing widgets in both containers
+        for container in [container_1, container_2]:
+            while container.count():
+                child = container.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
+        
+        # Get unique categories
+        categories = self._get_unique_categories()
+        
+        if not categories:
+            print("No categories found in tasks")
+            return
+        
+        print(f"Creating radio buttons for {len(categories)} categories: {categories}")
+        
+        # Create radio button group for each category in both containers
+        for category in categories:
+            # Create layouts for both tabs
+            category_layout_1 = QVBoxLayout()
+            category_layout_1.setSpacing(5)
+            category_layout_2 = QVBoxLayout()
+            category_layout_2.setSpacing(5)
+            
+            # Create clickable category buttons (labels) for both tabs
+            category_button_1 = QPushButton(category)
+            category_button_2 = QPushButton(category)
+            
+            # Style the buttons to look like labels but be clickable
+            button_style = """
+                QPushButton {
+                    font: 600 12pt "JetBrains Mono";
+                    color: white;
+                    padding: 5px;
+                    background-color: transparent;
+                    border: 2px solid transparent;
+                    border-radius: 3px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(255, 255, 255, 0.2);
+                }
+            """
+            
+            category_button_1.setStyleSheet(button_style)
+            category_button_2.setStyleSheet(button_style)
+            
+            category_button_1.setCursor(Qt.PointingHandCursor)
+            category_button_2.setCursor(Qt.PointingHandCursor)
+            
+            category_layout_1.addWidget(category_button_1, alignment=Qt.AlignCenter)
+            category_layout_2.addWidget(category_button_2, alignment=Qt.AlignCenter)
+            
+            # Store references to the filter buttons
+            self.category_filter_buttons[category] = {
+                "button_1": category_button_1,
+                "button_2": category_button_2
+            }
+            
+            # Connect filter button clicks (synchronized between tabs)
+            # Use default argument to capture current button reference in lambda
+            category_button_1.clicked.connect(
+                lambda checked, cat=category, btn1=category_button_1, btn2=category_button_2: 
+                self._on_category_filter_clicked(cat, btn1, btn2))
+            
+            category_button_2.clicked.connect(
+                lambda checked, cat=category, btn1=category_button_2, btn2=category_button_1: 
+                self._on_category_filter_clicked(cat, btn1, btn2))
+            
+            # Create button groups for both tabs to ensure only one can be selected per tab
+            button_group_1 = QButtonGroup(self.main_window)
+            button_group_2 = QButtonGroup(self.main_window)
+            
+            # Create TARS radio buttons for both tabs
+            tars_radio_1 = QRadioButton("TARS")
+            tars_radio_2 = QRadioButton("TARS")
+            
+            radio_style = """
+                QRadioButton {
+                    font: 500 10pt "JetBrains Mono";
+                    color: white;
+                    padding: 3px;
+                }
+                QRadioButton::indicator {
+                    width: 15px;
+                    height: 15px;
+                }
+            """
+            
+            tars_radio_1.setStyleSheet(radio_style)
+            tars_radio_2.setStyleSheet(radio_style)
+            
+            button_group_1.addButton(tars_radio_1)
+            button_group_2.addButton(tars_radio_2)
+            
+            category_layout_1.addWidget(tars_radio_1, alignment=Qt.AlignCenter)
+            category_layout_2.addWidget(tars_radio_2, alignment=Qt.AlignCenter)
+            
+            # Create HUMAN radio buttons for both tabs
+            human_radio_1 = QRadioButton("HUMAN")
+            human_radio_2 = QRadioButton("HUMAN")
+            
+            human_radio_1.setStyleSheet(radio_style)
+            human_radio_2.setStyleSheet(radio_style)
+            
+            button_group_1.addButton(human_radio_1)
+            button_group_2.addButton(human_radio_2)
+            
+            category_layout_1.addWidget(human_radio_1, alignment=Qt.AlignCenter)
+            category_layout_2.addWidget(human_radio_2, alignment=Qt.AlignCenter)
+            
+            # Store references to all radio buttons
+            self.category_radio_buttons[category] = {
+                "TARS_1": tars_radio_1,
+                "HUMAN_1": human_radio_1,
+                "TARS_2": tars_radio_2,
+                "HUMAN_2": human_radio_2,
+                "button_group_1": button_group_1,
+                "button_group_2": button_group_2
+            }
+            
+            # Connect signals with synchronization
+            # When tab 1 TARS is toggled, sync to tab 2 and allocate
+            tars_radio_1.toggled.connect(
+                lambda checked, cat=category, performer="TARS", other=tars_radio_2: 
+                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
+            
+            # When tab 2 TARS is toggled, sync to tab 1 and allocate
+            tars_radio_2.toggled.connect(
+                lambda checked, cat=category, performer="TARS", other=tars_radio_1: 
+                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
+            
+            # When tab 1 HUMAN is toggled, sync to tab 2 and allocate
+            human_radio_1.toggled.connect(
+                lambda checked, cat=category, performer="HUMAN", other=human_radio_2: 
+                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
+            
+            # When tab 2 HUMAN is toggled, sync to tab 1 and allocate
+            human_radio_2.toggled.connect(
+                lambda checked, cat=category, performer="HUMAN", other=human_radio_1: 
+                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
+            
+            # Add the category layouts to both containers
+            container_1.addLayout(category_layout_1)
+            container_2.addLayout(category_layout_2)
+        
+        # Add stretches at the end to push everything to the left
+        container_1.addStretch()
+        container_2.addStretch()
+    
+    def _on_category_radio_toggled_with_sync(self, category, performer, checked, other_radio):
+        """Handle radio button toggle with synchronization between tabs"""
+        if not checked:
+            return
+        
+        # Block signals on the other radio button to prevent infinite loop
+        other_radio.blockSignals(True)
+        other_radio.setChecked(True)
+        other_radio.blockSignals(False)
+        
+        # Now perform the allocation
+        self._on_category_radio_toggled(category, performer, checked)
+    
+    def _on_category_filter_clicked(self, category, clicked_button, other_button):
+        """Handle category filter button click (apply filter and show clear button)"""
+        # Check if this category is already filtered
+        if self.active_filter_category == category:
+            # Do nothing - already filtered, user should use clear button
+            return
+        
+        # Apply the filter
+        self.active_filter_category = category
+        
+        # Reset all other filter buttons first
+        for cat, buttons in self.category_filter_buttons.items():
+            self._reset_filter_button_style(buttons["button_1"])
+            self._reset_filter_button_style(buttons["button_2"])
+        
+        # Highlight the active filter buttons
+        self._set_filter_button_active_style(clicked_button)
+        self._set_filter_button_active_style(other_button)
+        
+        # Apply filter to both graphs
+        if self.normal_interdependence_scene:
+            self.normal_interdependence_scene.filter_by_category(category)
+        if self.contingency_interdependence_scene:
+            self.contingency_interdependence_scene.filter_by_category(category)
+        
+        # Show the clear filter buttons
+        self._show_clear_filter_buttons()
+        
+        print(f"Applied filter for category: {category}")
+    
+    def _show_clear_filter_buttons(self):
+        """Show clear filter buttons in both tabs"""
+        from PySide6.QtWidgets import QPushButton
+        from PySide6.QtCore import Qt
+        
+        # Get both container layouts
+        container_1 = self.widgets.task_type_button_container
+        container_2 = self.widgets.task_type_button_container_2
+        
+        # Remove existing clear buttons if they exist
+        if self.clear_filter_button_1:
+            container_1.removeWidget(self.clear_filter_button_1)
+            self.clear_filter_button_1.deleteLater()
+            self.clear_filter_button_1 = None
+        
+        if self.clear_filter_button_2:
+            container_2.removeWidget(self.clear_filter_button_2)
+            self.clear_filter_button_2.deleteLater()
+            self.clear_filter_button_2 = None
+        
+        # Create clear filter buttons
+        self.clear_filter_button_1 = QPushButton("✕ Clear Filter")
+        self.clear_filter_button_2 = QPushButton("✕ Clear Filter")
+        
+        clear_button_style = """
+            QPushButton {
+                font: 700 11pt "JetBrains Mono";
+                color: white;
+                padding: 8px 12px;
+                background-color: rgba(220, 53, 69, 200);
+                border: 2px solid rgba(220, 53, 69, 255);
+                border-radius: 5px;
+                margin: 5px;
+            }
+            QPushButton:hover {
+                background-color: rgba(200, 35, 51, 230);
+                border: 2px solid rgba(255, 70, 85, 255);
+            }
+            QPushButton:pressed {
+                background-color: rgba(180, 25, 41, 255);
+            }
+        """
+        
+        self.clear_filter_button_1.setStyleSheet(clear_button_style)
+        self.clear_filter_button_2.setStyleSheet(clear_button_style)
+        
+        self.clear_filter_button_1.setCursor(Qt.PointingHandCursor)
+        self.clear_filter_button_2.setCursor(Qt.PointingHandCursor)
+        
+        # Connect both buttons to clear the filter (synchronized)
+        self.clear_filter_button_1.clicked.connect(self._clear_category_filter)
+        self.clear_filter_button_2.clicked.connect(self._clear_category_filter)
+        
+        # Insert the clear buttons at the end (before the stretch)
+        # Remove the stretch temporarily
+        stretch_1 = container_1.takeAt(container_1.count() - 1)
+        stretch_2 = container_2.takeAt(container_2.count() - 1)
+        
+        # Add clear buttons
+        container_1.addWidget(self.clear_filter_button_1)
+        container_2.addWidget(self.clear_filter_button_2)
+        
+        # Re-add stretches
+        if stretch_1:
+            container_1.addItem(stretch_1)
+        if stretch_2:
+            container_2.addItem(stretch_2)
+    
+    def _clear_category_filter(self):
+        """Clear the active category filter"""
+        if not self.active_filter_category:
+            return
+        
+        # Clear the filter state
+        self.active_filter_category = None
+        
+        # Reset all filter button styles
+        for cat, buttons in self.category_filter_buttons.items():
+            self._reset_filter_button_style(buttons["button_1"])
+            self._reset_filter_button_style(buttons["button_2"])
+        
+        # Clear filters on both graphs
+        if self.normal_interdependence_scene:
+            self.normal_interdependence_scene.clear_category_filter()
+        if self.contingency_interdependence_scene:
+            self.contingency_interdependence_scene.clear_category_filter()
+        
+        # Hide the clear filter buttons
+        self._hide_clear_filter_buttons()
+        
+        print("Cleared category filter")
+    
+    def _hide_clear_filter_buttons(self):
+        """Hide and remove clear filter buttons from both tabs"""
+        container_1 = self.widgets.task_type_button_container
+        container_2 = self.widgets.task_type_button_container_2
+        
+        if self.clear_filter_button_1:
+            container_1.removeWidget(self.clear_filter_button_1)
+            self.clear_filter_button_1.deleteLater()
+            self.clear_filter_button_1 = None
+        
+        if self.clear_filter_button_2:
+            container_2.removeWidget(self.clear_filter_button_2)
+            self.clear_filter_button_2.deleteLater()
+            self.clear_filter_button_2 = None
+    
+    def _reset_filter_button_style(self, button):
+        """Reset filter button to normal (non-active) style"""
+        button.setStyleSheet("""
+            QPushButton {
+                font: 600 12pt "JetBrains Mono";
+                color: white;
+                padding: 5px;
+                background-color: transparent;
+                border: 2px solid transparent;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+            }
+            QPushButton:pressed {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+        """)
+    
+    def _set_filter_button_active_style(self, button):
+        """Set filter button to active (filtered) style"""
+        button.setStyleSheet("""
+            QPushButton {
+                font: 600 12pt "JetBrains Mono";
+                color: black;
+                padding: 5px;
+                background-color: rgba(0, 168, 120, 255);
+                border: 2px solid rgba(0, 200, 150, 255);
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: rgba(0, 150, 108, 255);
+                border: 2px solid rgba(0, 180, 135, 255);
+            }
+            QPushButton:pressed {
+                background-color: rgba(0, 134, 96, 255);
+            }
+        """)
+    
+    def _on_category_radio_toggled(self, category, performer, checked):
+        """Handle radio button toggle for category-based allocation"""
+        if not checked:
+            return
+        
+        print(f"Allocating all '{category}' tasks to {performer}")
+        
+        # Allocate normal tasks in this category
+        if self.normal_interdependence_scene and self.normal_tasks:
+            for task_id, task in enumerate(self.normal_tasks):
+                if task.category == category:
+                    # Check if this performer can perform the task
+                    if performer == "HUMAN" and task.human_can:
+                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
+                    elif performer == "TARS" and task.agent_can:
+                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
+        
+        # Allocate contingency tasks in this category
+        if self.contingency_interdependence_scene and self.contingency_tasks:
+            for task_id, task in enumerate(self.contingency_tasks):
+                if task.category == category:
+                    # Check if this performer can perform the task
+                    if performer == "HUMAN" and task.human_can:
+                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
+                    elif performer == "TARS" and task.agent_can:
+                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
     
     def connect_briefing_signals(self):
         """
@@ -838,7 +1444,7 @@ class BriefingPage(BasePage):
                 
                 export_data.append([
                     task.procedure_name,   # Procedure
-                    task.category,         # Category  
+                    task.classification,         # Classification
                     task.task_type,        # Type
                     task.name,             # Task Object
                     task.value,            # Value
@@ -864,7 +1470,7 @@ class BriefingPage(BasePage):
                 
                 export_data.append([
                     task.procedure_name,   # Procedure
-                    task.category,         # Category
+                    task.classification,         # Classification
                     task.task_type,        # Type
                     task.name,             # Task Object
                     task.value,            # Value
@@ -884,7 +1490,7 @@ class BriefingPage(BasePage):
                 
                 # Write header
                 writer.writerow([
-                    'Procedure', 'Category', 'Type', 'Task Object', 
+                    'Procedure', 'Classification', 'Type', 'Task Object', 
                     'Value', 'Human Role', 'Autonomy Role'
                 ])
                 
@@ -932,17 +1538,17 @@ class BriefingPage(BasePage):
                 reader = csv.DictReader(csvfile)
                 
                 # Validate header format
-                expected_headers = ['Procedure', 'Category', 'Type', 'Task Object', 'Value', 'Human Role', 'Autonomy Role']
+                expected_headers = ['Procedure', 'Classification', 'Type', 'Task Object', 'Value', 'Human Role', 'Autonomy Role']
                 if not all(header in reader.fieldnames for header in expected_headers):
                     QMessageBox.warning(None, "Invalid File Format", 
                                       f"The selected CSV file does not have the expected format.\n"
                                       f"Expected headers: {', '.join(expected_headers)}")
                     return
-                
-                # Parse allocation data and separate by category
+
+                # Parse allocation data and separate by classification
                 for row in reader:
                     procedure = row['Procedure'].strip()
-                    category = row['Category'].strip()
+                    classification = row['Classification'].strip()
                     task_object = row['Task Object'].strip()
                     value = row['Value'].strip()
                     human_role = row['Human Role'].strip()
@@ -956,13 +1562,13 @@ class BriefingPage(BasePage):
                     else:
                         print(f"Warning: Could not determine performer for task {task_object} (human_role='{human_role}', autonomy_role='{autonomy_role}')")
                         continue
-                    
-                    # Store allocation data based on category
+
+                    # Store allocation data based on classification
                     allocation_key = (procedure, task_object, value)
-                    
-                    if category == "NORM":
+
+                    if classification == "NORM":
                         normal_allocation_data[allocation_key] = performer
-                    elif category in ["EMER", "ABNORM"]:
+                    elif classification in ["EMER", "ABNORM"]:
                         contingency_allocation_data[allocation_key] = performer
             
             # Apply allocations to both task sets
