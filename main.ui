@@ -72,7 +72,7 @@ Left Menu */
 }
 #topLogo {
 	background-color: rgb(33, 37, 43);
-	background-image: url(:/images/images/images/PyDracula.png);
+	background-image: url(:/images/images/images/app_logo.png);
 	background-position: centered;
 	background-repeat: no-repeat;
 }
@@ -682,7 +682,7 @@ Button */
               </font>
              </property>
              <property name="text">
-              <string>PyDracula</string>
+              <string>TARS App</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
@@ -712,7 +712,7 @@ Button */
               </font>
              </property>
              <property name="text">
-              <string>Modern GUI / Flat Style</string>
+              <string>Human-Agent Interface</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
@@ -3420,7 +3420,7 @@ QTabBar::tab { background-color: #3c3c3c; }
 QTabBar::tab:selected { background-color: #0078d4; }</string>
                          </property>
                          <property name="currentIndex">
-                          <number>1</number>
+                          <number>0</number>
                          </property>
                          <widget class="QWidget" name="normal_operation_IA_page">
                           <property name="styleSheet">
@@ -3443,11 +3443,11 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                              <item>
                               <widget class="QPushButton" name="load_allocation_button">
                                <property name="text">
-                                <string>Load Briefing Package</string>
+                                <string>Upload Briefing Package</string>
                                </property>
                                <property name="icon">
                                 <iconset resource="resources.qrc">
-                                 <normaloff>:/icons/images/icons/log-add-google.svg</normaloff>:/icons/images/icons/log-add-google.svg</iconset>
+                                 <normaloff>:/icons/images/icons/file-upload-google.svg</normaloff>:/icons/images/icons/file-upload-google.svg</iconset>
                                </property>
                               </widget>
                              </item>
@@ -3455,6 +3455,32 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                               <widget class="QPushButton" name="validate_briefing_button">
                                <property name="text">
                                 <string>Validate Briefing Plan</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/check-google.svg</normaloff>:/icons/images/icons/check-google.svg</iconset>
+                               </property>
+                              </widget>
+                             </item>
+                             <item>
+                              <widget class="QPushButton" name="send_briefing_button">
+                               <property name="text">
+                                <string>Send briefing to TARS</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/command-shared.svg</normaloff>:/icons/images/icons/command-shared.svg</iconset>
+                               </property>
+                              </widget>
+                             </item>
+                             <item>
+                              <widget class="QPushButton" name="export_briefing_button">
+                               <property name="text">
+                                <string>Export Briefing</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/file-export-google.svg</normaloff>:/icons/images/icons/file-export-google.svg</iconset>
                                </property>
                               </widget>
                              </item>
@@ -3483,11 +3509,11 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                              <item>
                               <widget class="QPushButton" name="load_allocation_button_2">
                                <property name="text">
-                                <string>Load Briefing Package</string>
+                                <string>Upload Briefing Package</string>
                                </property>
                                <property name="icon">
                                 <iconset resource="resources.qrc">
-                                 <normaloff>:/icons/images/icons/log-add-google.svg</normaloff>:/icons/images/icons/log-add-google.svg</iconset>
+                                 <normaloff>:/icons/images/icons/file-upload-google.svg</normaloff>:/icons/images/icons/file-upload-google.svg</iconset>
                                </property>
                               </widget>
                              </item>
@@ -3495,6 +3521,32 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                               <widget class="QPushButton" name="validate_cont_planning_button">
                                <property name="text">
                                 <string>Validate Contingency Plan</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/check-google.svg</normaloff>:/icons/images/icons/check-google.svg</iconset>
+                               </property>
+                              </widget>
+                             </item>
+                             <item>
+                              <widget class="QPushButton" name="send_briefing_button_2">
+                               <property name="text">
+                                <string>Send Briefing to TARS</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/command-shared.svg</normaloff>:/icons/images/icons/command-shared.svg</iconset>
+                               </property>
+                              </widget>
+                             </item>
+                             <item>
+                              <widget class="QPushButton" name="export_briefing_button_2">
+                               <property name="text">
+                                <string>Export Briefing</string>
+                               </property>
+                               <property name="icon">
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/file-export-google.svg</normaloff>:/icons/images/icons/file-export-google.svg</iconset>
                                </property>
                               </widget>
                              </item>
@@ -3840,7 +3892,6 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
  </widget>
  <resources>
   <include location="resources.qrc"/>
-  <include location="../../../.designer/backup/resources.qrc"/>
  </resources>
  <connections/>
 </ui>

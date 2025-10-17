@@ -1,5 +1,6 @@
 import time
 import signal
+from pathlib import Path
 from Core.echo import *
 from Core.fsm import FiniteStateMachine, State, Transition
 from Core.tts import speak_wait
@@ -12,6 +13,13 @@ except ImportError:
     # Fallback if already imported via echo
     pass
 
+### PARAMETERS ###
+V_ONE = 90  # Takeoff decision speed
+V_ROTATE = 100  # Rotation speed
+V_TWO = 120  # Climb speed
+AIRSPEED_ALIVE_THRESHOLD = 40  # Minimum airspeed to consider "alive"
+SEVENTY_KTS = 70  # 70 knots speed
+
 # Agent Class
 class TarsAgent:
     def __init__(self, agent_name="TARS Agent", device="wlp0s20f3", port=5670, verbose=False):
@@ -21,131 +29,845 @@ class TarsAgent:
         self.verbose = verbose
         self.is_interrupted = False
         self.impulsion_count = 0
-        self.state_entry_time = time.monotonic()
-        self.task_done_human = [False]
 
-        self.states = {}
         # FSM setup
-
+        self.task_done_human = [False]
         #conditions
         self.is_on_off = [False]
-        self.should_run = [False]
-        self.should_finish = [False]
 
-        self.states = self.create_states_from_csv("Core/task_allocation.csv")
-        self.fsm = FiniteStateMachine(self.states["idle"])
+        # Load task definitions and role allocations
+        IA_csv_file_path = Path(__file__).parent.parent / "IA_updated.csv"
+        allocation_csv_path = Path(__file__).parent / "briefing_export_MRP.csv"
+        
+        # Create states with allocation data if available
+        self.states = self.create_states_from_csv(IA_csv_file_path, allocation_csv_path)
+        idle_key = ("IDLE", "Idle", "WAITING")
+        finished_key = ("FINISHED", "Finished", "COMPLETED")
+        self.fsm = FiniteStateMachine(self.states[idle_key])
 
+        # BEFORE TAKEOFF Procedure
+        self.fsm.add_transition(Transition(
+            self.states[("IDLE", "Idle", "WAITING")], 
+            self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
+            self.is_started, 
+            self.on_speak_action))
         
-        self.fsm.add_transition(Transition(self.states["idle"], self.states["confirm_takeoff_clearance"], self.is_started, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["confirm_takeoff_clearance"], self.states["ali_run_cen"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["ali_run_cen"], self.states["check_winds"], self.can_transition_timeout, lambda: self.on_speak_action("Wind report, wind calm, zero two six degrees at three knots")))
-        self.fsm.add_transition(Transition(self.states["check_winds"], self.states["hold_brakes"], self.is_acked, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["hold_brakes"], self.states["check_cas_clear"], self.can_transition_timeout, lambda: self.on_speak_action("C A S is clear")))
-        self.fsm.add_transition(Transition(self.states["check_cas_clear"], self.states["set_thrust"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["set_thrust"], self.states["check_fadec_bug_to"], self.is_thrust_sensed, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_fadec_bug_to"], self.states["check_engine_spool_evenly"], self.is_fadec_bug_to, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_engine_spool_evenly"], self.states["check_n1_percent"], self.is_engine_spool_even, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_n1_percent"], self.states["release_brakes"], self.is_n1_percent_above_90, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["release_brakes"], self.states["acceleration"], self.is_brake_released_sensed, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["acceleration"], self.states["airspeed_alive"], self.is_airspeed_alive, lambda: self.on_speak_action("Airspeed's alive")))
-        self.fsm.add_transition(Transition(self.states["airspeed_alive"], self.states["seventy_kts"], self.is_seventy_kts, lambda: self.on_speak_action("seventy knots")))
-        self.fsm.add_transition(Transition(self.states["seventy_kts"], self.states["v1"], self.is_v_one, lambda: self.on_speak_action("V one")))
-        self.fsm.add_transition(Transition(self.states["v1"], self.states["rotate"], self.is_v_rotate, lambda: self.on_speak_action("Rotate")))
-        self.fsm.add_transition(Transition(self.states["rotate"], self.states["maintain_pitch"], self.is_pitch_maintained, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["maintain_pitch"], self.states["check_positive_rate"], self.is_positive_rate, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_positive_rate"], self.states["gear_up"], self.is_positive_rate, lambda: self.on_speak_action("Positive rate, gear up")))
-        self.fsm.add_transition(Transition(self.states["gear_up"], self.states["announce_start_checklist_aft_to_norm_proc"], self.is_400_ft, self.on_speak_action))
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
+            self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
+            self.allow_transition, 
+            self.on_speak_action))
         
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
+            self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
+            self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")], 
+            self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")], 
+            self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")], 
+            self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")], 
+            self.states[("BEFORE TAKEOFF", "Radar", "AS REQUIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        # LINE-UP AND HOLD Procedure
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "Radar", "AS REQUIRED")], 
+            self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")], 
+            self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Wind report, wind calm, zero two six degrees at three knots")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
+            self.states[("LINE-UP AND HOLD", "Brakes", "HOLD")], 
+            self.is_acked, 
+            self.on_speak_action))
+        
+        # TAKEOFF Procedure
+        self.fsm.add_transition(Transition(
+            self.states[("LINE-UP AND HOLD", "Brakes", "HOLD")], 
+            self.states[("TAKEOFF", "CAS", "CHECK CLEAR")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("C A S is clear")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "CAS", "CHECK CLEAR")], 
+            self.states[("TAKEOFF", "\"Set thrust\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"Set thrust\"", "ANNOUNCE")], 
+            self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
+            self.states[("TAKEOFF", "FADEC bug", "CHECK TO")], 
+            self.is_thrust_sensed, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "FADEC bug", "CHECK TO")], 
+            self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")], 
+            self.is_fadec_bug_to, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")], 
+            self.states[("TAKEOFF", "\"Thrust set\"", "ANNOUNCE")], 
+            self.is_engine_spool_even, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"Thrust set\"", "ANNOUNCE")], 
+            self.states[("TAKEOFF", "Engine Instruments", "CHECK NORMAL")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Engine Instruments", "CHECK NORMAL")], 
+            self.states[("TAKEOFF", "Brakes", "RELEASE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Brakes", "RELEASE")], 
+            self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")], 
+            self.is_brake_released_sensed, 
+            lambda: self.on_speak_action("Airspeed's alive")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")], 
+            self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")], 
+            self.is_airspeed_alive, 
+            lambda: self.on_speak_action("seventy knots")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")], 
+            self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")], 
+            self.is_seventy_kts, 
+            lambda: self.on_speak_action("V one")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")], 
+            self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")], 
+            self.is_v_one, 
+            lambda: self.on_speak_action("Rotate")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")], 
+            self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
+            self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
+            self.is_v_rotate, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
+            self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
+            self.is_pitch_maintained, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
+            self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
+            self.states[("TAKEOFF", "\"Positive rate, gear up\"", "ANNOUNCE")], 
+            self.is_positive_rate, 
+            lambda: self.on_speak_action("Positive rate, gear up")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"Positive rate, gear up\"", "ANNOUNCE")], 
+            self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        # Branch: Normal path to AFTER TAKEOFF
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
+            self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")], 
+            self.is_400_ft, 
+            self.on_speak_action))
+        
+        # Branch: Emergency path - ENGINE FAILURE DURING TAKEOFF
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")], 
+            self.is_alarm, 
+            lambda: self.on_speak_action("Engine failure detected")))
+        
+        # ENG FAILURE DURING TAKEOFF transitions
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "TRIM")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "TRIM")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Alarm Engine fire, low oil pressure")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"Reset Master Warning\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"Reset Master Warning\"", "ANNOUNCE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Master Warning", "RESET")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Master Warning", "RESET")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")], 
+            self.is_master_warning_reset, 
+            lambda: self.on_speak_action("Flight Director on, takeoff mode")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "LANDING GEAR", "UP")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "LANDING GEAR", "UP")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Airspeed", "CHECK V2")], 
+            self.is_gear_up, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Airspeed", "CHECK V2")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"Speed mode FLC V2, heading mode\"", "ANNOUNCE")], 
+            self.is_airspeed_v_two, 
+            lambda: self.on_speak_action("V two, speed mode FLC, heading mode can be engaged")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"Speed mode FLC V2, heading mode\"", "ANNOUNCE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "LISTEN")], 
+            self.is_acked, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "LISTEN")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 700ft AGL")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 700ft AGL")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"700ft, engage autopilot\"", "ANNOUNCE")], 
+            self.is_ap_altitude, 
+            lambda: self.on_speak_action("Seven hundred feet, autopilot ready to engage")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"700ft, engage autopilot\"", "ANNOUNCE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Airspeed", "CHECK V2+10")], 
+            self.is_v2_plus_12, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Airspeed", "CHECK V2+10")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Obstacles", "CHECK Clear")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Obstacles", "CHECK Clear")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"Retract flaps\"", "Announce")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "\"Retract flaps\"", "Announce")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "FLAP Handle", "UP")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        # Branch to ENGINE FIRE procedure
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "FLAP Handle", "UP")], 
+            self.states[("ENGINE FIRE", "\"Affected thrust lever, confirm and idle\"", "ANNOUNCE")], 
+            self.is_flaps_retracted, 
+            lambda: self.on_speak_action("Affected thrust lever, confirm and idle")))
+        
+        # ENGINE FIRE transitions
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"Affected thrust lever, confirm and idle\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "\"Idle\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"Idle\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "Throttle (affected engine)", "IDLE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Throttle (affected engine)", "IDLE")], 
+            self.states[("ENGINE FIRE", "\"TOP\"", "ANNOUNCE")], 
+            self.is_throttle_idle, 
+            lambda: self.on_speak_action("Chronometer started, fifteen seconds to check light")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"TOP\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "Chrono", "START")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Chrono", "START")], 
+            self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 15s")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 15s")], 
+            self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Engine fire switch, lift cover and push")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")], 
+            self.states[("ENGINE FIRE", "Checklist", "ORDER START")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Checklist", "ORDER START")], 
+            self.states[("ENGINE FIRE", "Radio", "ALLOCATE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Radio", "ALLOCATE")], 
+            self.states[("ENGINE FIRE", "Checklist", "RETRIEVE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Checklist", "RETRIEVE")], 
+            self.states[("ENGINE FIRE", "Immediate Action Item", "CHECK DONE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Immediate Action Item", "CHECK DONE")], 
+            self.states[("ENGINE FIRE", "\"Affected thrust lever, confirm and cutoff\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Affected thrust lever, confirm and cutoff")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"Affected thrust lever, confirm and cutoff\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "\"cutoff\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"cutoff\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")], 
+            self.states[("ENGINE FIRE", "\"Affected engine fuel boost confirm off then norm\"", "ANNOUNCE")], 
+            self.is_throttle_cutoff, 
+            lambda: self.on_speak_action("Affected engine fuel boost, confirm off then norm")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"Affected engine fuel boost confirm off then norm\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "\"off then norm\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Fuel boost off")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"off then norm\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")], 
+            self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")], 
+            self.is_fuel_boost_off, 
+            lambda: self.on_speak_action("Fuel boost norm")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")], 
+            self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 30s")], 
+            self.is_fuel_boost_norm, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 30s")], 
+            self.states[("ENGINE FIRE", "\"30 seconds, light remains on, bottle discharge\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Thirty seconds light remains on, bottle discharge")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"30 seconds, light remains on, bottle discharge\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "\"discharge\"", "ANNOUNCE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "\"discharge\"", "ANNOUNCE")], 
+            self.states[("ENGINE FIRE", "Illuminated BOTTLE ARMED Switch", "PUSH")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Illuminated BOTTLE ARMED Switch", "PUSH")], 
+            self.states[("ENGINE FIRE", "Rotary Test", "FIRE WARN")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Rotary Test", "FIRE WARN")], 
+            self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")], 
+            self.is_test_knob_turned, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")], 
+            self.states[("ENGINE FIRE", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Start checklist : Engine Failure/Precautionary Shutdown")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")], 
+            self.states[("ENGINE FIRE", "Checklist", "ANNOUNCE COMPLETED")], 
+            self.is_acked, 
+            self.on_speak_action))
+        
+        # DECLARE EMERGENCY transitions
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Checklist", "ANNOUNCE COMPLETED")], 
+            self.states[("DECLARE EMERGENCY", "ATC", "ANNOUNCE EMERGENCY")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE EMERGENCY", "ATC", "ANNOUNCE EMERGENCY")], 
+            self.states[("DECLARE EMERGENCY", "ATC", "REQUEST VECTOR")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE EMERGENCY", "ATC", "REQUEST VECTOR")], 
+            self.states[("DECLARE EMERGENCY", "ATC", "LISTEN")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE EMERGENCY", "ATC", "LISTEN")], 
+            self.states[("DECLARE EMERGENCY", "ATC", "READBACK")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE EMERGENCY", "ATC", "READBACK")], 
+            self.states[("DECLARE EMERGENCY", "Heading", "SET ACCORDINGLY")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE EMERGENCY", "Heading", "SET ACCORDINGLY")], 
+            self.states[("DECLARE EMERGENCY", "FLC", "SET ACCORDINGLY")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        # Continue to AFTER TAKEOFF from DECLARE EMERGENCY
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE EMERGENCY", "FLC", "SET ACCORDINGLY")], 
+            self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        # AFTER TAKEOFF transitions (normal path)
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")], 
+            self.states[("AFTER TAKEOFF", "Checklist", "RETRIEVE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Checklist", "RETRIEVE")], 
+            self.states[("AFTER TAKEOFF", "LANDING GEAR Handle", "UP")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "LANDING GEAR Handle", "UP")], 
+            self.states[("AFTER TAKEOFF", "Airspeed", "CHECK V2 + 12")], 
+            self.is_gear_up, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Airspeed", "CHECK V2 + 12")], 
+            self.states[("AFTER TAKEOFF", "Obstacles", "CHECK CLEAR")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Obstacles", "CHECK CLEAR")], 
+            self.states[("AFTER TAKEOFF", "FLAP Handle", "UP")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "FLAP Handle", "UP")], 
+            self.states[("AFTER TAKEOFF", "THROTTLES", "CLB Detent")], 
+            self.is_flaps_retracted, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "THROTTLES", "CLB Detent")], 
+            self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")], 
+            self.states[("AFTER TAKEOFF", "Anti-Ice/Deice Systems", "AS REQUIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Anti-Ice/Deice Systems", "AS REQUIRED")], 
+            self.states[("AFTER TAKEOFF", "PAX SAFETY Switch", "AS REQUIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "PAX SAFETY Switch", "AS REQUIRED")], 
+            self.states[("AFTER TAKEOFF", "LANDING Light Switch", "AS REQUIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "LANDING Light Switch", "AS REQUIRED")], 
+            self.states[("AFTER TAKEOFF", "Pressurization", "CHECK")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Pressurization", "CHECK")], 
+            self.states[("AFTER TAKEOFF", "Altimeters (transition altitude)", "SET STD")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Altimeter set to standard pressure")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Altimeters (transition altitude)", "SET STD")], 
+            self.states[("AFTER TAKEOFF", "Altimeters (transition altitude)", "CROSSCHECK")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Altimeters (transition altitude)", "CROSSCHECK")], 
+            self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        # Branch: Normal completion or continue to ENGINE FAILURE/PRECAUTIONARY SHUTDOWN
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")], 
+            self.states[("AFTER TAKEOFF", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")], 
+            self.is_failed, 
+            lambda: self.on_speak_action("Start checklist: Engine Failure/Precautionary Shutdown Procedure and Checklist")))
+        
+        # ENGINE FAILURE/PRECAUTIONARY SHUTDOWN transitions
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "ORDER START")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "ORDER START")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "RETRIEVE")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "RETRIEVE")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Affected thrust lever, confirm and cutoff")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "GEN Switch (affected side)", "OFF")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Gen switch affected side off")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "GEN Switch (affected side)", "OFF")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "IGNITION switch (affected side)", "NORM")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Ignition switch affected side norm")))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "IGNITION switch (affected side)", "NORM")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Electrical Load", "REDUCE as required (<= 300A)")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Electrical Load", "REDUCE as required (<= 300A)")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Fuel TRANSFER Knob", "AS REQUIRED")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Fuel TRANSFER Knob", "AS REQUIRED")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Verify ENGINE FIRE Switch (affected side)", "Is pushed")], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Verify ENGINE FIRE Switch (affected side)", "Is pushed")], 
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Next checklist", "SINGLE-ENGINE APPROACH AND LANDING")], 
+            self.allow_transition, 
+            lambda: self.on_speak_action("Current checklist completed, next: single engine approach and landing")))
+        
+        # Final transition to FINISHED
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Next checklist", "SINGLE-ENGINE APPROACH AND LANDING")], 
+            self.states[finished_key], 
+            self.allow_transition, 
+            self.on_speak_action))
+        
+        # Normal completion path (no failure)
+        self.fsm.add_transition(Transition(
+            self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")], 
+            self.states[finished_key], 
+            self.is_not_failed, 
+            self.on_speak_action))
 
-        # IF ALARM
-        self.fsm.add_transition(Transition(self.states["gear_up"], self.states["announce_alarm"], self.is_alarm, lambda: self.on_speak_action("Alarm Engine fire, low oil pressure")))
-        #self.fsm.add_transition(Transition(self.apply_rudder, self.trim_rudder, self.can_start_timeout, self.on_trim_rudder))
-        #self.fsm.add_transition(Transition(self.trim_rudder, self.announce_alarm, self.can_start_timeout, self.on_announce_alarm))
-        self.fsm.add_transition(Transition(self.states["announce_alarm"], self.states["reset_master_warning"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["reset_master_warning"], self.states["set_fd_to_mode"], self.is_master_warning_reset, lambda: self.on_speak_action("Flight Director on, takeoff mode")))
-        self.fsm.add_transition(Transition(self.states["set_fd_to_mode"], self.states["check_lg_up"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_lg_up"], self.states["check_airspeed_v2"], self.is_gear_up, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_airspeed_v2"], self.states["speed_mode_flc_v2_heading_mode"], self.is_airspeed_v_two, lambda: self.on_speak_action("V two, speed mode FLC, heading mode can be engaged")))
-        self.fsm.add_transition(Transition(self.states["speed_mode_flc_v2_heading_mode"], self.states["contact_atc_emergency"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["contact_atc_emergency"], self.states["listen_atc"], self.is_acked, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["listen_atc"], self.states["engage_autopilot"], self.is_ap_altitude, lambda: self.on_speak_action("Seven hundred feet, autopilot ready to engage")))
-        self.fsm.add_transition(Transition(self.states["engage_autopilot"], self.states["check_v2_plus_twelve"], self.is_v2_plus_12, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_v2_plus_twelve"], self.states["retract_flaps_emer"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["retract_flaps_emer"], self.states["throttle_affected_idle"], self.is_flaps_retracted, lambda: self.on_speak_action("Affected thrust lever, confirm and idle")))
-        self.fsm.add_transition(Transition(self.states["throttle_affected_idle"], self.states["start_chrono"], self.is_throttle_idle, lambda: self.on_speak_action("Chronometer started, fifteen seconds to check light")))
-        self.fsm.add_transition(Transition(self.states["start_chrono"], self.states["check_light_after_15_seconds"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_light_after_15_seconds"], self.states["eng_fire_switch_lift_cover_and_push"], self.can_transition_timeout, lambda: self.on_speak_action("Engine fire switch, lift cover and push")))
-        self.fsm.add_transition(Transition(self.states["eng_fire_switch_lift_cover_and_push"], self.states["cutoff"], self.can_transition_timeout, lambda: self.on_speak_action("Affected thrust leve, confirm and cutoff")))
-        self.fsm.add_transition(Transition(self.states["cutoff"], self.states["affected_engine_fuel_boost_confirm_off_then_norm"], self.is_throttle_cutoff, lambda: self.on_speak_action("Affected engine fuel boost, confirm off then norm")))
-        self.fsm.add_transition(Transition(self.states["affected_engine_fuel_boost_confirm_off_then_norm"], self.states["fuel_boost_off"], self.can_transition_timeout, lambda: self.on_speak_action("Fuel boost off")))
-        self.fsm.add_transition(Transition(self.states["fuel_boost_off"], self.states["fuel_boost_norm"], self.is_fuel_boost_off, lambda: self.on_speak_action("Fuel boost norm")))
-        self.fsm.add_transition(Transition(self.states["fuel_boost_norm"], self.states["check_light_after_30_seconds"], self.is_fuel_boost_norm, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_light_after_30_seconds"], self.states["thirty_seconds_light_remains_on_bottle_discharge"], self.can_transition_timeout, lambda: self.on_speak_action("Thirty seconds light remains on, bottle discharge")))
-        self.fsm.add_transition(Transition(self.states["thirty_seconds_light_remains_on_bottle_discharge"], self.states["discharge"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["discharge"], self.states["illuminated_bottle_armed_switch_push"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["illuminated_bottle_armed_switch_push"], self.states["turn_rotary_test_knob"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["turn_rotary_test_knob"], self.states["check_engine_fire_lights"], self.is_test_knob_turned, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_engine_fire_lights"], self.states["order_start_checklist"], self.can_transition_timeout, lambda: self.on_speak_action("Start checklist : Engine Fire Emergency Checklist")))
-        self.fsm.add_transition(Transition(self.states["order_start_checklist"], self.states["allocate_radio"], self.is_acked, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["allocate_radio"], self.states["retrieve_checklist"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["retrieve_checklist"], self.states["check_immediate_action_items_done"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["check_immediate_action_items_done"], self.states["contact_atc_vector"], self.can_transition_timeout, lambda: self.on_speak_action("Immediate action items checked, Current checklist completed, checklist to refer next: precautionary shutdown")))
-        self.fsm.add_transition(Transition(self.states["contact_atc_vector"], self.states["announce_start_checklist_aft_to_norm_proc"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["announce_start_checklist_aft_to_norm_proc"], self.states["retrieve_checklist_start"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["retrieve_checklist_start"], self.states["landing_gear_up"], self.is_gear_up, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["landing_gear_up"], self.states["flap_handle_up"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["flap_handle_up"], self.states["throttles_clb_detent"], self.is_flaps_retracted, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["throttles_clb_detent"], self.states["yaw_damper_as_desired"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["yaw_damper_as_desired"], self.states["deice_as_required"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["deice_as_required"], self.states["pax_safety_switch_as_required"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["pax_safety_switch_as_required"], self.states["pressurization_check"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["pressurization_check"], self.states["alti_set_std"], self.can_transition_timeout, lambda: self.on_speak_action("Altimeter set to standard pressure")))
-        self.fsm.add_transition(Transition(self.states["alti_set_std"], self.states["crosscheck_alti"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["crosscheck_alti"], self.states["announce_checklist_completed"], self.can_transition_timeout, self.on_speak_action))
-
-        self.fsm.add_transition(Transition(self.states["announce_checklist_completed"], self.states["finished"], self.is_not_failed, self.on_speak_action))
-        
-        
-        self.fsm.add_transition(Transition(self.states["announce_checklist_completed"], self.states["announce_start_checklist_retrieve"], self.is_failed, lambda: self.on_speak_action("Start checklist: Engine Failure/Precautionary Shutdown Procedure and Checklist")))
-        self.fsm.add_transition(Transition(self.states["announce_start_checklist_retrieve"], self.states["retrieve_checklist_start_checklist"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["retrieve_checklist_start_checklist"], self.states["throttle_affected_engine_cutoff"], self.can_transition_timeout, lambda: self.on_speak_action("Affected thrust lever, confirm and cutoff")))
-        self.fsm.add_transition(Transition(self.states["throttle_affected_engine_cutoff"], self.states["caution_text_readout"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["caution_text_readout"], self.states["gen_switch_affected_side_off"], self.can_transition_timeout, lambda: self.on_speak_action("Gen switch affected side off")))
-        self.fsm.add_transition(Transition(self.states["gen_switch_affected_side_off"], self.states["ignition_switch_affected_side_norm"], self.can_transition_timeout, lambda: self.on_speak_action("Gen switch affected side norm")))
-        self.fsm.add_transition(Transition(self.states["ignition_switch_affected_side_norm"], self.states["electrical_load_reduce_as_required"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["electrical_load_reduce_as_required"], self.states["fuel_transfer_knob_as_required"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["fuel_transfer_knob_as_required"], self.states["verify_engine_fire_switch_affected_side"], self.can_transition_timeout, self.on_speak_action))
-        self.fsm.add_transition(Transition(self.states["verify_engine_fire_switch_affected_side"], self.states["announce_current_checklist_completed"], self.can_transition_timeout, lambda: self.on_speak_action("Current checklist completed, next: single engine approach and landing")))
-        self.fsm.add_transition(Transition(self.states["announce_current_checklist_completed"], self.states["finished"], self.can_transition_timeout, self.on_speak_action))
-        # Adding transitions to the FSM
-        
-        # Echo agent
         self.agent = Echo()
+    # END INITIALIZATION OF FSM AND STATES
+
+    def create_states_from_csv(self, csv_path, allocation_csv_path=None):
+        """Create states from IA CSV, optionally using allocation data for roles
         
-        # load tasks from CSV
-        self.tasks = self.load_tasks("Core/task_allocation.csv")
-        self.current_task = self.tasks[0] if self.tasks else None
-
-    def load_tasks(self, csv_path):
-        tasks = []
-        with open(csv_path, mode='r') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                tasks.append(row)
-        return tasks
-    # FSM conditions and actions
-
-    def create_states_from_csv(self, csv_path):
+        Args:
+            csv_path: Path to IA_updated.csv with task definitions
+            allocation_csv_path: Optional path to briefing export CSV with role allocations
+        """
         states = {}
+        
+        # Load role allocations from briefing export if available
+        role_allocations = {}
+        if allocation_csv_path and allocation_csv_path.exists():
+            print(f"Loading role allocations from: {allocation_csv_path}")
+            try:
+                with open(allocation_csv_path, newline='', encoding='utf-8') as alloc_file:
+                    alloc_reader = csv.DictReader(alloc_file)
+                    for alloc_row in alloc_reader:
+                        # Create key matching state key format
+                        proc = alloc_row.get('Procedure', '').strip()
+                        obj = alloc_row.get('Task Object', '').strip()
+                        val = alloc_row.get('Value', '').strip()
+                        if proc and obj:
+                            key = (proc, obj, val)
+                            role_allocations[key] = {
+                                'human_role': alloc_row.get('Human Role', '').strip(),
+                                'autonomy_role': alloc_row.get('Autonomy Role', '').strip()
+                            }
+                print(f"Loaded {len(role_allocations)} role allocations from briefing export")
+            except Exception as e:
+                print(f"Warning: Could not load allocation CSV: {e}")
+                print("Will use roles from IA_updated.csv as fallback")
+        
+        # Create an IDLE state with composite key
+        idle_state = State(
+            procedure="IDLE",
+            classification="NORM",
+            type="Other",
+            category="System State",
+            task_object="Idle",
+            value="WAITING",
+            human_role="Performer",
+            autonomy_role=None,
+            information_requirement=None,
+            interaction="Start Button",
+            delay_before_action=0,
+            delay_after_action=0,
+            callout=None
+        )
+        # Use tuple as composite key: (procedure, classification, task_object, value)
+        idle_key = (idle_state.procedure, idle_state.task_object, idle_state.value)
+        states[idle_key] = idle_state
+        
         with open(csv_path, newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                task_name = row['task_name'].strip()
-                procedure_name = row['procedure_name'].strip()
-                delay_before_action = row['time_init_action'].strip()
-                delay_after_action = row['time_end_action'].strip()
-                if task_name and task_name not in states:
-                    states[task_name] = State(task_name, procedure_name, delay_before_action, delay_after_action)
+                # Extract fields for composite key
+                procedure = row.get('Procedure', '').strip()
+                task_object = row.get('Task Object', '').strip()
+                value = row.get('Value', '').strip()
+                
+                # Skip empty rows
+                if not procedure or not task_object:
+                    continue
+                
+                # Create composite key as tuple
+                state_key = (procedure, task_object, value)
+                
+                # Only add if key doesn't already exist (prevents duplicates)
+                if state_key not in states:
+                    # Extract other fields
+                    classification = row.get('Classification', '').strip()
+                    task_type = row.get('Type', '').strip()
+                    category = row.get('Category', '').strip()
+                    
+                    # Get roles from allocation CSV if available, otherwise use IA CSV
+                    if state_key in role_allocations:
+                        human_role = role_allocations[state_key]['human_role']
+                        autonomy_role = role_allocations[state_key]['autonomy_role']
+                        print(f"Using allocated roles for {state_key}: H={human_role}, A={autonomy_role}")
+                    else:
+                        # Fallback to IA CSV (which may not have these columns)
+                        human_role = row.get('Human Role', '').strip()
+                        autonomy_role = row.get('Autonomy Role', '').strip()
+                    
+                    information_requirement = row.get('Information Requirement', '').strip()
+                    interaction = row.get('interaction', '').strip()
+                    delay_before_action = float(row.get('Time to Initiate Action', 0) or 0)
+                    delay_after_action = float(row.get('Time after Ending Action', 0) or 0)
+                    callout = row.get('Callout', '').strip()
+                    
+                    # Create State object
+                    state = State(
+                        procedure=procedure,
+                        classification=classification,
+                        type=task_type,
+                        category=category,
+                        task_object=task_object,
+                        value=value,
+                        human_role=human_role,
+                        autonomy_role=autonomy_role,
+                        information_requirement=information_requirement,
+                        interaction=interaction,
+                        delay_before_action=delay_before_action,
+                        delay_after_action=delay_after_action,
+                        callout=callout
+                    )
+                    states[state_key] = state
+                else:
+                    # Key already exists, handle accordingly (e.g., log a warning)
+                    print(f"State {state_key} already exists. Skipping.")
+        end_state = State(
+            procedure="FINISHED",
+            classification="NORM",
+            type="Other",
+            category="System State",
+            task_object="Finished",
+            value="COMPLETED",
+            human_role="Performer",
+            autonomy_role=None,
+            information_requirement=None,
+            interaction="End State",
+            delay_before_action=0,
+            delay_after_action=0,
+            callout=None
+        )
+        end_key = (end_state.procedure, end_state.task_object, end_state.value)
+        states[end_key] = end_state
         return states
     
     def is_started(self):
@@ -153,13 +875,9 @@ class TarsAgent:
             return True
         return False
     
-    
-    def can_transition_timeout(self):
-        if self.state_entry_time is None:
-            return False #Not ready yet
-        required = 0#float(self.fsm.current_state.delay_before_action) #get_time_end_action_for_state(self.fsm.current_state)
-        elapsed = time.monotonic() - self.state_entry_time
-        return elapsed >= required
+    def allow_transition(self):
+        """Always returns True - timing is managed by main.py using delay_before_action and delay_after_action"""
+        return True
     
     def is_acked(self):
         if self.task_done_human[0]:
@@ -198,19 +916,16 @@ class TarsAgent:
 
     def is_airspeed_alive(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i > 10:
-            #speak_wait("Airspeed's alive")
             return True
         return False
 
     def is_seventy_kts(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 70:
-            #speak_wait("Seventy Knots")
             return True
         return False
 
     def is_v_one(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 90:
-            #speak_wait("Rotate")
             return True
         return False
 
@@ -221,7 +936,6 @@ class TarsAgent:
     
     def is_pitch_maintained(self):
         if self.agent.pitch_i is not None and self.agent.pitch_i >= 7:
-            #time.sleep(1)  # Simulate time to maintain pitch
             if self.agent.pitch_i >= 8:
                 return True
         return False
@@ -326,47 +1040,9 @@ class TarsAgent:
             return True
         return False
 
-
-
-    def can_finish(self):
-        return self.should_finish[0]
-
     def on_start(self):
-        print("Action: Starting...")
-        current_state_name = self.fsm.current_state.name
-        self.current_task = next(
-            (task for task in self.tasks if task.get("task_name") == current_state_name), None
-        )
-        if self.current_task:
-            speak_wait(f"{self.current_task['task_name']}")
-        else:
-            print(f"No task found for state: {current_state_name}")
+        print("Action: Starting FSM...")
         time.sleep(3)  # Simulate some startup delay
-        
-    def get_time_init_action_for_state(self, state_name):
-        seconds = 1
-        task = next((task for task in self.tasks if task.get("task_name", "").strip() == state_name.name), None)
-        if task is not None:
-            try:
-                seconds = int(task.get("time_init_action")) +1 
-            except (TypeError, ValueError):
-                seconds = 1
-        #print(seconds)
-        return seconds
-
-    def get_time_end_action_for_state(self, state_name):
-        seconds = 0
-        task = next((task for task in self.tasks if task.get("task_name", "").strip() == state_name.name), None)
-        if task is not None:
-            try:
-                seconds = int(task.get("time_end_action")) +1 
-            except(TypeError, ValueError):
-                seconds = 2
-                if task.get("time_end_action") in ("ack", "sense", "until_new"):
-                    seconds = 1000
-        #print(seconds)
-        return seconds
-
 
     # Ingescape callbacks
     def signal_handler(self, signal_received, frame):
@@ -420,7 +1096,6 @@ class TarsAgent:
         elif name == "altitude":
             agent_object.altitude_i = value
         elif name == "control_throttle":
-            #print(f"Input {name} written to {value}")
             agent_object.control_throttle_i = value
         elif name == "control_flaps":
             agent_object.control_flaps_i = value
@@ -431,10 +1106,8 @@ class TarsAgent:
         elif name == "park_brake":
             agent_object.park_brakes_i = value
         elif name == "l_throttle":
-            #print(f"Input {name} written to {value}")
             agent_object.l_throttle_i = value
         elif name == "r_throttle":
-            #print(f"Input {name} written to {value}")
             agent_object.r_throttle_i = value
         elif name == "n1_match_bug":
             agent_object.n1_match_bug_i = value
@@ -478,9 +1151,6 @@ class TarsAgent:
             agent_object.speed_mode_i = value
         elif name == "heading_mode":
             agent_object.heading_mode_i = value
-        #end_time = time.perf_counter()
-        #elapsed_time = end_time - start_time
-        #print(f"Elapsed time for processing {name}: {elapsed_time:.4f} seconds")
 
     def string_input_callback(self, io_type, name, value_type, value, my_data):
         igs.info(f"Input {name} written to {value}")
@@ -536,7 +1206,6 @@ class TarsAgent:
         igs.log_set_file(True, None)
         igs.log_set_stream(self.verbose)
         igs.set_command_line(sys.executable + " " + " ".join(sys.argv))
-
         igs.observe_agent_events(self.on_agent_event_callback, self.agent)
         igs.observe_freeze(self.on_freeze_callback, self.agent)
 
@@ -625,20 +1294,13 @@ class TarsAgent:
 
         igs.log_set_console(True)
         igs.log_set_console_level(igs.LOG_INFO)
-
         igs.start_with_device(self.device, self.port)
 
-        # Loop to advance FSM every 3 seconds
-        print(f"Current state: {self.fsm.current_state.name}")
-        self.should_run[0] = True
-
     def on_speak_action(self, speak_message=None, sleep=True):
-        self.state_entry_time = time.monotonic()
-        #if sleep:
-        #    time.sleep(self.get_time_init_action_for_state(self.fsm.current_state))
         print(f"Action: {self.fsm.current_state}")
         if speak_message:
             speak_wait(speak_message)
+
 # Example usage
 if __name__ == "__main__":
     agent = TarsAgent()

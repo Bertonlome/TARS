@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # ---------------------------- Data ----------------------------
 
 class Task:
-    def __init__(self, procedure_name, name, classification, task_type, category, value, human_can, agent_can, human_supports, agent_supports):
+    def __init__(self, procedure_name, name, classification, task_type, category, value, human_can, agent_can, human_supports, agent_supports, **extra_fields):
         self.procedure_name = procedure_name
         self.name = name
         self.classification = classification  # NORM, EMER, ABNORM
@@ -35,6 +35,9 @@ class Task:
         self.agent_can = bool(int(agent_can)) if str(agent_can).strip() != "" else False
         self.human_supports = bool(int(human_supports)) if str(human_supports).strip() != "" else False
         self.agent_supports = bool(int(agent_supports)) if str(agent_supports).strip() != "" else False
+        
+        # Store all additional CSV columns for preservation during export
+        self.extra_fields = extra_fields
 
 def load_tasks(csv_path: Path = None, classification_filter: list = None):
     """Load tasks from CSV or return demo data
@@ -89,6 +92,21 @@ def load_tasks(csv_path: Path = None, classification_filter: list = None):
                 human_supports = color_to_support(human_support)
                 agent_supports = color_to_support(agent_support)
                 
+                # Collect all extra fields to preserve them
+                extra_fields = {
+                    'observability': row.get("Observability", "").strip(),
+                    'predictability': row.get("Predictability", "").strip(),
+                    'directability': row.get("Directability", "").strip(),
+                    'information_requirement': row.get("Information Requirement", "").strip(),
+                    'constraint_type': row.get("Constraint Type", "").strip(),
+                    'time_constraint': row.get("Time constraint (in s)", "").strip(),
+                    'execution_type': row.get("Execution Type", "").strip(),
+                    'interaction': row.get("interaction", "").strip(),
+                    'time_to_initiate_action': row.get("Time to Initiate Action", "").strip(),
+                    'time_after_ending_action': row.get("Time after Ending Action", "").strip(),
+                    'callout': row.get("Callout", "").strip(),
+                }
+                
                 tasks.append(Task(
                     procedure_name,
                     task_name,
@@ -100,6 +118,7 @@ def load_tasks(csv_path: Path = None, classification_filter: list = None):
                     agent_can,
                     human_supports,
                     agent_supports,
+                    **extra_fields
                 ))
         return tasks
 
@@ -673,6 +692,9 @@ class BriefingPage(BasePage):
         self.all_normal_tasks_assigned = False
         self.all_contingency_tasks_assigned = False
         
+        # Store validated allocation data at app level
+        self.validated_allocation_data = None
+        
         # Store category radio buttons for reference (now for both tabs)
         self.category_radio_buttons = {}  # {category: {"TARS": QRadioButton, "HUMAN": QRadioButton, "TARS_2": QRadioButton, "HUMAN_2": QRadioButton}}
         
@@ -698,7 +720,7 @@ class BriefingPage(BasePage):
         """Setup both normal and contingency interdependence analysis tables"""
         try:
             # Load tasks from CSV
-            csv_file_path = Path(__file__).parent / "IA.csv"
+            csv_file_path = Path(__file__).parent.parent / "IA_updated.csv"
 
             # Load normal operation tasks (Classification == NORM)
             self.normal_tasks = load_normal_tasks(csv_file_path)
@@ -1241,7 +1263,7 @@ class BriefingPage(BasePage):
         """
         Connect signals specific to the briefing page
         """
-        # Connect validate briefing button
+        # Connect validate briefing button (normal operations)
         try:
             if hasattr(self.widgets, 'validate_briefing_button'):
                 self.widgets.validate_briefing_button.clicked.connect(self.toggle_normal_validation_state)
@@ -1271,6 +1293,27 @@ class BriefingPage(BasePage):
         except Exception as e:
             print(f"Error connecting validate contingency planning button: {e}")
         
+        # Connect export briefing buttons (both tabs)
+        try:
+            if hasattr(self.widgets, 'export_briefing_button'):
+                self.widgets.export_briefing_button.clicked.connect(self.export_briefing)
+                self.widgets.export_briefing_button.setEnabled(False)  # Initially disabled
+                print("Connected export briefing button (Normal Operations)")
+            else:
+                print("Warning: export_briefing_button not found in UI")
+        except Exception as e:
+            print(f"Error connecting export briefing button: {e}")
+        
+        try:
+            if hasattr(self.widgets, 'export_briefing_button_2'):
+                self.widgets.export_briefing_button_2.clicked.connect(self.export_briefing)
+                self.widgets.export_briefing_button_2.setEnabled(False)  # Initially disabled
+                print("Connected export briefing button (Contingency Planning)")
+            else:
+                print("Warning: export_briefing_button_2 not found in UI")
+        except Exception as e:
+            print(f"Error connecting export briefing button 2: {e}")
+        
         # Connect load allocation buttons
         try:
             if hasattr(self.widgets, 'load_allocation_button'):
@@ -1288,6 +1331,27 @@ class BriefingPage(BasePage):
         except Exception as e:
             print(f"Error connecting load contingency allocation button: {e}")
         
+        # Connect send to agent buttons (NEW - separate from export)
+        try:
+            if hasattr(self.widgets, 'send_briefing_button'):
+                self.widgets.send_briefing_button.clicked.connect(self.send_allocation_to_agent)
+                self.widgets.send_briefing_button.setEnabled(False)  # Initially disabled
+                print("Connected send briefing button (Normal Operations)")
+            else:
+                print("Warning: send_briefing_button not found in UI")
+        except Exception as e:
+            print(f"Error connecting send briefing button: {e}")
+        
+        try:
+            if hasattr(self.widgets, 'send_briefing_button_2'):
+                self.widgets.send_briefing_button_2.clicked.connect(self.send_allocation_to_agent)
+                self.widgets.send_briefing_button_2.setEnabled(False)  # Initially disabled
+                print("Connected send briefing button 2 (Contingency Planning)")
+            else:
+                print("Warning: send_briefing_button_2 not found in UI")
+        except Exception as e:
+            print(f"Error connecting send briefing button 2: {e}")
+        
         # Example: Connect other buttons, input fields, etc.
         # self.widgets.briefing.btn_start_mission.clicked.connect(self.start_mission)
         # self.widgets.briefing.btn_load_briefing.clicked.connect(self.load_briefing_file)
@@ -1295,13 +1359,8 @@ class BriefingPage(BasePage):
     # Validation methods
     def toggle_normal_validation_state(self):
         """
-        Toggle between validation and reset states for normal operations, or export if both validations complete
+        Toggle between validation and reset states for normal operations
         """
-        # Check if both validations are complete - if so, export
-        if self.normal_validation_active and self.contingency_validation_active:
-            self.export_briefing()
-            return
-            
         # Only allow toggle if all normal tasks are assigned    
         if not self.all_normal_tasks_assigned and not self.normal_validation_active:
             print("Cannot validate normal operations: Not all tasks have been assigned performers")
@@ -1312,24 +1371,27 @@ class BriefingPage(BasePage):
             self.validate_briefing()
             self._set_normal_button_to_reset_state()
             self.normal_validation_active = True
-            if self.contingency_validation_active:
-                # If contingency already validated, set both buttons to export state
-                self._set_buttons_to_export_state()
+            
+            # Switch to contingency planning tab to remind user
+            if hasattr(self.widgets, 'tabWidget'):
+                self.widgets.tabWidget.setCurrentIndex(1)  # Index 1 is contingency planning tab
+                print("Switched to Contingency Planning tab")
+            
+            # Check if both are validated and enable export button if so
+            self._update_export_button_state()
         else:
             # Currently in validated state, reset the validation
             self.reset_normal_validation()
             self._set_normal_button_to_validate_state()
             self.normal_validation_active = False
+            
+            # Update export button state
+            self._update_export_button_state()
     
     def toggle_contingency_validation_state(self):
         """
-        Toggle between validation and reset states for contingency planning, or export if both validations complete
+        Toggle between validation and reset states for contingency planning
         """
-        # Check if both validations are complete - if so, export
-        if self.normal_validation_active and self.contingency_validation_active:
-            self.export_briefing()
-            return
-            
         # Only allow toggle if all contingency tasks are assigned    
         if not self.all_contingency_tasks_assigned and not self.contingency_validation_active:
             print("Cannot validate contingency planning: Not all tasks have been assigned performers")
@@ -1340,60 +1402,213 @@ class BriefingPage(BasePage):
             self.validate_contingency_planning()
             self._set_contingency_button_to_reset_state()
             self.contingency_validation_active = True
-            if self.normal_validation_active:
-                # If normal already validated, set both buttons to export state
-                self._set_buttons_to_export_state()
+            
+            # Check if both are validated and enable export button if so
+            self._update_export_button_state()
         else:
             # Currently in validated state, reset the validation
             self.reset_contingency_validation()
             self._set_contingency_button_to_validate_state()
             self.contingency_validation_active = False
+            
+            # Update export button state
+            self._update_export_button_state()
     
-    def _set_buttons_to_export_state(self):
-        """Set both buttons to export state when dual validation is complete"""
-        # Set normal button to export state
-        if hasattr(self.widgets, 'validate_briefing_button'):
-            button = self.widgets.validate_briefing_button
-            button.setText("Export Briefing")
-            button.setStyleSheet("""
-                QPushButton {
-                    border: 2px solid rgba(255, 165, 0, 255) !important;
-                    border-radius: 5px !important;
-                    background-color: rgba(255, 165, 0, 255) !important;
-                    font: 600 16pt "JetBrains Mono" !important;
-                    color: white !important;
-                }
-                QPushButton:hover {
-                    background-color: rgba(255, 140, 0, 255) !important;
-                    border-color: rgba(255, 140, 0, 255) !important;
-                }
-                QPushButton:pressed {
-                    background-color: rgba(255, 120, 0, 255) !important;
-                    border-color: rgba(255, 120, 0, 255) !important;
-                }
-            """)
+    def _update_export_button_state(self):
+        """Enable/disable export and send buttons based on validation state"""
+        both_validated = self.normal_validation_active and self.contingency_validation_active
         
-        # Set contingency button to export state
-        if hasattr(self.widgets, 'validate_cont_planning_button'):
-            button = self.widgets.validate_cont_planning_button
-            button.setText("Export Briefing")
-            button.setStyleSheet("""
-                QPushButton {
-                    border: 2px solid rgba(255, 165, 0, 255) !important;
-                    border-radius: 5px !important;
-                    background-color: rgba(255, 165, 0, 255) !important;
-                    font: 600 16pt "JetBrains Mono" !important;
-                    color: white !important;
+        # Update export button 1 (Normal Operations tab)
+        if hasattr(self.widgets, 'export_briefing_button'):
+            self.widgets.export_briefing_button.setEnabled(both_validated)
+            if both_validated:
+                self._set_export_button_enabled_style(self.widgets.export_briefing_button)
+            else:
+                self._set_export_button_disabled_style(self.widgets.export_briefing_button)
+        
+        # Update export button 2 (Contingency Planning tab)
+        if hasattr(self.widgets, 'export_briefing_button_2'):
+            self.widgets.export_briefing_button_2.setEnabled(both_validated)
+            if both_validated:
+                self._set_export_button_enabled_style(self.widgets.export_briefing_button_2)
+            else:
+                self._set_export_button_disabled_style(self.widgets.export_briefing_button_2)
+        
+        # Update send to agent button 1 (Normal Operations tab)
+        if hasattr(self.widgets, 'send_briefing_button'):
+            self.widgets.send_briefing_button.setEnabled(both_validated)
+            if both_validated:
+                self._set_send_button_enabled_style(self.widgets.send_briefing_button)
+            else:
+                self._set_send_button_disabled_style(self.widgets.send_briefing_button)
+        
+        # Update send to agent button 2 (Contingency Planning tab)
+        if hasattr(self.widgets, 'send_briefing_button_2'):
+            self.widgets.send_briefing_button_2.setEnabled(both_validated)
+            if both_validated:
+                self._set_send_button_enabled_style(self.widgets.send_briefing_button_2)
+            else:
+                self._set_send_button_disabled_style(self.widgets.send_briefing_button_2)
+        
+        if both_validated:
+            # Store the validated allocation data
+            self._store_validated_allocation()
+            print("Both briefings validated - Export and Send buttons enabled")
+        else:
+            print("Export and Send buttons disabled - both briefings must be validated")
+    
+    def _set_export_button_enabled_style(self, button):
+        """Set orange background style for enabled export button"""
+        button.setStyleSheet("""
+            QPushButton {
+                border: 2px solid rgba(255, 165, 0, 255) !important;
+                border-radius: 5px !important;
+                background-color: rgba(255, 165, 0, 255) !important;
+                font: 600 16pt "JetBrains Mono" !important;
+                color: white !important;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 140, 0, 255) !important;
+                border-color: rgba(255, 140, 0, 255) !important;
+            }
+            QPushButton:pressed {
+                background-color: rgba(255, 120, 0, 255) !important;
+                border-color: rgba(255, 120, 0, 255) !important;
+            }
+        """)
+    
+    def _set_export_button_disabled_style(self, button):
+        """Set gray style for disabled export button"""
+        button.setStyleSheet("""
+            QPushButton {
+                border: 2px solid rgba(128, 128, 128, 255) !important;
+                border-radius: 5px !important;
+                background-color: rgba(100, 100, 100, 255) !important;
+                font: 600 16pt "JetBrains Mono" !important;
+                color: rgba(255, 255, 255, 120) !important;
+            }
+            QPushButton:disabled {
+                border: 2px solid rgba(100, 100, 100, 255) !important;
+                background-color: rgba(80, 80, 80, 255) !important;
+            }
+        """)
+    
+    def _set_send_button_enabled_style(self, button):
+        """Set green/cyan background style for enabled send button (distinct from export)"""
+        button.setStyleSheet("""
+            QPushButton {
+                border: 2px solid rgba(0, 200, 150, 255) !important;
+                border-radius: 5px !important;
+                background-color: rgba(0, 200, 150, 255) !important;
+                font: 600 16pt "JetBrains Mono" !important;
+                color: white !important;
+            }
+            QPushButton:hover {
+                background-color: rgba(0, 220, 170, 255) !important;
+                border-color: rgba(0, 220, 170, 255) !important;
+            }
+            QPushButton:pressed {
+                background-color: rgba(0, 180, 130, 255) !important;
+                border-color: rgba(0, 180, 130, 255) !important;
+            }
+        """)
+    
+    def _set_send_button_disabled_style(self, button):
+        """Set gray style for disabled send button"""
+        button.setStyleSheet("""
+            QPushButton {
+                border: 2px solid rgba(128, 128, 128, 255) !important;
+                border-radius: 5px !important;
+                background-color: rgba(100, 100, 100, 255) !important;
+                font: 600 16pt "JetBrains Mono" !important;
+                color: rgba(255, 255, 255, 120) !important;
+            }
+            QPushButton:disabled {
+                border: 2px solid rgba(100, 100, 100, 255) !important;
+                background-color: rgba(80, 80, 80, 255) !important;
+            }
+        """)
+    
+    def _store_validated_allocation(self):
+        """Store the validated allocation data at app level for use by other pages"""
+        # Create export data list
+        export_data = []
+        
+        # Export normal operations tasks
+        normal_selections = self.get_selected_performers()
+        for task_id, performer in normal_selections.items():
+            if task_id < len(self.normal_tasks):
+                task = self.normal_tasks[task_id]
+                
+                # Determine roles based on performer selection and task capabilities
+                if performer == "HUMAN":
+                    human_role = "performer"
+                    # Only assign autonomy as supporter if the task supports it
+                    autonomy_role = "supporter" if task.agent_supports else ""
+                else:  # performer == "TARS"
+                    autonomy_role = "performer"
+                    # Only assign human as supporter if the task supports it
+                    human_role = "supporter" if task.human_supports else ""
+                
+                # Build export row with all original CSV columns preserved
+                export_row = {
+                    'procedure': task.procedure_name,
+                    'classification': task.classification,
+                    'type': task.task_type,
+                    'category': task.category,
+                    'task_object': task.name,
+                    'value': task.value,
+                    'human_role': human_role,
+                    'autonomy_role': autonomy_role
                 }
-                QPushButton:hover {
-                    background-color: rgba(255, 140, 0, 255) !important;
-                    border-color: rgba(255, 140, 0, 255) !important;
+                
+                # Add all extra fields from the original CSV
+                if hasattr(task, 'extra_fields'):
+                    export_row.update(task.extra_fields)
+                
+                export_data.append(export_row)
+        
+        # Export contingency tasks
+        contingency_selections = self.get_contingency_selected_performers()
+        for task_id, performer in contingency_selections.items():
+            if task_id < len(self.contingency_tasks):
+                task = self.contingency_tasks[task_id]
+                
+                # Determine roles based on performer selection and task capabilities
+                if performer == "HUMAN":
+                    human_role = "performer"
+                    # Only assign autonomy as supporter if the task supports it
+                    autonomy_role = "supporter" if task.agent_supports else ""
+                else:  # performer == "TARS"
+                    autonomy_role = "performer"
+                    # Only assign human as supporter if the task supports it
+                    human_role = "supporter" if task.human_supports else ""
+                
+                # Build export row with all original CSV columns preserved
+                export_row = {
+                    'procedure': task.procedure_name,
+                    'classification': task.classification,
+                    'type': task.task_type,
+                    'category': task.category,
+                    'task_object': task.name,
+                    'value': task.value,
+                    'human_role': human_role,
+                    'autonomy_role': autonomy_role
                 }
-                QPushButton:pressed {
-                    background-color: rgba(255, 120, 0, 255) !important;
-                    border-color: rgba(255, 120, 0, 255) !important;
-                }
-            """)
+                
+                # Add all extra fields from the original CSV
+                if hasattr(task, 'extra_fields'):
+                    export_row.update(task.extra_fields)
+                
+                export_data.append(export_row)
+        
+        # Store at app level (accessible to main_window and other pages)
+        self.validated_allocation_data = export_data
+        self.main_window.briefing_allocation_data = export_data
+        
+        print(f"Stored validated allocation data: {len(export_data)} task assignments")
+        print(f"  - Normal operations: {len(normal_selections)} tasks")
+        print(f"  - Contingency planning: {len(contingency_selections)} tasks")
     
     def reset_normal_validation(self):
         """Reset the normal operations validation analysis"""
@@ -1421,89 +1636,171 @@ class BriefingPage(BasePage):
     
     def export_briefing(self):
         """Export the briefing selections to CSV format"""
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
         import csv
         from pathlib import Path
         from datetime import datetime
-        # Create export data list
-        export_data = []
-        # Export normal operations tasks
-        normal_selections = self.get_selected_performers()
-        for task_id, performer in normal_selections.items():
-            if task_id < len(self.normal_tasks):
-                task = self.normal_tasks[task_id]
-                
-                # Determine roles based on performer selection and task capabilities
-                if performer == "HUMAN":
-                    human_role = "performer"
-                    # Only assign autonomy as supporter if the task supports it
-                    autonomy_role = "supporter" if task.agent_supports else ""
-                else:  # performer == "TARS"
-                    autonomy_role = "performer"
-                    # Only assign human as supporter if the task supports it
-                    human_role = "supporter" if task.human_supports else ""
-                
-                export_data.append([
-                    task.procedure_name,   # Procedure
-                    task.classification,         # Classification
-                    task.task_type,        # Type
-                    task.name,             # Task Object
-                    task.value,            # Value
-                    human_role,            # Human Role
-                    autonomy_role          # Autonomy Role
-                ])
         
-        # Export contingency tasks
-        contingency_selections = self.get_contingency_selected_performers()
-        for task_id, performer in contingency_selections.items():
-            if task_id < len(self.contingency_tasks):
-                task = self.contingency_tasks[task_id]
-                
-                # Determine roles based on performer selection and task capabilities
-                if performer == "HUMAN":
-                    human_role = "performer"
-                    # Only assign autonomy as supporter if the task supports it
-                    autonomy_role = "supporter" if task.agent_supports else ""
-                else:  # performer == "TARS"
-                    autonomy_role = "performer"
-                    # Only assign human as supporter if the task supports it
-                    human_role = "supporter" if task.human_supports else ""
-                
-                export_data.append([
-                    task.procedure_name,   # Procedure
-                    task.classification,         # Classification
-                    task.task_type,        # Type
-                    task.name,             # Task Object
-                    task.value,            # Value
-                    human_role,            # Human Role
-                    autonomy_role          # Autonomy Role
-                ])
+        # Check if we have validated data
+        if not self.validated_allocation_data:
+            QMessageBox.warning(None, "No Data to Export", 
+                              "Please validate both Normal Operations and Contingency Planning briefings before exporting.")
+            return
         
-        # Generate filename with timestamp
+        # Open file dialog to choose export location
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_filename = f"briefing_export_{timestamp}.csv"
-        export_path = Path(__file__).parent / export_filename
+        default_filename = f"briefing_export_{timestamp}.csv"
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            None,
+            "Export Briefing Allocation",
+            str(Path.home() / default_filename),
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        
+        if not file_path:
+            print("Export cancelled by user")
+            return
         
         # Write to CSV
         try:
-            with open(export_path, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
+            # Define the field order - standard fields first, then extra fields
+            standard_fields = [
+                'Procedure', 'Classification', 'Type', 'Category', 'Task Object', 
+                'Value', 'Human Role', 'Autonomy Role'
+            ]
+            
+            extra_fields = [
+                'Information Requirement', 'Constraint Type', 'Time constraint (in s)',
+                'Execution Type', 'interaction', 'Time to Initiate Action', 
+                'Time after Ending Action', 'Callout'
+            ]
+            
+            all_fieldnames = standard_fields + extra_fields
+            
+            with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=all_fieldnames)
                 
                 # Write header
-                writer.writerow([
-                    'Procedure', 'Classification', 'Type', 'Task Object', 
-                    'Value', 'Human Role', 'Autonomy Role'
-                ])
+                writer.writeheader()
                 
                 # Write data
-                writer.writerows(export_data)
+                for row in self.validated_allocation_data:
+                    # Map internal field names to CSV column names
+                    output_row = {
+                        'Procedure': row.get('procedure', ''),
+                        'Classification': row.get('classification', ''),
+                        'Type': row.get('type', ''),
+                        'Category': row.get('category', ''),
+                        'Task Object': row.get('task_object', ''),
+                        'Value': row.get('value', ''),
+                        'Human Role': row.get('human_role', ''),
+                        'Autonomy Role': row.get('autonomy_role', ''),
+                        'Information Requirement': row.get('information_requirement', ''),
+                        'Constraint Type': row.get('constraint_type', ''),
+                        'Time constraint (in s)': row.get('time_constraint', ''),
+                        'Execution Type': row.get('execution_type', ''),
+                        'interaction': row.get('interaction', ''),
+                        'Time to Initiate Action': row.get('time_to_initiate_action', ''),
+                        'Time after Ending Action': row.get('time_after_ending_action', ''),
+                        'Callout': row.get('callout', ''),
+                    }
+                    writer.writerow(output_row)
             
-            print(f"Briefing exported successfully to: {export_path}")
-            print(f"Exported {len(export_data)} task assignments")
-            print(f"  - Normal operations: {len(normal_selections)} tasks")
-            print(f"  - Contingency planning: {len(contingency_selections)} tasks")
+            QMessageBox.information(None, "Export Successful", 
+                                  f"Briefing exported successfully to:\n{file_path}\n\n"
+                                  f"Total task assignments: {len(self.validated_allocation_data)}\n\n"
+                                  f"💾 File saved. Use 'Send to Agent' button to apply changes.")
+            
+            print(f"Briefing exported successfully to: {file_path}")
+            print(f"Exported {len(self.validated_allocation_data)} task assignments")
             
         except Exception as e:
             print(f"Error exporting briefing: {e}")
+            QMessageBox.critical(None, "Export Error", 
+                               f"An error occurred while exporting the briefing:\n{str(e)}")
+
+    def send_allocation_to_agent(self):
+        """Send validated allocation directly to agent without exporting to file
+        
+        This method updates the agent's role allocations in real-time based on 
+        the current validated briefing data, without saving to disk.
+        """
+        from PySide6.QtWidgets import QMessageBox
+        
+        # Check if we have validated allocation data
+        if not self.validated_allocation_data:
+            QMessageBox.warning(None, "No Allocation Data", 
+                              "Please validate the briefing before sending to agent.\n\n"
+                              "Click 'Validate Briefing' and 'Validate Contingency Plan' first.")
+            return
+        
+        # Check if both normal and contingency are validated
+        if not (self.normal_validation_active and self.contingency_validation_active):
+            QMessageBox.warning(None, "Incomplete Validation", 
+                              "Both Normal Operations and Contingency Planning must be validated.\n\n"
+                              f"Normal Operations: {'✓ Validated' if self.normal_validation_active else '✗ Not validated'}\n"
+                              f"Contingency Planning: {'✓ Validated' if self.contingency_validation_active else '✗ Not validated'}")
+            return
+        
+        try:
+            # Check if agent is available
+            if not hasattr(self.main_window, 'agent'):
+                QMessageBox.critical(None, "Agent Not Available", 
+                                   "Cannot send allocation: Agent is not initialized.")
+                return
+            
+            # Create temporary allocation data structure for agent
+            # The agent expects a dictionary with state keys mapped to roles
+            allocation_for_agent = {}
+            
+            for row_data in self.validated_allocation_data:
+                procedure = row_data.get('procedure', '').strip()
+                task_object = row_data.get('task_object', '').strip()
+                value = row_data.get('value', '').strip()
+                human_role = row_data.get('human_role', '').strip()
+                autonomy_role = row_data.get('autonomy_role', '').strip()
+                
+                if procedure and task_object:
+                    state_key = (procedure, task_object, value)
+                    allocation_for_agent[state_key] = {
+                        'human_role': human_role,
+                        'autonomy_role': autonomy_role
+                    }
+            
+            # Update agent states directly
+            updated_count = 0
+            for state_key, roles in allocation_for_agent.items():
+                if state_key in self.main_window.agent.states:
+                    state = self.main_window.agent.states[state_key]
+                    
+                    # Check if roles changed
+                    old_human = state.human_role
+                    old_autonomy = state.autonomy_role
+                    new_human = roles['human_role']
+                    new_autonomy = roles['autonomy_role']
+                    
+                    if old_human != new_human or old_autonomy != new_autonomy:
+                        state.human_role = new_human
+                        state.autonomy_role = new_autonomy
+                        updated_count += 1
+                        print(f"Updated {state_key}: H={old_human}→{new_human}, A={old_autonomy}→{new_autonomy}")
+            
+            # Show success message
+            QMessageBox.information(None, "Allocation Sent to Agent", 
+                                  f"Successfully updated agent with current allocation:\n\n"
+                                  f"• Total tasks: {len(self.validated_allocation_data)}\n"
+                                  f"• States updated: {updated_count}\n\n"
+                                  f"The agent is now using the validated role assignments.")
+            
+            print(f"Sent allocation to agent: {updated_count} states updated from {len(self.validated_allocation_data)} tasks")
+            
+        except Exception as e:
+            print(f"Error sending allocation to agent: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(None, "Error Sending to Agent", 
+                               f"An error occurred while sending allocation to agent:\n{str(e)}")
 
     def load_normal_allocation(self):
         """Load complete briefing allocation (both normal and contingency) from CSV file"""
@@ -1576,12 +1873,14 @@ class BriefingPage(BasePage):
             contingency_applied = self._apply_allocation_to_contingency_tasks(contingency_allocation_data)
             
             total_applied = normal_applied + contingency_applied
+            
             # Show success message to user
             QMessageBox.information(None, "Briefing Loaded Successfully", 
                                   f"Loaded complete briefing configuration:\n"
                                   f"• Normal operations: {normal_applied} tasks\n"
                                   f"• Contingency planning: {contingency_applied} tasks\n"
-                                  f"• Total: {total_applied} task allocations")
+                                  f"• Total: {total_applied} task allocations\n\n"
+                                  f"Click 'Send to Agent' to update the agent with these allocations.")
                 
         except Exception as e:
             print(f"Error loading briefing file: {e}")
@@ -1664,22 +1963,22 @@ class BriefingPage(BasePage):
             # Change text to reset
             button.setText("Reset Selection")
             
-            # Apply darker pressed/active styling
+            # Apply gray styling (no checkmark icon)
             button.setStyleSheet("""
                 QPushButton {
-                    border: 2px solid rgba(0, 134, 96, 255) !important;
+                    border: 2px solid rgba(128, 128, 128, 255) !important;
                     border-radius: 5px !important;
-                    background-color: rgba(0, 134, 96, 255) !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
                     font: 600 16pt "JetBrains Mono" !important;
                     color: white !important;
                 }
                 QPushButton:hover {
-                    background-color: rgba(0, 120, 86, 255) !important;
-                    border-color: rgba(0, 120, 86, 255) !important;
+                    background-color: rgba(120, 120, 120, 255) !important;
+                    border-color: rgba(140, 140, 140, 255) !important;
                 }
                 QPushButton:pressed {
-                    background-color: rgba(0, 100, 72, 255) !important;
-                    border-color: rgba(0, 100, 72, 255) !important;
+                    background-color: rgba(80, 80, 80, 255) !important;
+                    border-color: rgba(100, 100, 100, 255) !important;
                 }
             """)
     
@@ -1842,22 +2141,22 @@ class BriefingPage(BasePage):
             # Change text to reset
             button.setText("Reset Selection")
             
-            # Apply darker pressed/active styling
+            # Apply gray styling (no checkmark icon)
             button.setStyleSheet("""
                 QPushButton {
-                    border: 2px solid rgba(0, 134, 96, 255) !important;
+                    border: 2px solid rgba(128, 128, 128, 255) !important;
                     border-radius: 5px !important;
-                    background-color: rgba(0, 134, 96, 255) !important;
+                    background-color: rgba(100, 100, 100, 255) !important;
                     font: 600 16pt "JetBrains Mono" !important;
                     color: white !important;
                 }
                 QPushButton:hover {
-                    background-color: rgba(0, 120, 86, 255) !important;
-                    border-color: rgba(0, 120, 86, 255) !important;
+                    background-color: rgba(120, 120, 120, 255) !important;
+                    border-color: rgba(140, 140, 140, 255) !important;
                 }
                 QPushButton:pressed {
-                    background-color: rgba(0, 100, 72, 255) !important;
-                    border-color: rgba(0, 100, 72, 255) !important;
+                    background-color: rgba(80, 80, 80, 255) !important;
+                    border-color: rgba(100, 100, 100, 255) !important;
                 }
             """)
     

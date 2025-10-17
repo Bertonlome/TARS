@@ -4,19 +4,23 @@ import time
 # This code defines a simple FSM with states, transitions, and actions.
 
 class State:
-    def __init__(self, name, procedure_name, delay_before_action, delay_after_action):
-        """ Initializes a state in the FSM.
-        :param name: Name of the state
-        :param procedure_name: Optional name of the procedure associated with this state
-        :param delay_before_action: Optional delay before performing the action associated with this state
-        """
-        self.name = name
-        self.procedure_name = procedure_name  # name of the procedure associated with this state
-        self.delay_before_action = delay_before_action  # seconds before action is performed
+    def __init__(self, procedure, classification, type, category, task_object, value, human_role=None, autonomy_role=None, information_requirement=None, interaction=None, delay_before_action=0, delay_after_action=0, callout=None):
+        self.procedure = procedure
+        self.classification = classification
+        self.type = type
+        self.category = category
+        self.task_object = task_object
+        self.value = value
+        self.human_role = human_role
+        self.autonomy_role = autonomy_role
+        self.information_requirement = information_requirement
+        self.interaction = interaction
+        self.delay_before_action = delay_before_action
         self.delay_after_action = delay_after_action
+        self.callout = callout
 
     def __repr__(self):
-        return f"State({self.name})"
+        return f"State({self.procedure}, {self.classification}, {self.type}, {self.category}, {self.task_object}, {self.value}, {self.human_role}, {self.autonomy_role}, {self.information_requirement}, {self.interaction}, {self.delay_before_action}, {self.delay_after_action}, {self.callout})"
 
 class Transition:
     def __init__(self, from_state, to_state, condition, action=None):
@@ -24,7 +28,7 @@ class Transition:
         self.to_state = to_state
         self.condition = condition  # function returning True/False
         self.action = action        # function to call on transition
-        self.action_performed = False  # NEW: track if action has been performed
+        self.action_performed = False  # track if action has been performed
 
 class FiniteStateMachine:
     def __init__(self, initial_state):

@@ -24,7 +24,6 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplicat
     QTabWidget, QTableWidget, QTableWidgetItem, QTextEdit,
     QVBoxLayout, QWidget)
 import resources_rc
-import resources_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -83,7 +82,7 @@ class Ui_MainWindow(object):
 "}\n"
 "#topLogo {\n"
 "	background-color: rgb(33, 37, 43);\n"
-"	background-image: url(:/images/images/images/PyDracula.png);\n"
+"	background-image: url(:/images/images/images/app_logo.png);\n"
 "	background-position: centered;\n"
 "	background-repeat: no-repeat;\n"
 "}\n"
@@ -104,8 +103,8 @@ class Ui_MainWindow(object):
 "	background-color: rgb(40, 44, 52);\n"
 "}\n"
 "#topMenu .QPushButton:pressed {	\n"
-"	background-color: rgb(18"
-                        "9, 147, 249);\n"
+"	background-color: rgb(189"
+                        ", 147, 249);\n"
 "	color: rgb(255, 255, 255);\n"
 "}\n"
 "#bottomMenu .QPushButton {	\n"
@@ -143,8 +142,8 @@ class Ui_MainWindow(object):
 "	background-color: rgb(40, 44, 52);\n"
 "}\n"
 "#toggleButton:pressed {\n"
-"	background-color: rgb("
-                        "189, 147, 249);\n"
+"	background-color: rgb(1"
+                        "89, 147, 249);\n"
 "}\n"
 "\n"
 "/* Title Menu */\n"
@@ -177,8 +176,8 @@ class Ui_MainWindow(object):
 "\n"
 "/* Extra Content */\n"
 "#extraContent{\n"
-"	border"
-                        "-top: 3px solid rgb(40, 44, 52);\n"
+"	border-"
+                        "top: 3px solid rgb(40, 44, 52);\n"
 "}\n"
 "\n"
 "/* Extra Top Menus */\n"
@@ -210,8 +209,8 @@ class Ui_MainWindow(object):
 "\n"
 "/* Top Buttons */\n"
 "#rightButtons .QPushButton { background-color: rgba(255, 255, 255, 0); border: none;  border-radius: 5px; }\n"
-"#rightButtons .QPushButton:hover { background-color: rgb(44, 49, 57); border-sty"
-                        "le: solid; border-radius: 4px; }\n"
+"#rightButtons .QPushButton:hover { background-color: rgb(44, 49, 57); border-styl"
+                        "e: solid; border-radius: 4px; }\n"
 "#rightButtons .QPushButton:pressed { background-color: rgb(23, 26, 30); border-style: solid; border-radius: 4px; }\n"
 "\n"
 "/* Theme Settings */\n"
@@ -238,8 +237,8 @@ class Ui_MainWindow(object):
 "}\n"
 "#contentSettings .QPushButton:pressed {	\n"
 "	background-color: rgb(189, 147, 249);\n"
-"	color: rgb"
-                        "(255, 255, 255);\n"
+"	color: rgb("
+                        "255, 255, 255);\n"
 "}\n"
 "\n"
 "/* /////////////////////////////////////////////////////////////////////////////////////////////////\n"
@@ -274,8 +273,8 @@ class Ui_MainWindow(object):
 "QHeaderView::section:horizontal\n"
 "{\n"
 "    border: 1px solid rgb(33, 37, 43);\n"
-"	background-co"
-                        "lor: rgb(33, 37, 43);\n"
+"	background-col"
+                        "or: rgb(33, 37, 43);\n"
 "	padding: 3px;\n"
 "	border-top-left-radius: 7px;\n"
 "    border-top-right-radius: 7px;\n"
@@ -309,8 +308,8 @@ class Ui_MainWindow(object):
 "	border-radius: 5px;\n"
 "	padding: 10px;\n"
 "	selection-color: rgb(255, 255, 255);\n"
-"	selection-background-c"
-                        "olor: rgb(255, 121, 198);\n"
+"	selection-background-co"
+                        "lor: rgb(255, 121, 198);\n"
 "}\n"
 "QPlainTextEdit  QScrollBar:vertical {\n"
 "    width: 8px;\n"
@@ -1867,15 +1866,34 @@ class Ui_MainWindow(object):
         self.load_allocation_button = QPushButton(self.normal_operation_IA_page)
         self.load_allocation_button.setObjectName(u"load_allocation_button")
         icon8 = QIcon()
-        icon8.addFile(u":/icons/images/icons/log-add-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon8.addFile(u":/icons/images/icons/file-upload-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.load_allocation_button.setIcon(icon8)
 
         self.horizontalLayout_6.addWidget(self.load_allocation_button)
 
         self.validate_briefing_button = QPushButton(self.normal_operation_IA_page)
         self.validate_briefing_button.setObjectName(u"validate_briefing_button")
+        icon9 = QIcon()
+        icon9.addFile(u":/icons/images/icons/check-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.validate_briefing_button.setIcon(icon9)
 
         self.horizontalLayout_6.addWidget(self.validate_briefing_button)
+
+        self.send_briefing_button = QPushButton(self.normal_operation_IA_page)
+        self.send_briefing_button.setObjectName(u"send_briefing_button")
+        icon10 = QIcon()
+        icon10.addFile(u":/icons/images/icons/command-shared.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.send_briefing_button.setIcon(icon10)
+
+        self.horizontalLayout_6.addWidget(self.send_briefing_button)
+
+        self.export_briefing_button = QPushButton(self.normal_operation_IA_page)
+        self.export_briefing_button.setObjectName(u"export_briefing_button")
+        icon11 = QIcon()
+        icon11.addFile(u":/icons/images/icons/file-export-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.export_briefing_button.setIcon(icon11)
+
+        self.horizontalLayout_6.addWidget(self.export_briefing_button)
 
 
         self.verticalLayout_24.addLayout(self.horizontalLayout_6)
@@ -1908,8 +1926,21 @@ class Ui_MainWindow(object):
 
         self.validate_cont_planning_button = QPushButton(self.contingency_planning_IA_page)
         self.validate_cont_planning_button.setObjectName(u"validate_cont_planning_button")
+        self.validate_cont_planning_button.setIcon(icon9)
 
         self.horizontalLayout_7.addWidget(self.validate_cont_planning_button)
+
+        self.send_briefing_button_2 = QPushButton(self.contingency_planning_IA_page)
+        self.send_briefing_button_2.setObjectName(u"send_briefing_button_2")
+        self.send_briefing_button_2.setIcon(icon10)
+
+        self.horizontalLayout_7.addWidget(self.send_briefing_button_2)
+
+        self.export_briefing_button_2 = QPushButton(self.contingency_planning_IA_page)
+        self.export_briefing_button_2.setObjectName(u"export_briefing_button_2")
+        self.export_briefing_button_2.setIcon(icon11)
+
+        self.horizontalLayout_7.addWidget(self.export_briefing_button_2)
 
 
         self.verticalLayout_25.addLayout(self.horizontalLayout_7)
@@ -2061,7 +2092,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         self.stackedWidget.setCurrentIndex(2)
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -2069,8 +2100,8 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.titleLeftApp.setText(QCoreApplication.translate("MainWindow", u"PyDracula", None))
-        self.titleLeftDescription.setText(QCoreApplication.translate("MainWindow", u"Modern GUI / Flat Style", None))
+        self.titleLeftApp.setText(QCoreApplication.translate("MainWindow", u"TARS App", None))
+        self.titleLeftDescription.setText(QCoreApplication.translate("MainWindow", u"Human-Agent Interface", None))
         self.toggleButton.setText(QCoreApplication.translate("MainWindow", u"Hide", None))
         self.btn_home.setText(QCoreApplication.translate("MainWindow", u"Home", None))
         self.btn_briefing.setText(QCoreApplication.translate("MainWindow", u"Briefing", None))
@@ -2218,11 +2249,15 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem23.setText(QCoreApplication.translate("MainWindow", u"Line", None));
         self.tableWidget.setSortingEnabled(__sortingEnabled)
 
-        self.load_allocation_button.setText(QCoreApplication.translate("MainWindow", u"Load Briefing Package", None))
+        self.load_allocation_button.setText(QCoreApplication.translate("MainWindow", u"Upload Briefing Package", None))
         self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"Validate Briefing Plan", None))
+        self.send_briefing_button.setText(QCoreApplication.translate("MainWindow", u"Send briefing to TARS", None))
+        self.export_briefing_button.setText(QCoreApplication.translate("MainWindow", u"Export Briefing", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.normal_operation_IA_page), QCoreApplication.translate("MainWindow", u"Normal Operations", None))
-        self.load_allocation_button_2.setText(QCoreApplication.translate("MainWindow", u"Load Briefing Package", None))
+        self.load_allocation_button_2.setText(QCoreApplication.translate("MainWindow", u"Upload Briefing Package", None))
         self.validate_cont_planning_button.setText(QCoreApplication.translate("MainWindow", u"Validate Contingency Plan", None))
+        self.send_briefing_button_2.setText(QCoreApplication.translate("MainWindow", u"Send Briefing to TARS", None))
+        self.export_briefing_button_2.setText(QCoreApplication.translate("MainWindow", u"Export Briefing", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.contingency_planning_IA_page), QCoreApplication.translate("MainWindow", u"Contingency Planning", None))
         self.btn_message.setText(QCoreApplication.translate("MainWindow", u"Message", None))
         self.btn_print.setText(QCoreApplication.translate("MainWindow", u"Print", None))
