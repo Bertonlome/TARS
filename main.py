@@ -40,7 +40,7 @@ widgets = None
 # FSM Worker
 # ///////////////////////////////////////////////////////////////
 class FSMWorker(QtCore.QObject):
-    state_changed = QtCore.Signal(str)
+    state_changed = QtCore.Signal(object)  # Changed from str to object to emit State object
     current_state = None
 
     def __init__(self, agent: TarsAgent):
@@ -103,15 +103,15 @@ class FSMWorker(QtCore.QObject):
                     
                     # Log slow conditions
                     if condition_time > 0.1:  # 100ms threshold
-                        print(f"WARNING: Slow condition check for {t.from_state.name} -> {t.to_state.name}: {condition_time*1000:.2f}ms")
+                        print(f"WARNING: Slow condition check for {t.from_state.procedure} {t.from_state.task_object} {t.from_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value}: {condition_time*1000:.2f}ms")
                     
                     if condition_result:
                         # State transition
                         transition_time = self.stop_performance_timer("transition_check", transition_start)
-                        print(f"State transition: {fsm.current_state.name} -> {t.to_state.name} (check took {transition_time*1000:.2f}ms)")
+                        print(f"State transition: {fsm.current_state.procedure} {fsm.current_state.task_object} {fsm.current_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value} (check took {transition_time*1000:.2f}ms)")
                         
                         fsm.current_state = t.to_state
-                        self.state_changed.emit(fsm.current_state.name)
+                        self.state_changed.emit(fsm.current_state)  # Emit the State object instead of just procedure
                         self.current_state = fsm.current_state
                         
                         # wait before action
@@ -151,7 +151,7 @@ class FSMWorker(QtCore.QObject):
             except ValueError:
                     delay = 0
         if delay and delay > 0:
-            print(f"waiting for {delay} seconds before executing action for state {state.name}")
+            print(f"waiting for {delay} seconds before executing action for state ({state.procedure}, {state.task_object}, {state.value})")
         return delay
     
     def get_delay_after_action(self, state):
@@ -164,7 +164,7 @@ class FSMWorker(QtCore.QObject):
             except ValueError:
                     delay = 0
         if delay and delay > 0:
-            print(f"waiting for {delay} seconds after executing action for state {state.name}")
+            print(f"waiting for {delay} seconds after executing action for state ({state.procedure}, {state.task_object}, {state.value})")
         return delay
             
 # Agent Thread
@@ -359,42 +359,47 @@ class MainWindow(QMainWindow):
         self.ui.tars_output_speech_label.setText(f"\"{text}\"")
 
 
-    @QtCore.Slot(str)
-    def update_state(self, state_name):
-        self.current_state = state_name
+    @QtCore.Slot(object)
+    def update_state(self, current_state_obj):
+        """Update UI based on the current state object
+        
+        Args:
+            current_state_obj: State object with attributes like procedure, task_object, value, etc.
+        """
         fsm = self.agent.fsm
-        self.next_state = None
-        previous_task = None
-        previous_procedure_text = None
-
+        
+        # Find next state by looking through transitions
+        next_state_obj = None
         for t in fsm.transitions:
-            if t.from_state.name == state_name:
-                self.next_state = t.to_state.name
+            if t.from_state == current_state_obj:
+                next_state_obj = t.to_state
                 break
         
-        if self.previous_state is not None:
-            previous_task = next((task for task in self.agent.tasks if task.get("task_name", "") == self.previous_state),None)
-        current_task = next((task for task in self.agent.tasks if task.get("task_name", "") == self.current_state),None)
-        next_task = next((task for task in self.agent.tasks if task.get("task_name", "") == self.next_state),None)
-        previous_state_text = self.previous_state.replace("_", " ").upper() if previous_task is not None else ""
-        current_state_text = self.current_state.replace("_", " ").upper() if current_task is not None else ""
-        next_state_text = self.next_state.replace("_", " ").upper() if next_task is not None else ""
+        # Get previous, current, and next state objects
+        previous_state_obj = getattr(self, '_previous_state_obj', None)
         
-        if previous_task is not None:
-            previous_procedure_text = previous_task["procedure_name"].replace("_", " ").upper()
-
-        current_procedure_text = current_task["procedure_name"].replace("_", " ").upper() if current_task is not None else ""
-        next_procedure_text = next_task["procedure_name"].replace("_", " ").upper() if next_task is not None else ""
-        self.ui.p_g_2.setText(f"{previous_procedure_text if previous_procedure_text else ''}")
-        self.ui.p_t_2.setText(f"{previous_state_text if self.previous_state else ''}")
-        self.ui.c_g_2.setText(f"{current_procedure_text if current_procedure_text else ''}")
-        self.ui.c_t_2.setText(f"{current_state_text if self.current_state else ''}")
-        self.ui.n_g_label_2.setText(f"{next_procedure_text if next_procedure_text else ''}")
-        self.ui.n_t_label_2.setText(f"{next_state_text if self.next_state else ''}")
+        # Extract display text from state objects
+        previous_procedure_text = previous_state_obj.procedure if previous_state_obj else ""
+        previous_task_text = f"{previous_state_obj.task_object}: {previous_state_obj.value}" if previous_state_obj else ""
+        
+        current_procedure_text = current_state_obj.procedure
+        current_task_text = f"{current_state_obj.task_object}: {current_state_obj.value}"
+        
+        next_procedure_text = next_state_obj.procedure if next_state_obj else ""
+        next_task_text = f"{next_state_obj.task_object}: {next_state_obj.value}" if next_state_obj else ""
+        
+        # Update UI labels
+        self.ui.p_g_2.setText(previous_procedure_text)
+        self.ui.p_t_2.setText(previous_task_text)
+        self.ui.c_g_2.setText(current_procedure_text)
+        self.ui.c_t_2.setText(current_task_text)
+        self.ui.n_g_label_2.setText(next_procedure_text)
+        self.ui.n_t_label_2.setText(next_task_text)
         self.ui.alert_label_2.setText(f"Current procedure : {current_procedure_text}")
         
-        if previous_task is not None:
-            if previous_task["autonomy_role"] != "performer":
+        # Handle previous task autonomy role display
+        if previous_state_obj is not None:
+            if previous_state_obj.autonomy_role != "Performer":
                 self.get_home_page().hide_label(self.ui.p_t_prog_widget_2)
             else:
                 self.get_home_page().show_label(self.ui.p_t_prog_widget_2)
@@ -403,7 +408,8 @@ class MainWindow(QMainWindow):
         
         self.remove_glow(self.ui.current_task_container_3)
 
-        if current_task["autonomy_role"] != "performer":
+        # Handle current task autonomy role display and buttons
+        if current_state_obj.autonomy_role != "Performer":
             self.get_home_page().hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
             self.ui.cancel_task_button_2.hide()
@@ -428,19 +434,21 @@ class MainWindow(QMainWindow):
                 font: 600 16pt "JetBrains Mono";
                 """)
 
-        if next_task is not None:
-            if next_task["autonomy_role"] != "performer":
+        # Handle next task autonomy role display
+        if next_state_obj is not None:
+            if next_state_obj.autonomy_role != "Performer":
                 self.get_home_page().hide_label(self.ui.n_t_prog_widget_2)
             else:
                 self.get_home_page().show_label(self.ui.n_t_prog_widget_2)
-        elif next_task is None:
+        else:
             self.ui.n_t_prog_widget_2.hide()
 
-        if current_task["interaction"] is not None:
+        # Handle interaction panel based on current state's interaction attribute
+        if current_state_obj.interaction is not None and current_state_obj.interaction != "":
             self.ui.int_panel_right_button.hide()
             self.ui.int_panel_left_button.hide()
             self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
-            match current_task["interaction"]:
+            match current_state_obj.interaction:
                 case "display_winds_and_ack":
                     self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
@@ -541,33 +549,42 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Caution text \nIf possible, the engines should remain at idle for a minimum of two minutes prior to shutdown to allow the engine inter-turbine temperature to stabilize and avoid turbine blade rub.\nIf the engine windmills for more than 15 minutes without a positive indication of oil pressure, a notation is required in the engine logbook and the engine must be inspected in accordance with the Pratt & Whitney engine maintenance manual.\nIf the engine windmills for more than 30 minutes with the firewall shutoff closed or the boost pump turned off, the engine fuel pump must be inspected in accordance with the Pratt & Whitney engine maintenance manual.")
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
+        
+        # Handle countdown timers using State object attributes
         home_page = self.get_home_page()
         home_page.current_countdown_timer.stop()
         home_page.next_countdown_timer.stop()
-        # For current task counter
+        
+        # For current task counter (uses delay_before_action)
         try:
-            seconds = int(current_task["time_init_action"])
-            print(f"\nCurrent task time_init_action: {seconds} seconds")
+            seconds = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
+            print(f"\nCurrent task delay_before_action: {seconds} seconds")
             home_page.current_countdown_value = seconds
             self.ui.c_t_s_value_2.setText(str(home_page.current_countdown_value))
-            home_page.current_countdown_timer.start()
-        except (KeyError, ValueError, TypeError):
-            seconds = "0"
-            self.ui.c_t_s_value_2.setText(seconds)
+            if seconds > 0:
+                home_page.current_countdown_timer.start()
+        except (ValueError, TypeError, AttributeError):
+            self.ui.c_t_s_value_2.setText("0")
 
-        # For next task counter
+        # For next task counter (current delay_after_action + next delay_before_action)
         try:
-            seconds = seconds + int(current_task["time_end_action"]) + int(next_task["time_init_action"])
-            print(f"\nNext task time_init_action: {seconds} seconds")
-            home_page.next_countdown_value = seconds
-            self.ui.n_t_s_value_2.setText(str(home_page.next_countdown_value))
-            home_page.next_countdown_timer.start()
-        except (KeyError, ValueError, TypeError):
-            seconds = "N/A"
+            if next_state_obj:
+                current_delay_after = int(current_state_obj.delay_after_action) if current_state_obj.delay_after_action else 0
+                next_delay_before = int(next_state_obj.delay_before_action) if next_state_obj.delay_before_action else 0
+                total_seconds = current_delay_after + next_delay_before
+                print(f"\nNext task estimated time: {total_seconds} seconds")
+                home_page.next_countdown_value = total_seconds
+                self.ui.n_t_s_value_2.setText(str(home_page.next_countdown_value))
+                if total_seconds > 0:
+                    home_page.next_countdown_timer.start()
+            else:
+                self.ui.n_t_s_value_2.setText("N/A")
+        except (ValueError, TypeError, AttributeError):
             home_page.next_countdown_timer.stop()
-            self.ui.n_t_s_value_2.setText(seconds)
+            self.ui.n_t_s_value_2.setText("N/A")
 
-        self.previous_state = self.current_state
+        # Store current state as previous for next update
+        self._previous_state_obj = current_state_obj
 
     # ///////////////////////////////////////////////////////////////
     # PAGE MENU BUTTONS CLICK
