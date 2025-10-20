@@ -1,6 +1,6 @@
 Procedure,Classification,Type,Category,Task Object,Value,Human Role,Autonomy Role,Information Requirement,Constraint Type,Time constraint (in s),Execution Type,interaction,Time to Initiate Action,Time after Ending Action,Callout
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Takeoff clearance,CONFIRM,performer,supporter,"ATC clearance status, checklist completion status.",Soft-time,30.0,One-off,,5,5,
-BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Pitot-Static Switch,PITOT-STATIC,performer,supporter,Pitot-static switch status,Soft-time,120.0,One-off,,5,8,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Pitot-Static Switch,PITOT-STATIC,supporter,performer,Pitot-static switch status,Soft-time,120.0,One-off,,5,8,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ENGINE ANTI-ICE Switches,AS REQUIRED,performer,supporter,"Outside air temperature, engine anti-ice switch position.",Soft-time,30.0,Cyclic,,5,8,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,WINDSHIELD ANTI-ICE Switches,AS REQUIRED,performer,supporter,"Windshield anti-ice switch position, current weather conditions.",Soft-time,60.0,One-off,,5,8,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,PAX SAFETY Switch,PAX SAFETY,performer,supporter,"PAX SAFETY switch position, checklist status.",soft-time,30.0,one-off,,5,5,

@@ -29,7 +29,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1780, 1155)
+        MainWindow.resize(1790, 1155)
         MainWindow.setMinimumSize(QSize(940, 560))
         self.styleSheet = QWidget(MainWindow)
         self.styleSheet.setObjectName(u"styleSheet")
@@ -1023,7 +1023,7 @@ class Ui_MainWindow(object):
         self.row_1_col_1_container.setContentsMargins(50, -1, 50, -1)
         self.status_container_H = QWidget(self.row_1_col_1_container_2)
         self.status_container_H.setObjectName(u"status_container_H")
-        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
         sizePolicy3.setHorizontalStretch(250)
         sizePolicy3.setVerticalStretch(0)
         sizePolicy3.setHeightForWidth(self.status_container_H.sizePolicy().hasHeightForWidth())
@@ -1032,7 +1032,7 @@ class Ui_MainWindow(object):
         self.status_container_H.setStyleSheet(u"QWidget#status_container_H {\n"
 "    border: 2px solid #36DF71;\n"
 "    border-radius: 10px;\n"
-"    background-color: #0A4A20;\n"
+"    background-color: rgba(33,37,43,255);\n"
 "}\n"
 "")
         self.tars_status_container = QHBoxLayout(self.status_container_H)
@@ -1050,20 +1050,8 @@ class Ui_MainWindow(object):
 
         self.tars_status_container.addWidget(self.tars_status_label, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self.horizontalSpacer = QSpacerItem(220, 20, QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum)
 
-        self.tars_status_container.addItem(self.horizontalSpacer)
-
-
-        self.row_1_col_1_container.addWidget(self.status_container_H)
-
-        self.tars_action_icon = QLabel(self.row_1_col_1_container_2)
-        self.tars_action_icon.setObjectName(u"tars_action_icon")
-        self.tars_action_icon.setMinimumSize(QSize(64, 64))
-        self.tars_action_icon.setPixmap(QPixmap(u":/icons/images/icons/com-pa.svg"))
-        self.tars_action_icon.setScaledContents(True)
-
-        self.row_1_col_1_container.addWidget(self.tars_action_icon, 0, Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignVCenter)
+        self.row_1_col_1_container.addWidget(self.status_container_H, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self.tars_output_speech_label = QLabel(self.row_1_col_1_container_2)
         self.tars_output_speech_label.setObjectName(u"tars_output_speech_label")
@@ -1075,6 +1063,7 @@ class Ui_MainWindow(object):
         font4.setItalic(False)
         self.tars_output_speech_label.setFont(font4)
         self.tars_output_speech_label.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
+        self.tars_output_speech_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.tars_output_speech_label.setWordWrap(True)
 
         self.row_1_col_1_container.addWidget(self.tars_output_speech_label, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -1107,7 +1096,7 @@ class Ui_MainWindow(object):
         self.alert_container_3.setStyleSheet(u"QWidget#alert_container_3 {\n"
 "    border: 2px solid #36DF71;\n"
 "    border-radius: 5px;\n"
-"    background-color: rgba(51, 51, 51, 150);\n"
+"    background-color: rgba(33, 37, 43, 255);\n"
 "}\n"
 "")
         self.alert_container_4 = QHBoxLayout(self.alert_container_3)
@@ -1412,6 +1401,25 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_22.addWidget(self.row_1_container)
 
+        self.stack_container = QWidget(self.home)
+        self.stack_container.setObjectName(u"stack_container")
+        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        sizePolicy5.setHorizontalStretch(0)
+        sizePolicy5.setVerticalStretch(0)
+        sizePolicy5.setHeightForWidth(self.stack_container.sizePolicy().hasHeightForWidth())
+        self.stack_container.setSizePolicy(sizePolicy5)
+        self.stack_container.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);border-radius: 10px;background-color: rgba(33, 37, 43, 255)")
+        self.stack_vertical_layout_container = QVBoxLayout(self.stack_container)
+        self.stack_vertical_layout_container.setObjectName(u"stack_vertical_layout_container")
+        self.stack_container_title = QLabel(self.stack_container)
+        self.stack_container_title.setObjectName(u"stack_container_title")
+        self.stack_container_title.setStyleSheet(u"font: 500 20pt \"JetBrains Mono\";")
+
+        self.stack_vertical_layout_container.addWidget(self.stack_container_title, 0, Qt.AlignmentFlag.AlignTop)
+
+
+        self.verticalLayout_22.addWidget(self.stack_container)
+
         self.interaction_container = QWidget(self.home)
         self.interaction_container.setObjectName(u"interaction_container")
         self.interaction_container.setStyleSheet(u"QWidget#interaction_container {\n"
@@ -1430,11 +1438,11 @@ class Ui_MainWindow(object):
 
         self.interaction_panel_text = QLabel(self.interaction_container)
         self.interaction_panel_text.setObjectName(u"interaction_panel_text")
-        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy5.setHorizontalStretch(0)
-        sizePolicy5.setVerticalStretch(1)
-        sizePolicy5.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
-        self.interaction_panel_text.setSizePolicy(sizePolicy5)
+        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy6.setHorizontalStretch(0)
+        sizePolicy6.setVerticalStretch(1)
+        sizePolicy6.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
+        self.interaction_panel_text.setSizePolicy(sizePolicy6)
         self.interaction_panel_text.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\";")
 
         self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -1747,11 +1755,11 @@ class Ui_MainWindow(object):
         __qtablewidgetitem23 = QTableWidgetItem()
         self.tableWidget.setItem(0, 3, __qtablewidgetitem23)
         self.tableWidget.setObjectName(u"tableWidget")
-        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy6.setHorizontalStretch(0)
-        sizePolicy6.setVerticalStretch(0)
-        sizePolicy6.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
-        self.tableWidget.setSizePolicy(sizePolicy6)
+        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy7.setHorizontalStretch(0)
+        sizePolicy7.setVerticalStretch(0)
+        sizePolicy7.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicy7)
         palette = QPalette()
         brush = QBrush(QColor(221, 221, 221, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -2133,7 +2141,6 @@ class Ui_MainWindow(object):
         self.closeAppBtn.setText("")
         self.tars_status_icon.setText("")
         self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"TARS RUNNING", None))
-        self.tars_action_icon.setText("")
         self.tars_output_speech_label.setText("")
         self.tars_picture.setText("")
         self.alert_icon_2.setText("")
@@ -2160,7 +2167,8 @@ class Ui_MainWindow(object):
         self.n_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
         self.n_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
-        self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel title", None))
+        self.stack_container_title.setText(QCoreApplication.translate("MainWindow", u"Procedure Timeline", None))
+        self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
         self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"ACKNOWLEDGE", None))

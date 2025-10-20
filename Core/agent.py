@@ -42,8 +42,7 @@ class TarsAgent:
         self.main_window = None
 
         # Load task definitions with role allocations
-        allocation_csv_path = Path(__file__).parent / "briefing_export_MRP.csv"
-        
+        allocation_csv_path = Path(__file__).parent / "briefing_export_HIGH_LOA.csv"        
         # Create states from allocation CSV
         self.states = self.create_states_from_csv(allocation_csv_path)
         idle_key = ("IDLE", "Idle", "WAITING")

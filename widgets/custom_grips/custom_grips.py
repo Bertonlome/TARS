@@ -220,7 +220,7 @@ class Widgets(object):
         self.leftgrip.setGeometry(QRect(0, 10, 10, 480))
         self.leftgrip.setMinimumSize(QSize(10, 0))
         self.leftgrip.setCursor(QCursor(Qt.SizeHorCursor))
-        self.leftgrip.setStyleSheet(u"background-color: rgb(255, 121, 198);")
+        self.leftgrip.setStyleSheet(u"background-color: rgb(51, 153, 255);")
         self.leftgrip.setFrameShape(QFrame.NoFrame)
         self.leftgrip.setFrameShadow(QFrame.Raised)
 

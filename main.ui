@@ -7,7 +7,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1780</width>
+    <width>1790</width>
     <height>1155</height>
    </rect>
   </property>
@@ -1769,10 +1769,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
                              <property name="rightMargin">
                               <number>50</number>
                              </property>
-                             <item>
+                             <item alignment="Qt::AlignmentFlag::AlignHCenter">
                               <widget class="QWidget" name="status_container_H" native="true">
                                <property name="sizePolicy">
-                                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
                                  <horstretch>250</horstretch>
                                  <verstretch>0</verstretch>
                                 </sizepolicy>
@@ -1787,7 +1787,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                 <string notr="true">QWidget#status_container_H {
     border: 2px solid #36DF71;
     border-radius: 10px;
-    background-color: #0A4A20;
+    background-color: rgba(33,37,43,255);
 }
 </string>
                                </property>
@@ -1818,42 +1818,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                   </property>
                                  </widget>
                                 </item>
-                                <item>
-                                 <spacer name="horizontalSpacer">
-                                  <property name="orientation">
-                                   <enum>Qt::Orientation::Horizontal</enum>
-                                  </property>
-                                  <property name="sizeType">
-                                   <enum>QSizePolicy::Policy::Maximum</enum>
-                                  </property>
-                                  <property name="sizeHint" stdset="0">
-                                   <size>
-                                    <width>220</width>
-                                    <height>20</height>
-                                   </size>
-                                  </property>
-                                 </spacer>
-                                </item>
                                </layout>
-                              </widget>
-                             </item>
-                             <item alignment="Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignVCenter">
-                              <widget class="QLabel" name="tars_action_icon">
-                               <property name="minimumSize">
-                                <size>
-                                 <width>64</width>
-                                 <height>64</height>
-                                </size>
-                               </property>
-                               <property name="text">
-                                <string/>
-                               </property>
-                               <property name="pixmap">
-                                <pixmap resource="resources.qrc">:/icons/images/icons/com-pa.svg</pixmap>
-                               </property>
-                               <property name="scaledContents">
-                                <bool>true</bool>
-                               </property>
                               </widget>
                              </item>
                              <item alignment="Qt::AlignmentFlag::AlignHCenter">
@@ -1877,6 +1842,9 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                </property>
                                <property name="text">
                                 <string/>
+                               </property>
+                               <property name="alignment">
+                                <set>Qt::AlignmentFlag::AlignCenter</set>
                                </property>
                                <property name="wordWrap">
                                 <bool>true</bool>
@@ -1933,7 +1901,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                 <string notr="true">QWidget#alert_container_3 {
     border: 2px solid #36DF71;
     border-radius: 5px;
-    background-color: rgba(51, 51, 51, 150);
+    background-color: rgba(33, 37, 43, 255);
 }
 </string>
                                </property>
@@ -2439,6 +2407,31 @@ background-color: rgba(0, 26, 56, 200);}</string>
                         </widget>
                        </item>
                        <item>
+                        <widget class="QWidget" name="stack_container" native="true">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                         <property name="styleSheet">
+                          <string notr="true">border: 2px solid rgba(40, 44, 52, 255);border-radius: 10px;background-color: rgba(33, 37, 43, 255)</string>
+                         </property>
+                         <layout class="QVBoxLayout" name="stack_vertical_layout_container">
+                          <item alignment="Qt::AlignmentFlag::AlignTop">
+                           <widget class="QLabel" name="stack_container_title">
+                            <property name="styleSheet">
+                             <string notr="true">font: 500 20pt &quot;JetBrains Mono&quot;;</string>
+                            </property>
+                            <property name="text">
+                             <string>Procedure Timeline</string>
+                            </property>
+                           </widget>
+                          </item>
+                         </layout>
+                        </widget>
+                       </item>
+                       <item>
                         <widget class="QWidget" name="interaction_container" native="true">
                          <property name="styleSheet">
                           <string notr="true">QWidget#interaction_container {
@@ -2455,7 +2448,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                              <string notr="true">font: 500 20pt &quot;JetBrains Mono&quot;;</string>
                             </property>
                             <property name="text">
-                             <string>Interaction Panel title</string>
+                             <string>Interaction Panel</string>
                             </property>
                            </widget>
                           </item>

@@ -42,6 +42,7 @@ widgets = None
 # ///////////////////////////////////////////////////////////////
 class FSMWorker(QtCore.QObject):
     state_changed = QtCore.Signal(object)  # Changed from str to object to emit State object
+    action_about_to_fire = QtCore.Signal(object)  # Emitted right before action executes (after countdown)
     current_state = None
 
     def __init__(self, agent: TarsAgent):
@@ -124,6 +125,9 @@ class FSMWorker(QtCore.QObject):
                             # Wait for the countdown timer to signal completion
                             self.agent.main_window.countdown_completion_event.wait(timeout=delay + 2)  # +2s safety margin
                         
+                        # Emit signal right before action fires (after countdown completes)
+                        self.action_about_to_fire.emit(fsm.current_state)
+                        
                         if t.action:
                             action_start = self.start_performance_timer("action_execution")
                             action_result = t.action()
@@ -133,7 +137,7 @@ class FSMWorker(QtCore.QObject):
                             # If it was a speech action, wait for TTS to complete
                             if action_result is True and self.agent.tts_completion_event:
                                 # Give TTS worker a moment to pick up the queued text and clear the event
-                                #QtCore.QThread.msleep(5)  # Small delay for queue processing
+                                #QtCore.QThread.msleep(50)  # Small delay for queue processing
                                 
                                 #print(f"⏳ Waiting for TTS to complete (event is_set={self.agent.tts_completion_event.is_set()})...")
                                 wait_start = time.time()
@@ -222,7 +226,7 @@ class MainWindow(QMainWindow):
         
         self.agent = TarsAgent()
         signal.signal(signal.SIGINT, self.agent.signal_handler)
-        self.ui.tars_status_label.setText(f"{self.agent.agent_name} Connected.")
+        self.ui.tars_status_label.setText(f"{self.agent.agent_name} RUNNING")
         
         # Give agent reference to main window for countdown synchronization
         self.agent.main_window = self
@@ -237,6 +241,7 @@ class MainWindow(QMainWindow):
         self.fsm_worker = FSMWorker(self.agent)
         self.fsm_worker.moveToThread(self.fsm_thread)
         self.fsm_worker.state_changed.connect(self.update_state)
+        self.fsm_worker.action_about_to_fire.connect(self.handle_action_about_to_fire)
         self.fsm_thread.started.connect(self.fsm_worker.run)
         self.fsm_thread.start()
         self.current_state = None
@@ -373,11 +378,30 @@ class MainWindow(QMainWindow):
         print("⏱️ Countdown reached 0, signaling FSM to continue")
         self.countdown_completion_event.set()
     
+    def handle_action_about_to_fire(self, state_obj):
+        """
+        Handle action about to fire - triggers glow effect
+        This is called right before the action executes (after countdown reaches 0)
+        """
+        # Trigger glow effect based on autonomy role
+        home_page = self.get_home_page()
+        if state_obj.autonomy_role == "performer":
+            # Blue glow for performer tasks
+            home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
+
     def get_home_page(self):
         """
         Get the HomePage instance from page manager
         """
         return self.page_manager.get_page('home')
+    
+    def refresh_task_timeline_data(self):
+        """
+        Refresh task timeline data from agent - call when agent data is updated
+        """
+        home_page = self.get_home_page()
+        if home_page:
+            home_page.refresh_task_timeline_data()
     
 
     def tts_callback(self, text):
@@ -406,7 +430,6 @@ class MainWindow(QMainWindow):
         # Use direct file path as fallback since Qt resources aren't working
         pixmap = QPixmap("images/images/TARS_female_speaking.png")
         self.ui.tars_picture.setPixmap(pixmap)
-        self.ui.tars_action_icon.show()
         self.ui.tars_output_speech_label.show()
         self.ui.tars_output_speech_label.setText(f"\"{text}\"")
     
@@ -416,7 +439,6 @@ class MainWindow(QMainWindow):
         # Use direct file path as fallback since Qt resources aren't working
         pixmap = QPixmap("images/images/TARS_female.png")
         self.ui.tars_picture.setPixmap(pixmap)
-        self.ui.tars_action_icon.hide()
 
     @QtCore.Slot(object)
     def update_state(self, current_state_obj):
@@ -493,7 +515,7 @@ class MainWindow(QMainWindow):
         
         # Handle previous task autonomy role display
         if previous_state_obj is not None:
-            if previous_state_obj.autonomy_role != "Performer":
+            if previous_state_obj.autonomy_role != "performer":
                 self.get_home_page().hide_label(self.ui.p_t_prog_widget_2)
             else:
                 self.get_home_page().show_label(self.ui.p_t_prog_widget_2)
@@ -503,7 +525,7 @@ class MainWindow(QMainWindow):
         self.remove_glow(self.ui.current_task_container_3)
 
         # Handle current task autonomy role display and buttons
-        if current_state_obj.autonomy_role != "Performer":
+        if current_state_obj.autonomy_role != "performer":
             self.get_home_page().hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
             self.ui.cancel_task_button_2.hide()
@@ -517,7 +539,7 @@ class MainWindow(QMainWindow):
                 #""")
         else:
             self.get_home_page().show_label(self.ui.c_t_prog_widget_2)
-            self.get_home_page().start_glow_effect(self.ui.current_task_container_3, "blue")
+            # Glow effect will be triggered when action is about to fire (after countdown)
             #self.ui.task_done_button.hide()
             self.ui.cancel_task_button_2.show()            
             #self.ui.task_done_button.setStyleSheet(
@@ -530,7 +552,7 @@ class MainWindow(QMainWindow):
 
         # Handle next task autonomy role display
         if next_state_obj is not None:
-            if next_state_obj.autonomy_role != "Performer":
+            if next_state_obj.autonomy_role != "performer":
                 self.get_home_page().hide_label(self.ui.n_t_prog_widget_2)
             else:
                 self.get_home_page().show_label(self.ui.n_t_prog_widget_2)
@@ -644,6 +666,8 @@ class MainWindow(QMainWindow):
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
         
+        # Update task timeline widget
+        home_page.update_task_timeline(current_state_obj)
 
         # Store current state as previous for next update
         self._previous_state_obj = current_state_obj

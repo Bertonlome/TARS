@@ -16,3 +16,4 @@
 
 from . custom_grips import CustomGrip
 from . circular_countdown import CircularCountdown
+from . task_timeline import TaskTimelineWidget

@@ -7,6 +7,8 @@ from pages.base_page import BasePage
 from PySide6 import QtCore
 from PySide6.QtWidgets import QGraphicsOpacityEffect
 from widgets.circular_countdown import CircularCountdown
+from widgets.task_timeline import TaskTimelineWidget
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Import for type hints only (prevents circular imports)
@@ -57,6 +59,9 @@ class HomePage(BasePage):
         self.current_circular_countdown = None
         self.next_circular_countdown = None
         
+        # Create task timeline widget
+        self.task_timeline_widget = None
+        
         # Initialize glow effect timer
         self._glow_timer = None
         self._glow_steps = []
@@ -79,6 +84,9 @@ class HomePage(BasePage):
         
         # Replace text labels with circular countdown widgets
         self._setup_circular_countdowns()
+        
+        # Setup task timeline widget
+        self._setup_task_timeline()
         
         #print("Home page setup complete")
     
@@ -113,6 +121,39 @@ class HomePage(BasePage):
         )
         # Add to the container layout
         self.widgets.n_t_s_container_2.addWidget(self.next_circular_countdown)
+    
+    def _setup_task_timeline(self):
+        """Setup the task timeline widget"""
+        # Create the task timeline widget
+        self.task_timeline_widget = TaskTimelineWidget()
+        
+        # Load tasks directly from agent (single source of truth)
+        if hasattr(self.main_window, 'agent') and self.main_window.agent:
+            self.task_timeline_widget.load_tasks_from_agent(self.main_window.agent)
+        else:
+            print("Warning: Agent not available, TaskTimeline will be empty")
+        
+        # Add to the stack container layout (verticalLayout_26 is the layout inside stack_container)
+        self.widgets.stack_vertical_layout_container.addWidget(self.task_timeline_widget)
+    
+    def update_task_timeline(self, current_state_obj):
+        """Update the task timeline to show current procedure and highlight current task
+        
+        Args:
+            current_state_obj: State object with procedure, task_object, value attributes
+        """
+        if self.task_timeline_widget and current_state_obj:
+            # Set current procedure
+            self.task_timeline_widget.set_current_procedure(current_state_obj.procedure)
+            
+            # Set current task (highlight it) - use the same key format as agent
+            task_key = (current_state_obj.procedure, current_state_obj.task_object, current_state_obj.value)
+            self.task_timeline_widget.set_current_task(task_key)
+    
+    def refresh_task_timeline_data(self):
+        """Refresh task timeline data from agent (call when agent data updates)"""
+        if self.task_timeline_widget and hasattr(self.main_window, 'agent') and self.main_window.agent:
+            self.task_timeline_widget.load_tasks_from_agent(self.main_window.agent)
     
     def show_page(self):
         """

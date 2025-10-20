@@ -150,6 +150,10 @@ def load_contingency_tasks(csv_path: Path = None):
     """Load only contingency tasks (Classification == EMER or ABNORM)"""
     return load_tasks(csv_path, classification_filter=['EMER', 'ABNORM'])
 
+def load_all_tasks_preserve_order(csv_path: Path = None):
+    """Load all tasks in original CSV order (no filtering)"""
+    return load_tasks(csv_path, classification_filter=None)
+
 # ---------------------------- Scene items ----------------------------
 
 class ClickNode(QGraphicsEllipseItem):
@@ -677,6 +681,7 @@ class BriefingPage(BasePage):
         self.current_mission = None
         
         # Interdependence analysis attributes - separate for normal and contingency
+        self.all_tasks = None  # Store all tasks in original order
         self.normal_tasks = None
         self.contingency_tasks = None
         self.normal_interdependence_scene = None
@@ -719,16 +724,20 @@ class BriefingPage(BasePage):
     def setup_interdependence_analysis(self):
         """Setup both normal and contingency interdependence analysis tables"""
         try:
-            # Load tasks from CSV
+            # Load ALL tasks from CSV in original order
             csv_file_path = Path(__file__).parent.parent / "IA_updated.csv"
+            self.all_tasks = load_all_tasks_preserve_order(csv_file_path)
+            #print(f"Loaded {len(self.all_tasks)} total tasks in original order")
+            
+            # Debug: Print first few tasks to verify order preservation
+            #for i, task in enumerate(self.all_tasks[:10]):
+            #    print(f"  {i+1}. {task.procedure_name} - {task.name} ({task.classification})")
 
-            # Load normal operation tasks (Classification == NORM)
-            self.normal_tasks = load_normal_tasks(csv_file_path)
-            #print(f"Loaded {len(self.normal_tasks)} normal operation tasks")
-
-            # Load contingency tasks (Classification == EMER or ABNORM)
-            self.contingency_tasks = load_contingency_tasks(csv_file_path)
-            #print(f"Loaded {len(self.contingency_tasks)} contingency tasks")
+            # Filter for display (but maintain references to original order)
+            self.normal_tasks = [task for task in self.all_tasks if task.classification == 'NORM']
+            self.contingency_tasks = [task for task in self.all_tasks if task.classification in ['EMER', 'ABNORM']]
+            
+            #print(f"Filtered: {len(self.normal_tasks)} normal, {len(self.contingency_tasks)} contingency tasks")
             
             # Setup normal operations graph
             self._setup_normal_operations_graph()
@@ -1534,81 +1543,70 @@ class BriefingPage(BasePage):
         # Create export data list
         export_data = []
         
-        # Export normal operations tasks
+        # Get selections for both normal and contingency tasks
         normal_selections = self.get_selected_performers()
-        for task_id, performer in normal_selections.items():
-            if task_id < len(self.normal_tasks):
-                task = self.normal_tasks[task_id]
-                
-                # Determine roles based on performer selection and task capabilities
-                if performer == "HUMAN":
-                    human_role = "performer"
-                    # Only assign autonomy as supporter if the task supports it
-                    autonomy_role = "supporter" if task.agent_supports else ""
-                else:  # performer == "TARS"
-                    autonomy_role = "performer"
-                    # Only assign human as supporter if the task supports it
-                    human_role = "supporter" if task.human_supports else ""
-                
-                # Build export row with all original CSV columns preserved
-                export_row = {
-                    'procedure': task.procedure_name,
-                    'classification': task.classification,
-                    'type': task.task_type,
-                    'category': task.category,
-                    'task_object': task.name,
-                    'value': task.value,
-                    'human_role': human_role,
-                    'autonomy_role': autonomy_role
-                }
-                
-                # Add all extra fields from the original CSV
-                if hasattr(task, 'extra_fields'):
-                    export_row.update(task.extra_fields)
-                
-                export_data.append(export_row)
-        
-        # Export contingency tasks
         contingency_selections = self.get_contingency_selected_performers()
-        for task_id, performer in contingency_selections.items():
-            if task_id < len(self.contingency_tasks):
-                task = self.contingency_tasks[task_id]
-                
-                # Determine roles based on performer selection and task capabilities
-                if performer == "HUMAN":
-                    human_role = "performer"
-                    # Only assign autonomy as supporter if the task supports it
-                    autonomy_role = "supporter" if task.agent_supports else ""
-                else:  # performer == "TARS"
-                    autonomy_role = "performer"
-                    # Only assign human as supporter if the task supports it
-                    human_role = "supporter" if task.human_supports else ""
-                
-                # Build export row with all original CSV columns preserved
-                export_row = {
-                    'procedure': task.procedure_name,
-                    'classification': task.classification,
-                    'type': task.task_type,
-                    'category': task.category,
-                    'task_object': task.name,
-                    'value': task.value,
-                    'human_role': human_role,
-                    'autonomy_role': autonomy_role
-                }
-                
-                # Add all extra fields from the original CSV
-                if hasattr(task, 'extra_fields'):
-                    export_row.update(task.extra_fields)
-                
-                export_data.append(export_row)
+        
+        # Process ALL tasks in original order
+        for i, task in enumerate(self.all_tasks):
+            # Determine which selection dictionary to use based on task classification
+            if task.classification == 'NORM':
+                # Find the task index in normal_tasks list
+                try:
+                    normal_task_index = self.normal_tasks.index(task)
+                    if normal_task_index in normal_selections:
+                        performer = normal_selections[normal_task_index]
+                    else:
+                        continue  # Skip tasks without selection
+                except ValueError:
+                    continue  # Task not found in normal_tasks
+            elif task.classification in ['EMER', 'ABNORM']:
+                # Find the task index in contingency_tasks list
+                try:
+                    contingency_task_index = self.contingency_tasks.index(task)
+                    if contingency_task_index in contingency_selections:
+                        performer = contingency_selections[contingency_task_index]
+                    else:
+                        continue  # Skip tasks without selection
+                except ValueError:
+                    continue  # Task not found in contingency_tasks
+            else:
+                continue  # Skip unknown classification
+            
+            # Determine roles based on performer selection and task capabilities
+            if performer == "HUMAN":
+                human_role = "performer"
+                # Only assign autonomy as supporter if the task supports it
+                autonomy_role = "supporter" if task.agent_supports else ""
+            else:  # performer == "TARS"
+                autonomy_role = "performer"
+                # Only assign human as supporter if the task supports it
+                human_role = "supporter" if task.human_supports else ""
+            
+            # Build export row with all original CSV columns preserved
+            export_row = {
+                'procedure': task.procedure_name,
+                'classification': task.classification,
+                'type': task.task_type,
+                'category': task.category,
+                'task_object': task.name,
+                'value': task.value,
+                'human_role': human_role,
+                'autonomy_role': autonomy_role
+            }
+            
+            # Add all extra fields from the original CSV
+            if hasattr(task, 'extra_fields'):
+                export_row.update(task.extra_fields)
+            
+            export_data.append(export_row)
         
         # Store at app level (accessible to main_window and other pages)
         self.validated_allocation_data = export_data
         self.main_window.briefing_allocation_data = export_data
         
         #print(f"Stored validated allocation data: {len(export_data)} task assignments")
-        #print(f"  - Normal operations: {len(normal_selections)} tasks")
-        #print(f"  - Contingency planning: {len(contingency_selections)} tasks")
+        #print(f"  - Processed in original chronological order")
     
     def reset_normal_validation(self):
         """Reset the normal operations validation analysis"""

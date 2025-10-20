@@ -3,11 +3,11 @@ import threading
 import queue
 
 _engine = pyttsx3.init()
-_engine.setProperty('rate', 150)
+_engine.setProperty('rate', 155)
 _engine.setProperty('volume', 0.9)
 voices = _engine.getProperty('voices')
 if len(voices) > 1:
-    _engine.setProperty('voice', voices[1].id)
+    _engine.setProperty('voice', voices[3].id)
 
 # Warm up the engine with a dummy call to avoid first-call initialization delay
 _engine.say("")
@@ -63,7 +63,7 @@ def register_finished_callback(cb):
 
 def speak_wait(text: str):
     """Queue text to be spoken."""
-    _speech_queue.put(text)
+    _speech_queue.put("TARS -" + text)
 
 def shutdown():
     """Call this on program exit to cleanly stop the TTS thread."""
