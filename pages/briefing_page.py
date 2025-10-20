@@ -645,7 +645,7 @@ class InterdependenceScene(QGraphicsScene):
     def filter_by_category(self, category: str):
         """Filter the graph to show only tasks from the specified category"""
         self.active_category_filter = category
-        print(f"Filtering graph to show only category: {category}")
+        #print(f"Filtering graph to show only category: {category}")
         
         # Completely rebuild the scene with only the filtered category
         self._rebuild_scene(filtered_category=category)
@@ -656,7 +656,7 @@ class InterdependenceScene(QGraphicsScene):
     def clear_category_filter(self):
         """Clear the category filter and show all tasks"""
         self.active_category_filter = None
-        print("Clearing category filter - showing all tasks")
+        #print("Clearing category filter - showing all tasks")
         
         # Completely rebuild the scene with all tasks
         self._rebuild_scene(filtered_category=None)
@@ -724,11 +724,11 @@ class BriefingPage(BasePage):
 
             # Load normal operation tasks (Classification == NORM)
             self.normal_tasks = load_normal_tasks(csv_file_path)
-            print(f"Loaded {len(self.normal_tasks)} normal operation tasks")
+            #print(f"Loaded {len(self.normal_tasks)} normal operation tasks")
 
             # Load contingency tasks (Classification == EMER or ABNORM)
             self.contingency_tasks = load_contingency_tasks(csv_file_path)
-            print(f"Loaded {len(self.contingency_tasks)} contingency tasks")
+            #print(f"Loaded {len(self.contingency_tasks)} contingency tasks")
             
             # Setup normal operations graph
             self._setup_normal_operations_graph()
@@ -811,7 +811,7 @@ class BriefingPage(BasePage):
         
     def _auto_select_single_performer_tasks(self):
         """Automatically select tasks that have only one possible performer"""
-        print("Auto-selecting tasks with single performer options...")
+        #print("Auto-selecting tasks with single performer options...")
         
         # Auto-select normal operation tasks
         if self.normal_interdependence_scene and self.normal_tasks:
@@ -829,9 +829,9 @@ class BriefingPage(BasePage):
                     performer = performers_available[0]
                     self.normal_interdependence_scene.on_node_clicked(task_id, performer)
                     auto_selected_normal += 1
-                    print(f"Auto-selected {performer} for normal task {task_id}: {task.name}")
+                    #print(f"Auto-selected {performer} for normal task {task_id}: {task.name}")
             
-            print(f"Auto-selected {auto_selected_normal} normal operation tasks")
+            #print(f"Auto-selected {auto_selected_normal} normal operation tasks")
         
         # Auto-select contingency planning tasks
         if self.contingency_interdependence_scene and self.contingency_tasks:
@@ -849,9 +849,9 @@ class BriefingPage(BasePage):
                     performer = performers_available[0]
                     self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
                     auto_selected_contingency += 1
-                    print(f"Auto-selected {performer} for contingency task {task_id}: {task.name}")
+                    #print(f"Auto-selected {performer} for contingency task {task_id}: {task.name}")
             
-            print(f"Auto-selected {auto_selected_contingency} contingency planning tasks")
+            #print(f"Auto-selected {auto_selected_contingency} contingency planning tasks")
     
     def _get_unique_categories(self):
         """Extract unique task categories from all loaded tasks"""
@@ -903,7 +903,7 @@ class BriefingPage(BasePage):
             print("No categories found in tasks")
             return
         
-        print(f"Creating radio buttons for {len(categories)} categories: {categories}")
+        #print(f"Creating radio buttons for {len(categories)} categories: {categories}")
         
         # Create radio button group for each category in both containers
         for category in categories:
@@ -1083,7 +1083,7 @@ class BriefingPage(BasePage):
         # Show the clear filter buttons
         self._show_clear_filter_buttons()
         
-        print(f"Applied filter for category: {category}")
+        #print(f"Applied filter for category: {category}")
     
     def _show_clear_filter_buttons(self):
         """Show clear filter buttons in both tabs"""
@@ -1175,7 +1175,7 @@ class BriefingPage(BasePage):
         # Hide the clear filter buttons
         self._hide_clear_filter_buttons()
         
-        print("Cleared category filter")
+        #print("Cleared category filter")
     
     def _hide_clear_filter_buttons(self):
         """Hide and remove clear filter buttons from both tabs"""
@@ -1237,7 +1237,7 @@ class BriefingPage(BasePage):
         if not checked:
             return
         
-        print(f"Allocating all '{category}' tasks to {performer}")
+        #print(f"Allocating all '{category}' tasks to {performer}")
         
         # Allocate normal tasks in this category
         if self.normal_interdependence_scene and self.normal_tasks:
@@ -1298,7 +1298,7 @@ class BriefingPage(BasePage):
             if hasattr(self.widgets, 'export_briefing_button'):
                 self.widgets.export_briefing_button.clicked.connect(self.export_briefing)
                 self.widgets.export_briefing_button.setEnabled(False)  # Initially disabled
-                print("Connected export briefing button (Normal Operations)")
+                #print("Connected export briefing button (Normal Operations)")
             else:
                 print("Warning: export_briefing_button not found in UI")
         except Exception as e:
@@ -1308,7 +1308,7 @@ class BriefingPage(BasePage):
             if hasattr(self.widgets, 'export_briefing_button_2'):
                 self.widgets.export_briefing_button_2.clicked.connect(self.export_briefing)
                 self.widgets.export_briefing_button_2.setEnabled(False)  # Initially disabled
-                print("Connected export briefing button (Contingency Planning)")
+                #print("Connected export briefing button (Contingency Planning)")
             else:
                 print("Warning: export_briefing_button_2 not found in UI")
         except Exception as e:
@@ -1336,7 +1336,7 @@ class BriefingPage(BasePage):
             if hasattr(self.widgets, 'send_briefing_button'):
                 self.widgets.send_briefing_button.clicked.connect(self.send_allocation_to_agent)
                 self.widgets.send_briefing_button.setEnabled(False)  # Initially disabled
-                print("Connected send briefing button (Normal Operations)")
+                #print("Connected send briefing button (Normal Operations)")
             else:
                 print("Warning: send_briefing_button not found in UI")
         except Exception as e:
@@ -1346,7 +1346,7 @@ class BriefingPage(BasePage):
             if hasattr(self.widgets, 'send_briefing_button_2'):
                 self.widgets.send_briefing_button_2.clicked.connect(self.send_allocation_to_agent)
                 self.widgets.send_briefing_button_2.setEnabled(False)  # Initially disabled
-                print("Connected send briefing button 2 (Contingency Planning)")
+                #print("Connected send briefing button 2 (Contingency Planning)")
             else:
                 print("Warning: send_briefing_button_2 not found in UI")
         except Exception as e:
@@ -1375,7 +1375,7 @@ class BriefingPage(BasePage):
             # Switch to contingency planning tab to remind user
             if hasattr(self.widgets, 'tabWidget'):
                 self.widgets.tabWidget.setCurrentIndex(1)  # Index 1 is contingency planning tab
-                print("Switched to Contingency Planning tab")
+                #print("Switched to Contingency Planning tab")
             
             # Check if both are validated and enable export button if so
             self._update_export_button_state()
@@ -1453,7 +1453,7 @@ class BriefingPage(BasePage):
         if both_validated:
             # Store the validated allocation data
             self._store_validated_allocation()
-            print("Both briefings validated - Export and Send buttons enabled")
+            #print("Both briefings validated - Export and Send buttons enabled")
         else:
             print("Export and Send buttons disabled - both briefings must be validated")
     
@@ -1606,9 +1606,9 @@ class BriefingPage(BasePage):
         self.validated_allocation_data = export_data
         self.main_window.briefing_allocation_data = export_data
         
-        print(f"Stored validated allocation data: {len(export_data)} task assignments")
-        print(f"  - Normal operations: {len(normal_selections)} tasks")
-        print(f"  - Contingency planning: {len(contingency_selections)} tasks")
+        #print(f"Stored validated allocation data: {len(export_data)} task assignments")
+        #print(f"  - Normal operations: {len(normal_selections)} tasks")
+        #print(f"  - Contingency planning: {len(contingency_selections)} tasks")
     
     def reset_normal_validation(self):
         """Reset the normal operations validation analysis"""
@@ -1710,7 +1710,7 @@ class BriefingPage(BasePage):
             QMessageBox.information(None, "Export Successful", 
                                   f"Briefing exported successfully to:\n{file_path}\n\n"
                                   f"Total task assignments: {len(self.validated_allocation_data)}\n\n"
-                                  f"💾 File saved. Use 'Send to Agent' button to apply changes.")
+                                  f"File saved. Use 'Send to Agent' button to apply changes.")
             
             print(f"Briefing exported successfully to: {file_path}")
             print(f"Exported {len(self.validated_allocation_data)} task assignments")
@@ -1784,7 +1784,7 @@ class BriefingPage(BasePage):
                         state.human_role = new_human
                         state.autonomy_role = new_autonomy
                         updated_count += 1
-                        print(f"Updated {state_key}: H={old_human}→{new_human}, A={old_autonomy}→{new_autonomy}")
+                        #print(f"Updated {state_key}: H={old_human}→{new_human}, A={old_autonomy}→{new_autonomy}")
             
             # Show success message
             QMessageBox.information(None, "Allocation Sent to Agent", 
@@ -1793,7 +1793,7 @@ class BriefingPage(BasePage):
                                   f"• States updated: {updated_count}\n\n"
                                   f"The agent is now using the validated role assignments.")
             
-            print(f"Sent allocation to agent: {updated_count} states updated from {len(self.validated_allocation_data)} tasks")
+            #print(f"Sent allocation to agent: {updated_count} states updated from {len(self.validated_allocation_data)} tasks")
             
         except Exception as e:
             print(f"Error sending allocation to agent: {e}")

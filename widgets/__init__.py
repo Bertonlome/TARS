@@ -15,3 +15,4 @@
 # ///////////////////////////////////////////////////////////////
 
 from . custom_grips import CustomGrip
+from . circular_countdown import CircularCountdown

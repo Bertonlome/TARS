@@ -1082,7 +1082,7 @@ class Ui_MainWindow(object):
         self.tars_picture = QLabel(self.row_1_col_1_container_2)
         self.tars_picture.setObjectName(u"tars_picture")
         self.tars_picture.setMaximumSize(QSize(200, 200))
-        self.tars_picture.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.tars_picture.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
         self.tars_picture.setScaledContents(True)
 
         self.row_1_col_1_container.addWidget(self.tars_picture, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -1115,7 +1115,7 @@ class Ui_MainWindow(object):
         self.alert_container_4.setContentsMargins(20, -1, 75, -1)
         self.alert_icon_2 = QLabel(self.alert_container_3)
         self.alert_icon_2.setObjectName(u"alert_icon_2")
-        self.alert_icon_2.setPixmap(QPixmap(u":/icons/images/icons/cil-thumb-up.png"))
+        self.alert_icon_2.setPixmap(QPixmap(u":/icons/images/icons/alerts-active.svg"))
 
         self.alert_container_4.addWidget(self.alert_icon_2, 0, Qt.AlignmentFlag.AlignLeft)
 
@@ -1148,7 +1148,7 @@ class Ui_MainWindow(object):
         self.p_t_prog_widget_2 = QLabel(self.previous_task_container_6)
         self.p_t_prog_widget_2.setObjectName(u"p_t_prog_widget_2")
         self.p_t_prog_widget_2.setMaximumSize(QSize(40, 40))
-        self.p_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.p_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
         self.p_t_prog_widget_2.setScaledContents(True)
 
         self.horizontalLayout_10.addWidget(self.p_t_prog_widget_2)
@@ -1235,7 +1235,7 @@ class Ui_MainWindow(object):
         self.c_t_prog_widget_2 = QLabel(self.current_task_container_3)
         self.c_t_prog_widget_2.setObjectName(u"c_t_prog_widget_2")
         self.c_t_prog_widget_2.setMaximumSize(QSize(50, 50))
-        self.c_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.c_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
         self.c_t_prog_widget_2.setScaledContents(True)
 
         self.current_task_container_4.addWidget(self.c_t_prog_widget_2)
@@ -1269,25 +1269,15 @@ class Ui_MainWindow(object):
         self.cancel_task_button_2.setObjectName(u"cancel_task_button_2")
         self.cancel_task_button_2.setMinimumSize(QSize(128, 32))
         self.cancel_task_button_2.setMaximumSize(QSize(150, 16777215))
-        self.cancel_task_button_2.setStyleSheet(u"    border: 2px solid #3399ff;\n"
+        self.cancel_task_button_2.setStyleSheet(u"border: 2px solid rgba(235, 0, 20, 255);\n"
 "    border-radius: 5px;\n"
-"    background-color: rgba(248, 84, 84, 255);\n"
+"    background-color: rgba(33, 37, 43, 255);\n"
 "font: 600 16pt \"JetBrains Mono\";")
-        icon4 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ProcessStop))
+        icon4 = QIcon()
+        icon4.addFile(u":/icons/images/icons/alarm-noack-iec.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.cancel_task_button_2.setIcon(icon4)
 
         self.current_task_container_4.addWidget(self.cancel_task_button_2)
-
-        self.task_done_button = QPushButton(self.current_task_container_3)
-        self.task_done_button.setObjectName(u"task_done_button")
-        self.task_done_button.setStyleSheet(u"    border: 2px solid #3399ff;\n"
-"    border-radius: 5px;\n"
-"    background-color: rgba(0, 168, 120, 255);\n"
-"font: 600 16pt \"JetBrains Mono\";")
-        icon5 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.MailReplySender))
-        self.task_done_button.setIcon(icon5)
-
-        self.current_task_container_4.addWidget(self.task_done_button)
 
         self.c_t_m_container_2 = QVBoxLayout()
         self.c_t_m_container_2.setSpacing(6)
@@ -1347,7 +1337,7 @@ class Ui_MainWindow(object):
         self.n_t_prog_widget_2 = QLabel(self.next_task_container_6)
         self.n_t_prog_widget_2.setObjectName(u"n_t_prog_widget_2")
         self.n_t_prog_widget_2.setMaximumSize(QSize(40, 40))
-        self.n_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
+        self.n_t_prog_widget_2.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
         self.n_t_prog_widget_2.setScaledContents(True)
 
         self.horizontalLayout_13.addWidget(self.n_t_prog_widget_2)
@@ -1432,13 +1422,6 @@ class Ui_MainWindow(object):
 "")
         self.verticalLayout_23 = QVBoxLayout(self.interaction_container)
         self.verticalLayout_23.setObjectName(u"verticalLayout_23")
-        self.interaction_panel_icon = QLabel(self.interaction_container)
-        self.interaction_panel_icon.setObjectName(u"interaction_panel_icon")
-        self.interaction_panel_icon.setMaximumSize(QSize(16777215, 50))
-        self.interaction_panel_icon.setPixmap(QPixmap(u":/icons/images/icons/cil-transfer.png"))
-
-        self.verticalLayout_23.addWidget(self.interaction_panel_icon)
-
         self.interaction_panel_title = QLabel(self.interaction_container)
         self.interaction_panel_title.setObjectName(u"interaction_panel_title")
         self.interaction_panel_title.setStyleSheet(u"font: 500 20pt \"JetBrains Mono\";")
@@ -1465,9 +1448,9 @@ class Ui_MainWindow(object):
         self.int_panel_left_button = QPushButton(self.int_panel_button_container)
         self.int_panel_left_button.setObjectName(u"int_panel_left_button")
         self.int_panel_left_button.setMinimumSize(QSize(0, 50))
-        self.int_panel_left_button.setStyleSheet(u"    border: 2px solid #3399ff;\n"
+        self.int_panel_left_button.setStyleSheet(u"border: 2px solid rgba(235, 0, 20, 255);\n"
 "    border-radius: 5px;\n"
-"    background-color: rgba(248, 84, 84, 255);\n"
+"    background-color: rgba(33, 37, 43, 255);\n"
 "font: 600 16pt \"JetBrains Mono\";")
         self.int_panel_left_button.setIcon(icon4)
 
@@ -1476,10 +1459,10 @@ class Ui_MainWindow(object):
         self.int_panel_right_button = QPushButton(self.int_panel_button_container)
         self.int_panel_right_button.setObjectName(u"int_panel_right_button")
         self.int_panel_right_button.setMinimumSize(QSize(0, 50))
-        self.int_panel_right_button.setStyleSheet(u"    border: 2px solid rgba(0, 168, 120, 255);\n"
+        self.int_panel_right_button.setStyleSheet(u"    border: 2px solid rgba(221, 221, 221, 255);\n"
 "    border-radius: 5px;\n"
-"    background-color: rgba(0, 168, 120, 255);\n"
-"font: 600 16pt \"JetBrains Mono\";")
+"    background-color: rgba(221, 221, 221, 255);\n"
+"font: 600 16pt \"JetBrains Mono\";color: rgba(33, 37, 43, 255)")
 
         self.horizontalLayout_15.addWidget(self.int_panel_right_button)
 
@@ -1554,9 +1537,9 @@ class Ui_MainWindow(object):
         self.pushButton.setFont(font)
         self.pushButton.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.pushButton.setStyleSheet(u"background-color: rgb(52, 59, 72);")
-        icon6 = QIcon()
-        icon6.addFile(u":/icons/images/icons/cil-folder-open.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.pushButton.setIcon(icon6)
+        icon5 = QIcon()
+        icon5.addFile(u":/icons/images/icons/cil-folder-open.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.pushButton.setIcon(icon5)
 
         self.gridLayout.addWidget(self.pushButton, 0, 1, 1, 1)
 
@@ -1679,9 +1662,9 @@ class Ui_MainWindow(object):
         self.commandLinkButton.setObjectName(u"commandLinkButton")
         self.commandLinkButton.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.commandLinkButton.setStyleSheet(u"")
-        icon7 = QIcon()
-        icon7.addFile(u":/icons/images/icons/cil-link.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.commandLinkButton.setIcon(icon7)
+        icon6 = QIcon()
+        icon6.addFile(u":/icons/images/icons/cil-link.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.commandLinkButton.setIcon(icon6)
 
         self.gridLayout_2.addWidget(self.commandLinkButton, 1, 6, 1, 1)
 
@@ -1865,33 +1848,33 @@ class Ui_MainWindow(object):
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
         self.load_allocation_button = QPushButton(self.normal_operation_IA_page)
         self.load_allocation_button.setObjectName(u"load_allocation_button")
-        icon8 = QIcon()
-        icon8.addFile(u":/icons/images/icons/file-upload-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.load_allocation_button.setIcon(icon8)
+        icon7 = QIcon()
+        icon7.addFile(u":/icons/images/icons/file-upload-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.load_allocation_button.setIcon(icon7)
 
         self.horizontalLayout_6.addWidget(self.load_allocation_button)
 
         self.validate_briefing_button = QPushButton(self.normal_operation_IA_page)
         self.validate_briefing_button.setObjectName(u"validate_briefing_button")
-        icon9 = QIcon()
-        icon9.addFile(u":/icons/images/icons/check-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.validate_briefing_button.setIcon(icon9)
+        icon8 = QIcon()
+        icon8.addFile(u":/icons/images/icons/check-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.validate_briefing_button.setIcon(icon8)
 
         self.horizontalLayout_6.addWidget(self.validate_briefing_button)
 
         self.send_briefing_button = QPushButton(self.normal_operation_IA_page)
         self.send_briefing_button.setObjectName(u"send_briefing_button")
-        icon10 = QIcon()
-        icon10.addFile(u":/icons/images/icons/command-shared.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.send_briefing_button.setIcon(icon10)
+        icon9 = QIcon()
+        icon9.addFile(u":/icons/images/icons/command-shared.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.send_briefing_button.setIcon(icon9)
 
         self.horizontalLayout_6.addWidget(self.send_briefing_button)
 
         self.export_briefing_button = QPushButton(self.normal_operation_IA_page)
         self.export_briefing_button.setObjectName(u"export_briefing_button")
-        icon11 = QIcon()
-        icon11.addFile(u":/icons/images/icons/file-export-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.export_briefing_button.setIcon(icon11)
+        icon10 = QIcon()
+        icon10.addFile(u":/icons/images/icons/file-export-google.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.export_briefing_button.setIcon(icon10)
 
         self.horizontalLayout_6.addWidget(self.export_briefing_button)
 
@@ -1920,25 +1903,25 @@ class Ui_MainWindow(object):
         self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
         self.load_allocation_button_2 = QPushButton(self.contingency_planning_IA_page)
         self.load_allocation_button_2.setObjectName(u"load_allocation_button_2")
-        self.load_allocation_button_2.setIcon(icon8)
+        self.load_allocation_button_2.setIcon(icon7)
 
         self.horizontalLayout_7.addWidget(self.load_allocation_button_2)
 
         self.validate_cont_planning_button = QPushButton(self.contingency_planning_IA_page)
         self.validate_cont_planning_button.setObjectName(u"validate_cont_planning_button")
-        self.validate_cont_planning_button.setIcon(icon9)
+        self.validate_cont_planning_button.setIcon(icon8)
 
         self.horizontalLayout_7.addWidget(self.validate_cont_planning_button)
 
         self.send_briefing_button_2 = QPushButton(self.contingency_planning_IA_page)
         self.send_briefing_button_2.setObjectName(u"send_briefing_button_2")
-        self.send_briefing_button_2.setIcon(icon10)
+        self.send_briefing_button_2.setIcon(icon9)
 
         self.horizontalLayout_7.addWidget(self.send_briefing_button_2)
 
         self.export_briefing_button_2 = QPushButton(self.contingency_planning_IA_page)
         self.export_briefing_button_2.setObjectName(u"export_briefing_button_2")
-        self.export_briefing_button_2.setIcon(icon11)
+        self.export_briefing_button_2.setIcon(icon10)
 
         self.horizontalLayout_7.addWidget(self.export_briefing_button_2)
 
@@ -2091,7 +2074,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.stackedWidget.setCurrentIndex(2)
+        self.stackedWidget.setCurrentIndex(0)
         self.tabWidget.setCurrentIndex(0)
 
 
@@ -2149,12 +2132,12 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(tooltip)
         self.closeAppBtn.setText("")
         self.tars_status_icon.setText("")
-        self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"status_label", None))
+        self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"TARS RUNNING", None))
         self.tars_action_icon.setText("")
         self.tars_output_speech_label.setText("")
         self.tars_picture.setText("")
         self.alert_icon_2.setText("")
-        self.alert_label_2.setText(QCoreApplication.translate("MainWindow", u"No alert", None))
+        self.alert_label_2.setText("")
         self.p_t_prog_widget_2.setText("")
         self.p_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.p_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
@@ -2166,7 +2149,6 @@ class Ui_MainWindow(object):
         self.c_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.c_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.cancel_task_button_2.setText(QCoreApplication.translate("MainWindow", u"CANCEL", None))
-        self.task_done_button.setText(QCoreApplication.translate("MainWindow", u"TASK DONE", None))
         self.c_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.c_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
         self.c_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
@@ -2178,11 +2160,10 @@ class Ui_MainWindow(object):
         self.n_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
         self.n_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
-        self.interaction_panel_icon.setText("")
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel title", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
-        self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"PushButton", None))
-        self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"Ask TARS for a recap", None))
+        self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
+        self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"ACKNOWLEDGE", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))
         self.lineEdit.setText("")
         self.lineEdit.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type here", None))

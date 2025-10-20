@@ -1740,7 +1740,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                       <string notr="true">background: transparent;</string>
                      </property>
                      <property name="currentIndex">
-                      <number>2</number>
+                      <number>0</number>
                      </property>
                      <widget class="QWidget" name="home">
                       <layout class="QVBoxLayout" name="verticalLayout_22">
@@ -1814,7 +1814,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                    <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
                                   </property>
                                   <property name="text">
-                                   <string>status_label</string>
+                                   <string>TARS RUNNING</string>
                                   </property>
                                  </widget>
                                 </item>
@@ -1895,7 +1895,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                 <string/>
                                </property>
                                <property name="pixmap">
-                                <pixmap resource="resources.qrc">:/images/images/images/TARS.png</pixmap>
+                                <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
                                </property>
                                <property name="scaledContents">
                                 <bool>true</bool>
@@ -1950,7 +1950,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                    <string/>
                                   </property>
                                   <property name="pixmap">
-                                   <pixmap resource="resources.qrc">:/icons/images/icons/cil-thumb-up.png</pixmap>
+                                   <pixmap resource="resources.qrc">:/icons/images/icons/alerts-active.svg</pixmap>
                                   </property>
                                  </widget>
                                 </item>
@@ -1960,7 +1960,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                    <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
                                   </property>
                                   <property name="text">
-                                   <string>No alert</string>
+                                   <string/>
                                   </property>
                                  </widget>
                                 </item>
@@ -2010,7 +2010,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                       <string/>
                                      </property>
                                      <property name="pixmap">
-                                      <pixmap resource="resources.qrc">:/images/images/images/TARS.png</pixmap>
+                                      <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
                                      </property>
                                      <property name="scaledContents">
                                       <bool>true</bool>
@@ -2147,7 +2147,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                    <string/>
                                   </property>
                                   <property name="pixmap">
-                                   <pixmap resource="resources.qrc">:/images/images/images/TARS.png</pixmap>
+                                   <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
                                   </property>
                                   <property name="scaledContents">
                                    <bool>true</bool>
@@ -2216,32 +2216,17 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                    </size>
                                   </property>
                                   <property name="styleSheet">
-                                   <string notr="true">    border: 2px solid #3399ff;
+                                   <string notr="true">border: 2px solid rgba(235, 0, 20, 255);
     border-radius: 5px;
-    background-color: rgba(248, 84, 84, 255);
+    background-color: rgba(33, 37, 43, 255);
 font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                   </property>
                                   <property name="text">
                                    <string>CANCEL</string>
                                   </property>
                                   <property name="icon">
-                                   <iconset theme="QIcon::ThemeIcon::ProcessStop"/>
-                                  </property>
-                                 </widget>
-                                </item>
-                                <item>
-                                 <widget class="QPushButton" name="task_done_button">
-                                  <property name="styleSheet">
-                                   <string notr="true">    border: 2px solid #3399ff;
-    border-radius: 5px;
-    background-color: rgba(0, 168, 120, 255);
-font: 600 16pt &quot;JetBrains Mono&quot;;</string>
-                                  </property>
-                                  <property name="text">
-                                   <string>TASK DONE</string>
-                                  </property>
-                                  <property name="icon">
-                                   <iconset theme="QIcon::ThemeIcon::MailReplySender"/>
+                                   <iconset resource="resources.qrc">
+                                    <normaloff>:/icons/images/icons/alarm-noack-iec.svg</normaloff>:/icons/images/icons/alarm-noack-iec.svg</iconset>
                                   </property>
                                  </widget>
                                 </item>
@@ -2342,7 +2327,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                       <string/>
                                      </property>
                                      <property name="pixmap">
-                                      <pixmap resource="resources.qrc">:/images/images/images/TARS.png</pixmap>
+                                      <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
                                      </property>
                                      <property name="scaledContents">
                                       <bool>true</bool>
@@ -2464,22 +2449,6 @@ background-color: rgba(0, 26, 56, 200);}</string>
 </string>
                          </property>
                          <layout class="QVBoxLayout" name="verticalLayout_23">
-                          <item>
-                           <widget class="QLabel" name="interaction_panel_icon">
-                            <property name="maximumSize">
-                             <size>
-                              <width>16777215</width>
-                              <height>50</height>
-                             </size>
-                            </property>
-                            <property name="text">
-                             <string/>
-                            </property>
-                            <property name="pixmap">
-                             <pixmap resource="resources.qrc">:/icons/images/icons/cil-transfer.png</pixmap>
-                            </property>
-                           </widget>
-                          </item>
                           <item alignment="Qt::AlignmentFlag::AlignTop">
                            <widget class="QLabel" name="interaction_panel_title">
                             <property name="styleSheet">
@@ -2527,16 +2496,17 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                 </size>
                                </property>
                                <property name="styleSheet">
-                                <string notr="true">    border: 2px solid #3399ff;
+                                <string notr="true">border: 2px solid rgba(235, 0, 20, 255);
     border-radius: 5px;
-    background-color: rgba(248, 84, 84, 255);
+    background-color: rgba(33, 37, 43, 255);
 font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                </property>
                                <property name="text">
-                                <string>PushButton</string>
+                                <string>CANCEL EXECUTION</string>
                                </property>
                                <property name="icon">
-                                <iconset theme="QIcon::ThemeIcon::ProcessStop"/>
+                                <iconset resource="resources.qrc">
+                                 <normaloff>:/icons/images/icons/alarm-noack-iec.svg</normaloff>:/icons/images/icons/alarm-noack-iec.svg</iconset>
                                </property>
                               </widget>
                              </item>
@@ -2549,13 +2519,13 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                 </size>
                                </property>
                                <property name="styleSheet">
-                                <string notr="true">    border: 2px solid rgba(0, 168, 120, 255);
+                                <string notr="true">    border: 2px solid rgba(221, 221, 221, 255);
     border-radius: 5px;
-    background-color: rgba(0, 168, 120, 255);
-font: 600 16pt &quot;JetBrains Mono&quot;;</string>
+    background-color: rgba(221, 221, 221, 255);
+font: 600 16pt &quot;JetBrains Mono&quot;;color: rgba(33, 37, 43, 255)</string>
                                </property>
                                <property name="text">
-                                <string>Ask TARS for a recap</string>
+                                <string>ACKNOWLEDGE</string>
                                </property>
                               </widget>
                              </item>

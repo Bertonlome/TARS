@@ -35,7 +35,7 @@ class PageManager:
         # Add other pages as you create them
         # self.pages['widgets'] = WidgetsPage(self.widgets, self.main_window)
         
-        print(f"Initialized {len(self.pages)} pages")
+        #print(f"Initialized {len(self.pages)} pages")
         
         # Set home as the default page
         self.navigate_to_page('home')
@@ -55,7 +55,7 @@ class PageManager:
         if page_name in self.pages:
             self.pages[page_name].show_page()
             self.current_page = page_name
-            print(f"Navigated to {page_name} page")
+            #print(f"Navigated to {page_name} page")
         else:
             print(f"Warning: Page '{page_name}' not found")
     
@@ -80,7 +80,7 @@ class PageManager:
             page_instance (BasePage): Instance of the page
         """
         self.pages[page_name] = page_instance
-        print(f"Registered page: {page_name}")
+        #print(f"Registered page: {page_name}")
     
     def get_all_pages(self):
         """

@@ -21,8 +21,9 @@ from PySide6 import QtWidgets, QtCore
 from PySide6.QtWidgets import QGraphicsOpacityEffect
 from PySide6.QtGui import QFont, QFontDatabase
 import signal
+import threading
 from Core.agent import TarsAgent
-from Core.tts import shutdown, register_speak_callback
+from Core.tts import shutdown, register_speak_callback, register_finished_callback
 import time
 
 # IMPORT / GUI AND MODULES AND WIDGETS
@@ -114,19 +115,36 @@ class FSMWorker(QtCore.QObject):
                         self.state_changed.emit(fsm.current_state)  # Emit the State object instead of just procedure
                         self.current_state = fsm.current_state
                         
-                        # wait before action
-                        delay = self.get_delay_before_action(fsm.current_state) 
-                        QtCore.QThread.msleep(int((delay) * 1000))
+                        # wait before action - wait for countdown timer to reach 0
+                        delay = self.get_delay_before_action(fsm.current_state)
+                        if delay > 0:
+                            # Clear the event before waiting
+                            self.agent.main_window.countdown_completion_event.clear()
+                            #print(f"⏳ Waiting for countdown to reach 0...")
+                            # Wait for the countdown timer to signal completion
+                            self.agent.main_window.countdown_completion_event.wait(timeout=delay + 2)  # +2s safety margin
                         
                         if t.action:
                             action_start = self.start_performance_timer("action_execution")
-                            t.action()
+                            action_result = t.action()
                             action_time = self.stop_performance_timer("action_execution", action_start)
                             print(f"Action execution took: {action_time*1000:.2f}ms")
+                            
+                            # If it was a speech action, wait for TTS to complete
+                            if action_result is True and self.agent.tts_completion_event:
+                                # Give TTS worker a moment to pick up the queued text and clear the event
+                                #QtCore.QThread.msleep(5)  # Small delay for queue processing
+                                
+                                #print(f"⏳ Waiting for TTS to complete (event is_set={self.agent.tts_completion_event.is_set()})...")
+                                wait_start = time.time()
+                                self.agent.tts_completion_event.wait(timeout=30)  # Block until TTS finishes (30s max)
+                                wait_time = time.time() - wait_start
+                                #print(f"✅ TTS completed after {wait_time:.2f}s, continuing FSM")
                         
                         # wait after action
                         delay = self.get_delay_after_action(fsm.current_state)
-                        QtCore.QThread.msleep(int((delay + 1 ) * 1000)) # + 1 delay for UI
+                        if delay and delay > 0:
+                            QtCore.QThread.msleep(float((delay + 0.2) * 1000)) # + 0.2 delay for UI
                         
                         transition_found = True
                         break
@@ -192,6 +210,7 @@ class AgentThread(QtCore.QThread):
 # ///////////////////////////////////////////////////////////////
 class MainWindow(QMainWindow):
     tts_speak_signal = QtCore.Signal(str)
+    tts_finished_signal = QtCore.Signal(str)
 
     def __init__(self):
         QMainWindow.__init__(self)
@@ -204,6 +223,9 @@ class MainWindow(QMainWindow):
         self.agent = TarsAgent()
         signal.signal(signal.SIGINT, self.agent.signal_handler)
         self.ui.tars_status_label.setText(f"{self.agent.agent_name} Connected.")
+        
+        # Give agent reference to main window for countdown synchronization
+        self.agent.main_window = self
         
         # Start the agent in a separate thread
         self.agent_thread = AgentThread(self.agent)
@@ -221,9 +243,20 @@ class MainWindow(QMainWindow):
         self.previous_state = None
         self.next_state = None
 
+        # TTS completion tracking - shared between agent and main window
+        self.tts_completion_event = threading.Event()
+        self.tts_completion_event.set()  # Initially set (ready - no speech in progress)
+        # The event will be cleared when TTS starts speaking, set when it finishes
+        self.agent.set_tts_completion_event(self.tts_completion_event)
+
+        # Countdown completion tracking - for synchronizing FSM with countdown timer
+        self.countdown_completion_event = threading.Event()
+        self.countdown_completion_event.set()  # Initially set (no countdown in progress)
+
         self.tts_speak_signal.connect(self.on_tts_speak)
         register_speak_callback(self.tts_callback)
-
+        register_finished_callback(self.tts_finished_callback)
+        self.tts_finished_signal.connect(self.on_tts_finished)
         global widgets
         
         widgets = self.ui
@@ -315,6 +348,7 @@ class MainWindow(QMainWindow):
         if home_page:
             home_page.task_done_signal.connect(self.handle_task_done)
             home_page.task_cancel_signal.connect(self.handle_task_cancel)
+            home_page.countdown_zero_signal.connect(self.handle_countdown_zero)
     
     def handle_task_done(self):
         """
@@ -332,6 +366,13 @@ class MainWindow(QMainWindow):
         # This is where MainWindow handles the task cancellation
         print("Task cancelled")
     
+    def handle_countdown_zero(self):
+        """
+        Handle countdown reaching zero - signals that delay_before_action is complete
+        """
+        print("⏱️ Countdown reached 0, signaling FSM to continue")
+        self.countdown_completion_event.set()
+    
     def get_home_page(self):
         """
         Get the HomePage instance from page manager
@@ -340,7 +381,14 @@ class MainWindow(QMainWindow):
     
 
     def tts_callback(self, text):
+        # Clear the event - TTS is starting, not ready yet
+        self.tts_completion_event.clear()
         self.tts_speak_signal.emit(text)
+
+    def tts_finished_callback(self, text):
+        # Set the event - TTS is finished, ready to proceed
+        self.tts_completion_event.set()
+        self.tts_finished_signal.emit(text)
 
     def remove_glow(self, widget):
         """Remove glow effect from widget"""
@@ -354,10 +402,21 @@ class MainWindow(QMainWindow):
 
     @QtCore.Slot(str)
     def on_tts_speak(self, text):
+        print(f"🎤 TTS Speaking: {text}")  # Debug
+        # Use direct file path as fallback since Qt resources aren't working
+        pixmap = QPixmap("images/images/TARS_female_speaking.png")
+        self.ui.tars_picture.setPixmap(pixmap)
         self.ui.tars_action_icon.show()
         self.ui.tars_output_speech_label.show()
         self.ui.tars_output_speech_label.setText(f"\"{text}\"")
-
+    
+    @QtCore.Slot(str)
+    def on_tts_finished(self, text):
+        print(f"✅ TTS Finished: {text}")  # Debug
+        # Use direct file path as fallback since Qt resources aren't working
+        pixmap = QPixmap("images/images/TARS_female.png")
+        self.ui.tars_picture.setPixmap(pixmap)
+        self.ui.tars_action_icon.hide()
 
     @QtCore.Slot(object)
     def update_state(self, current_state_obj):
@@ -380,14 +439,49 @@ class MainWindow(QMainWindow):
         
         # Extract display text from state objects
         previous_procedure_text = previous_state_obj.procedure if previous_state_obj else ""
-        previous_task_text = f"{previous_state_obj.task_object}: {previous_state_obj.value}" if previous_state_obj else ""
+        previous_task_text = f"{previous_state_obj.task_object}     {previous_state_obj.value}" if previous_state_obj else ""
         
         current_procedure_text = current_state_obj.procedure
-        current_task_text = f"{current_state_obj.task_object}: {current_state_obj.value}"
+        current_task_text = f"{current_state_obj.task_object}     {current_state_obj.value}"
         
         next_procedure_text = next_state_obj.procedure if next_state_obj else ""
-        next_task_text = f"{next_state_obj.task_object}: {next_state_obj.value}" if next_state_obj else ""
+        next_task_text = f"{next_state_obj.task_object}     {next_state_obj.value}" if next_state_obj else ""
+
+        # Handle countdown timers using State object attributes
+        home_page = self.get_home_page()
+        home_page.current_countdown_timer.stop()
+        home_page.next_countdown_timer.stop()
         
+        # For current task counter (uses delay_before_action)
+        try:
+            seconds = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
+            print(f"\nDelay_before_action for task {current_state_obj.task_object}: {seconds} seconds")
+            self.ui.c_t_s_value_2.setText(str(seconds))
+            if seconds > 0:
+                home_page.start_current_countdown(seconds)  # Use the proper method
+            else:
+                home_page.current_countdown_value = 0
+        except (ValueError, TypeError, AttributeError):
+            self.ui.c_t_s_value_2.setText("0")
+
+        # For next task counter (current delay_after_action + next delay_before_action)
+        try:
+            if next_state_obj:
+                current_delay_after = int(current_state_obj.delay_after_action) if current_state_obj.delay_after_action else 0
+                next_delay_before = int(next_state_obj.delay_before_action) if next_state_obj.delay_before_action else 0
+                total_seconds = current_delay_after + next_delay_before
+                print(f"\nNext task : {next_state_obj.task_object} estimated time: {total_seconds} seconds")
+                self.ui.n_t_s_value_2.setText(str(total_seconds))
+                if total_seconds > 0:
+                    home_page.start_next_countdown(total_seconds)  # Use the proper method
+                else:
+                    home_page.next_countdown_value = 0
+            else:
+                self.ui.n_t_s_value_2.setText("N/A")
+        except (ValueError, TypeError, AttributeError):
+            home_page.next_countdown_timer.stop()
+            self.ui.n_t_s_value_2.setText("N/A")
+
         # Update UI labels
         self.ui.p_g_2.setText(previous_procedure_text)
         self.ui.p_t_2.setText(previous_task_text)
@@ -395,7 +489,7 @@ class MainWindow(QMainWindow):
         self.ui.c_t_2.setText(current_task_text)
         self.ui.n_g_label_2.setText(next_procedure_text)
         self.ui.n_t_label_2.setText(next_task_text)
-        self.ui.alert_label_2.setText(f"Current procedure : {current_procedure_text}")
+        self.ui.alert_label_2.setText(f"{current_procedure_text}")
         
         # Handle previous task autonomy role display
         if previous_state_obj is not None:
@@ -413,26 +507,26 @@ class MainWindow(QMainWindow):
             self.get_home_page().hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
             self.ui.cancel_task_button_2.hide()
-            self.ui.task_done_button.show()
-            self.ui.task_done_button.setStyleSheet(
-                """
-                border: 2px solid #3399ff;
-                border-radius: 5px;
-                background-color: rgba(0, 168, 120, 255);
-                font: 600 16pt "JetBrains Mono";
-                """)
+            #self.ui.task_done_button.show()
+            #self.ui.task_done_button.setStyleSheet(
+                #"""
+                #border: 2px solid #3399ff;
+                #border-radius: 5px;
+                #background-color: rgba(0, 168, 120, 255);
+                #font: 600 16pt "JetBrains Mono";
+                #""")
         else:
             self.get_home_page().show_label(self.ui.c_t_prog_widget_2)
             self.get_home_page().start_glow_effect(self.ui.current_task_container_3, "blue")
-            self.ui.task_done_button.hide()
+            #self.ui.task_done_button.hide()
             self.ui.cancel_task_button_2.show()            
-            self.ui.task_done_button.setStyleSheet(
-                """
-                border: 2px solid #3399ff;
-                border-radius: 5px;
-                background-color: rgba(208, 04, 04, 255);
-                font: 600 16pt "JetBrains Mono";
-                """)
+            #self.ui.task_done_button.setStyleSheet(
+                #"""
+                #border: 2px solid #3399ff;
+                #border-radius: 5px;
+                #background-color: rgba(208, 04, 04, 255);
+                #font: 600 16pt "JetBrains Mono";
+                #""")
 
         # Handle next task autonomy role display
         if next_state_obj is not None:
@@ -550,38 +644,6 @@ class MainWindow(QMainWindow):
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
         
-        # Handle countdown timers using State object attributes
-        home_page = self.get_home_page()
-        home_page.current_countdown_timer.stop()
-        home_page.next_countdown_timer.stop()
-        
-        # For current task counter (uses delay_before_action)
-        try:
-            seconds = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
-            print(f"\nCurrent task delay_before_action: {seconds} seconds")
-            home_page.current_countdown_value = seconds
-            self.ui.c_t_s_value_2.setText(str(home_page.current_countdown_value))
-            if seconds > 0:
-                home_page.current_countdown_timer.start()
-        except (ValueError, TypeError, AttributeError):
-            self.ui.c_t_s_value_2.setText("0")
-
-        # For next task counter (current delay_after_action + next delay_before_action)
-        try:
-            if next_state_obj:
-                current_delay_after = int(current_state_obj.delay_after_action) if current_state_obj.delay_after_action else 0
-                next_delay_before = int(next_state_obj.delay_before_action) if next_state_obj.delay_before_action else 0
-                total_seconds = current_delay_after + next_delay_before
-                print(f"\nNext task estimated time: {total_seconds} seconds")
-                home_page.next_countdown_value = total_seconds
-                self.ui.n_t_s_value_2.setText(str(home_page.next_countdown_value))
-                if total_seconds > 0:
-                    home_page.next_countdown_timer.start()
-            else:
-                self.ui.n_t_s_value_2.setText("N/A")
-        except (ValueError, TypeError, AttributeError):
-            home_page.next_countdown_timer.stop()
-            self.ui.n_t_s_value_2.setText("N/A")
 
         # Store current state as previous for next update
         self._previous_state_obj = current_state_obj

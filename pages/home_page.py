@@ -6,6 +6,7 @@ Main landing page for the TARS GUI application
 from pages.base_page import BasePage
 from PySide6 import QtCore
 from PySide6.QtWidgets import QGraphicsOpacityEffect
+from widgets.circular_countdown import CircularCountdown
 from typing import TYPE_CHECKING
 
 # Import for type hints only (prevents circular imports)
@@ -22,6 +23,7 @@ class HomePage(BasePage):
     # Signals for communicating with MainWindow
     task_done_signal = QtCore.Signal()
     task_cancel_signal = QtCore.Signal()
+    countdown_zero_signal = QtCore.Signal()  # Emitted when current countdown reaches 0
     
     def __init__(self, widgets: 'Ui_MainWindow', main_window: 'MainWindow'):
         """
@@ -43,11 +45,17 @@ class HomePage(BasePage):
         self.current_countdown_timer.setInterval(1000)
         self.current_countdown_timer.timeout.connect(self.update_current_countdown)
         self.current_countdown_value = 0
+        self.current_countdown_max = 0  # Track maximum value for progress calculation
         
         self.next_countdown_timer = QtCore.QTimer(self.main_window)
         self.next_countdown_timer.setInterval(1000)
         self.next_countdown_timer.timeout.connect(self.update_next_countdown)
         self.next_countdown_value = 0
+        self.next_countdown_max = 0  # Track maximum value for progress calculation
+        
+        # Create circular countdown widgets (will replace the QLabel widgets)
+        self.current_circular_countdown = None
+        self.next_circular_countdown = None
         
         # Initialize glow effect timer
         self._glow_timer = None
@@ -61,7 +69,7 @@ class HomePage(BasePage):
         Setup home page specific functionality
         """
         # Connect task buttons to home page handlers
-        self.widgets.task_done_button.clicked.connect(self.task_done_clicked)
+        #self.widgets.task_done_button.clicked.connect(self.task_done_clicked)
         self.widgets.int_panel_right_button.clicked.connect(self.task_done_clicked)
         self.widgets.cancel_task_button_2.clicked.connect(self.task_cancel_clicked)
         self.widgets.int_panel_left_button.clicked.connect(self.task_cancel_clicked)
@@ -69,14 +77,49 @@ class HomePage(BasePage):
         # Set object name for current task container
         self.widgets.current_task_container_3.setObjectName("currentTaskContainer")
         
-        print("Home page setup complete")
+        # Replace text labels with circular countdown widgets
+        self._setup_circular_countdowns()
+        
+        #print("Home page setup complete")
+    
+    def _setup_circular_countdowns(self):
+        """Replace the QLabel countdown displays with circular countdown widgets"""
+        # Current task countdown
+        # Hide the original label and unit text
+        self.widgets.c_t_s_value_2.hide()
+        self.widgets.c_t_s_unit_2.hide()
+        
+        # Create and add circular countdown widget
+        self.current_circular_countdown = CircularCountdown()
+        self.current_circular_countdown.set_colors(
+            progress_color="#55aaff",  # Blue
+            background_color="#343b48",
+            text_color="#d2d2d2"
+        )
+        # Add to the container layout
+        self.widgets.c_t_s_container_2.addWidget(self.current_circular_countdown)
+        
+        # Next task countdown
+        # Hide the original label and unit text
+        self.widgets.n_t_s_value_2.hide()
+        self.widgets.n_t_s_unit_2.hide()
+        
+        # Create and add circular countdown widget
+        self.next_circular_countdown = CircularCountdown()
+        self.next_circular_countdown.set_colors(
+            progress_color="#55aaff",  # Blue
+            background_color="#343b48",
+            text_color="#d2d2d2"
+        )
+        # Add to the container layout
+        self.widgets.n_t_s_container_2.addWidget(self.next_circular_countdown)
     
     def show_page(self):
         """
         Show the home page
         """
         self.widgets.stackedWidget.setCurrentWidget(self.page_widget)
-        print("Showing home page")
+        #print("Showing home page")
     
     def hide_page(self):
         """
@@ -98,29 +141,52 @@ class HomePage(BasePage):
     def update_current_countdown(self):
         """Update current task countdown display"""
         if self.current_countdown_value > 0:
-            self.widgets.c_t_s_value_2.setText(str(self.current_countdown_value))
             self.current_countdown_value -= 1
+            # Update both the old label (for compatibility) and the circular widget
+            self.widgets.c_t_s_value_2.setText(str(self.current_countdown_value))
+            if self.current_circular_countdown:
+                # Animate to the new value over 1 second
+                self.current_circular_countdown.animate_to(self.current_countdown_value, duration_ms=1000)
+            
+            # Check if we just reached 0
+            if self.current_countdown_value == 0:
+                # Emit signal that countdown reached 0
+                self.countdown_zero_signal.emit()
         else:
             self.widgets.c_t_s_value_2.setText("0")
+            if self.current_circular_countdown:
+                self.current_circular_countdown.set_value(0, self.current_countdown_max)
             self.current_countdown_timer.stop()
 
     def update_next_countdown(self):
         """Update next task countdown display"""
         if self.next_countdown_value > 0:
-            self.widgets.n_t_s_value_2.setText(str(self.next_countdown_value))
             self.next_countdown_value -= 1
+            # Update both the old label (for compatibility) and the circular widget
+            self.widgets.n_t_s_value_2.setText(str(self.next_countdown_value))
+            if self.next_circular_countdown:
+                # Animate to the new value over 1 second
+                self.next_circular_countdown.animate_to(self.next_countdown_value, duration_ms=1000)
         else:
             self.widgets.n_t_s_value_2.setText("0")
+            if self.next_circular_countdown:
+                self.next_circular_countdown.set_value(0, self.next_countdown_max)
             self.next_countdown_timer.stop()
     
     def start_current_countdown(self, seconds):
         """Start countdown for current task"""
         self.current_countdown_value = seconds
+        self.current_countdown_max = seconds  # Store max for progress calculation
+        if self.current_circular_countdown:
+            self.current_circular_countdown.set_value(seconds, seconds)
         self.current_countdown_timer.start()
     
     def start_next_countdown(self, seconds):
         """Start countdown for next task"""
         self.next_countdown_value = seconds
+        self.next_countdown_max = seconds  # Store max for progress calculation
+        if self.next_circular_countdown:
+            self.next_circular_countdown.set_value(seconds, seconds)
         self.next_countdown_timer.start()
     
     # LABEL UTILITY METHODS
