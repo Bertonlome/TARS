@@ -60,19 +60,19 @@ class TarsAgent:
             self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
             self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
             self.allow_transition, 
-            lambda: self.on_speak_action("Pitot-static set to pitot-static")))
+            self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
             self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
             self.allow_transition, 
-            lambda: self.on_speak_action("Engine anti-ice switches set as required")))
+            self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
             self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")], 
             self.allow_transition, 
-            lambda: self.on_speak_action("Windshield anti-ice switches set as required")))
+            self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")], 

@@ -396,8 +396,8 @@ QRadioButton::indicator:hover {
     border: 3px solid rgb(58, 66, 81);
 }
 QRadioButton::indicator:checked {
-    background: 3px solid rgb(94, 106, 130);
-	border: 3px solid rgb(52, 59, 72);	
+    background: #35de71;
+	border: 3px solid #35de71;	
 }
 
 /* /////////////////////////////////////////////////////////////////////////////////////////////////

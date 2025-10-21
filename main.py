@@ -52,6 +52,8 @@ class FSMWorker(QtCore.QObject):
         self.performance_metrics = {}
         self.loop_count = 0
         self.last_performance_report = time.perf_counter()
+        # Action inhibition flag
+        self.skip_current_action = False
 
     def start_performance_timer(self, action_name):
         """Start timing for a specific action"""
@@ -76,6 +78,12 @@ class FSMWorker(QtCore.QObject):
         # Reset counters
         self.performance_metrics.clear()
         self.loop_count = 0
+    
+    @QtCore.Slot()
+    def cancel_current_action(self):
+        """Slot to cancel/skip the current action execution"""
+        self.skip_current_action = True
+        print(f"Current action inhibited - user reclaimed task")
 
     @QtCore.Slot()
     def run(self):
@@ -125,14 +133,22 @@ class FSMWorker(QtCore.QObject):
                             # Wait for the countdown timer to signal completion
                             self.agent.main_window.countdown_completion_event.wait(timeout=delay + 2)  # +2s safety margin
                         
-                        # Emit signal right before action fires (after countdown completes)
-                        self.action_about_to_fire.emit(fsm.current_state)
+                        # Only emit signal if action is not being skipped
+                        if not self.skip_current_action:
+                            # Emit signal right before action fires (after countdown completes)
+                            self.action_about_to_fire.emit(fsm.current_state)
                         
                         if t.action:
-                            action_start = self.start_performance_timer("action_execution")
-                            action_result = t.action()
-                            action_time = self.stop_performance_timer("action_execution", action_start)
-                            print(f"Action execution took: {action_time*1000:.2f}ms")
+                            # Check if action should be skipped (user cancelled)
+                            if self.skip_current_action:
+                                print(f"⏭️ Skipping action for {fsm.current_state.task_object} - user reclaimed task")
+                                self.skip_current_action = False  # Reset flag
+                                action_result = False  # No TTS to wait for
+                            else:
+                                action_start = self.start_performance_timer("action_execution")
+                                action_result = t.action()
+                                action_time = self.stop_performance_timer("action_execution", action_start)
+                                print(f"Action execution took: {action_time*1000:.2f}ms")
                             
                             # If it was a speech action, wait for TTS to complete
                             if action_result is True and self.agent.tts_completion_event:
@@ -368,8 +384,12 @@ class MainWindow(QMainWindow):
         """
         Handle task cancel signal from HomePage  
         """
-        # This is where MainWindow handles the task cancellation
-        print("Task cancelled")
+        # Signal FSM worker to skip the current action
+        print("⚠️ Task cancelled by user - inhibiting action")
+        self.fsm_worker.cancel_current_action()
+        
+        # Signal FSM to continue (don't wait for countdown)
+        self.countdown_completion_event.set()
     
     def handle_countdown_zero(self):
         """
@@ -388,6 +408,7 @@ class MainWindow(QMainWindow):
         if state_obj.autonomy_role == "performer":
             # Blue glow for performer tasks
             home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
+            home_page.current_circular_countdown.schedule_task_fired(1000, state_obj.delay_after_action * 1000)
 
     def get_home_page(self):
         """
@@ -473,18 +494,59 @@ class MainWindow(QMainWindow):
         home_page = self.get_home_page()
         home_page.current_countdown_timer.stop()
         home_page.next_countdown_timer.stop()
+
+        home_page.reset_radio_button(self.ui.check_radio_button)
+        self.ui.c_t_s_unit_2.hide()
+        self.ui.c_t_s_value_2.hide()
         
         # For current task counter (uses delay_before_action)
-        try:
-            seconds = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
-            print(f"\nDelay_before_action for task {current_state_obj.task_object}: {seconds} seconds")
-            self.ui.c_t_s_value_2.setText(str(seconds))
-            if seconds > 0:
-                home_page.start_current_countdown(seconds)  # Use the proper method
-            else:
-                home_page.current_countdown_value = 0
-        except (ValueError, TypeError, AttributeError):
-            self.ui.c_t_s_value_2.setText("0")
+        if current_state_obj.autonomy_role != "performer":
+            # Human task - hide the circular countdown but keep timeline animations
+            if home_page.current_circular_countdown:
+                home_page.current_circular_countdown.hide()
+            # Handle human task (immediate completion of animations, no countdown)
+            home_page.handle_human_task()
+            # Update UI text for human tasks
+            self.ui.c_t_s_value_2.setText("Human")
+        else:
+            # TARS task - show the circular countdown and start countdown
+            if home_page.current_circular_countdown:
+                home_page.current_circular_countdown.show()
+            try:
+                seconds = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
+                print(f"\nDelay_before_action for task {current_state_obj.task_object}: {seconds} seconds")
+                self.ui.c_t_s_value_2.setText(str(seconds))
+                if seconds > 0:
+                    home_page.start_current_countdown(seconds)  # Use the proper method
+                else:
+                    # For 0-second TARS tasks, initialize and immediately complete the animation
+                    home_page.current_countdown_value = 0
+                    home_page.current_countdown_max = 1  # Set a default for progress calculation
+                    if home_page.current_circular_countdown:
+                        home_page.current_circular_countdown.set_value(0, 0)
+                    
+                    # Initialize task border animation and immediately complete it
+                    if home_page.task_timeline_widget:
+                        # Directly set both target and current progress to 1.0 (no animation)
+                        home_page.task_timeline_widget._target_task_progress = 1.0
+                        home_page.task_timeline_widget._current_task_progress = 1.0
+                        # Force a repaint to show the blue border immediately
+                        home_page.task_timeline_widget.update()
+                        # Mark task as complete and prepare connection animation
+                        home_page.task_timeline_widget.complete_current_task()
+                        # The connection animation progress will be driven by next_countdown timer
+                        # Calculate current connection progress based on how much next_countdown has elapsed
+                        if home_page.next_countdown_max > 0 and home_page.next_countdown_value < home_page.next_countdown_max:
+                            elapsed_progress = 1.0 - (home_page.next_countdown_value / home_page.next_countdown_max)
+                            home_page.task_timeline_widget.set_connection_progress(elapsed_progress)
+                        else:
+                            # Next countdown hasn't started yet or just started
+                            home_page.task_timeline_widget.set_connection_progress(0.0)
+                    
+                    # Emit completion signal for FSM
+                    home_page.countdown_zero_signal.emit()
+            except (ValueError, TypeError, AttributeError):
+                self.ui.c_t_s_value_2.setText("0")
 
         # For next task counter (current delay_after_action + next delay_before_action)
         try:
@@ -512,6 +574,7 @@ class MainWindow(QMainWindow):
         self.ui.n_g_label_2.setText(next_procedure_text)
         self.ui.n_t_label_2.setText(next_task_text)
         self.ui.alert_label_2.setText(f"{current_procedure_text}")
+        self.ui.stack_container_title.setText(f"Procedure Timeline: {current_procedure_text}")
         
         # Handle previous task autonomy role display
         if previous_state_obj is not None:
@@ -523,32 +586,18 @@ class MainWindow(QMainWindow):
             self.ui.p_t_prog_widget_2.hide()
         
         self.remove_glow(self.ui.current_task_container_3)
+        
 
         # Handle current task autonomy role display and buttons
         if current_state_obj.autonomy_role != "performer":
             self.get_home_page().hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
             self.ui.cancel_task_button_2.hide()
-            #self.ui.task_done_button.show()
-            #self.ui.task_done_button.setStyleSheet(
-                #"""
-                #border: 2px solid #3399ff;
-                #border-radius: 5px;
-                #background-color: rgba(0, 168, 120, 255);
-                #font: 600 16pt "JetBrains Mono";
-                #""")
         else:
             self.get_home_page().show_label(self.ui.c_t_prog_widget_2)
-            # Glow effect will be triggered when action is about to fire (after countdown)
-            #self.ui.task_done_button.hide()
-            self.ui.cancel_task_button_2.show()            
-            #self.ui.task_done_button.setStyleSheet(
-                #"""
-                #border: 2px solid #3399ff;
-                #border-radius: 5px;
-                #background-color: rgba(208, 04, 04, 255);
-                #font: 600 16pt "JetBrains Mono";
-                #""")
+            # Only reset button style if it's currently hidden (new task starting)
+            if not self.ui.cancel_task_button_2.isVisible():
+                self.get_home_page().show_button(self.ui.cancel_task_button_2, "red")
 
         # Handle next task autonomy role display
         if next_state_obj is not None:

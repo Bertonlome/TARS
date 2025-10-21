@@ -2029,54 +2029,6 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                      </layout>
                                     </widget>
                                    </item>
-                                   <item>
-                                    <layout class="QVBoxLayout" name="p_t_m_container_2">
-                                     <item>
-                                      <widget class="QLabel" name="p_t_m_value_2">
-                                       <property name="styleSheet">
-                                        <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
-                                       </property>
-                                       <property name="text">
-                                        <string>0</string>
-                                       </property>
-                                      </widget>
-                                     </item>
-                                     <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                      <widget class="QLabel" name="p_t_m_unit_2">
-                                       <property name="styleSheet">
-                                        <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
-                                       </property>
-                                       <property name="text">
-                                        <string>minutes</string>
-                                       </property>
-                                      </widget>
-                                     </item>
-                                    </layout>
-                                   </item>
-                                   <item>
-                                    <layout class="QVBoxLayout" name="p_t_s_container_2">
-                                     <item>
-                                      <widget class="QLabel" name="p_t_s_value_2">
-                                       <property name="styleSheet">
-                                        <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
-                                       </property>
-                                       <property name="text">
-                                        <string>0</string>
-                                       </property>
-                                      </widget>
-                                     </item>
-                                     <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                      <widget class="QLabel" name="p_t_s_unit_2">
-                                       <property name="styleSheet">
-                                        <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
-                                       </property>
-                                       <property name="text">
-                                        <string>seconds</string>
-                                       </property>
-                                      </widget>
-                                     </item>
-                                    </layout>
-                                   </item>
                                   </layout>
                                  </widget>
                                 </item>
@@ -2170,6 +2122,40 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                  </widget>
                                 </item>
                                 <item>
+                                 <widget class="QRadioButton" name="check_radio_button">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="font">
+                                   <font>
+                                    <family>JetBrains Mono</family>
+                                    <pointsize>16</pointsize>
+                                    <italic>false</italic>
+                                    <strikeout>false</strikeout>
+                                    <fontweight>DemiBold</fontweight>
+                                   </font>
+                                  </property>
+                                  <property name="layoutDirection">
+                                   <enum>Qt::LayoutDirection::RightToLeft</enum>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">padding: 5px,5px;padding-left:10px;padding-right:10px; border: 2px solid rgba(221,221,221,255);
+    border-radius: 5px;
+    background-color: rgba(33, 37, 43, 255);
+font: 600 16pt &quot;JetBrains Mono&quot;;</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>CHECK</string>
+                                  </property>
+                                  <property name="checked">
+                                   <bool>false</bool>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
                                  <widget class="QPushButton" name="cancel_task_button_2">
                                   <property name="minimumSize">
                                    <size>
@@ -2184,7 +2170,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                    </size>
                                   </property>
                                   <property name="styleSheet">
-                                   <string notr="true">border: 2px solid rgba(235, 0, 20, 255);
+                                   <string notr="true">padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);
     border-radius: 5px;
     background-color: rgba(33, 37, 43, 255);
 font: 600 16pt &quot;JetBrains Mono&quot;;</string>
@@ -2197,33 +2183,6 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                     <normaloff>:/icons/images/icons/alarm-noack-iec.svg</normaloff>:/icons/images/icons/alarm-noack-iec.svg</iconset>
                                   </property>
                                  </widget>
-                                </item>
-                                <item>
-                                 <layout class="QVBoxLayout" name="c_t_m_container_2">
-                                  <property name="spacing">
-                                   <number>6</number>
-                                  </property>
-                                  <item>
-                                   <widget class="QLabel" name="c_t_m_value_2">
-                                    <property name="styleSheet">
-                                     <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
-                                    </property>
-                                    <property name="text">
-                                     <string>0</string>
-                                    </property>
-                                   </widget>
-                                  </item>
-                                  <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                   <widget class="QLabel" name="c_t_m_unit_2">
-                                    <property name="styleSheet">
-                                     <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
-                                    </property>
-                                    <property name="text">
-                                     <string>minutes</string>
-                                    </property>
-                                   </widget>
-                                  </item>
-                                 </layout>
                                 </item>
                                 <item>
                                  <layout class="QVBoxLayout" name="c_t_s_container_2">
@@ -2345,30 +2304,6 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                       </item>
                                      </layout>
                                     </widget>
-                                   </item>
-                                   <item>
-                                    <layout class="QVBoxLayout" name="n_t_m_container_2">
-                                     <item>
-                                      <widget class="QLabel" name="n_t_m_value_2">
-                                       <property name="styleSheet">
-                                        <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
-                                       </property>
-                                       <property name="text">
-                                        <string>0</string>
-                                       </property>
-                                      </widget>
-                                     </item>
-                                     <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                      <widget class="QLabel" name="n_t_m_unit_2">
-                                       <property name="styleSheet">
-                                        <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
-                                       </property>
-                                       <property name="text">
-                                        <string>minutes</string>
-                                       </property>
-                                      </widget>
-                                     </item>
-                                    </layout>
                                    </item>
                                    <item>
                                     <layout class="QVBoxLayout" name="n_t_s_container_2">

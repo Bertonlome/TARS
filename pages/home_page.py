@@ -66,6 +66,38 @@ class HomePage(BasePage):
         self._glow_timer = None
         self._glow_steps = []
         self._glow_index = 0
+
+        radio_style = """
+        QRadioButton {
+            padding: 5px 5px;
+            padding-left: 10px;
+            padding-right: 10px;
+            border: 2px solid rgba(221,221,221,255);
+            border-radius: 5px;
+            background-color: rgba(33, 37, 43, 255);
+            font: 600 16pt "JetBrains Mono";
+            color: white;
+        }
+        QRadioButton::indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 10px;
+            border: 3px solid rgb(52, 59, 72);
+            background: rgb(44, 49, 60);
+        }
+        QRadioButton::indicator:hover {
+            border: 3px solid rgb(58, 66, 81);
+        }
+        QRadioButton::indicator:checked {
+            background: #35de71;
+            border: 3px solid rgb(52, 59, 72);
+        }
+        QRadioButton:checked {
+            border: 2px solid #35de71;
+        }
+        """
+    
+        self.widgets.check_radio_button.setStyleSheet(radio_style)
         
         self.setup_page()
     
@@ -143,12 +175,24 @@ class HomePage(BasePage):
             current_state_obj: State object with procedure, task_object, value attributes
         """
         if self.task_timeline_widget and current_state_obj:
+            # Get previous task key to detect task changes
+            previous_task_key = self.task_timeline_widget._current_task_key
+            
             # Set current procedure
             self.task_timeline_widget.set_current_procedure(current_state_obj.procedure)
             
             # Set current task (highlight it) - use the same key format as agent
             task_key = (current_state_obj.procedure, current_state_obj.task_object, current_state_obj.value)
             self.task_timeline_widget.set_current_task(task_key)
+            
+            # If task actually changed, advance the animation
+            if previous_task_key != task_key and previous_task_key is not None:
+                print(f"Task changed from {previous_task_key} to {task_key}")
+                self.task_timeline_widget.advance_to_next_task()
+                # Don't start connection animation here - it will start when next_countdown begins
+            elif previous_task_key is None:
+                # First task - reset animation
+                self.task_timeline_widget.reset_animation()
     
     def refresh_task_timeline_data(self):
         """Refresh task timeline data from agent (call when agent data updates)"""
@@ -189,14 +233,29 @@ class HomePage(BasePage):
                 # Animate to the new value over 1 second
                 self.current_circular_countdown.animate_to(self.current_countdown_value, duration_ms=1000)
             
+            # Update timeline animation for current task border (delay_before_action countdown)
+            if self.task_timeline_widget and self.current_countdown_max > 0:
+                # Progress from 0.0 to 1.0 as countdown decreases
+                progress = 1.0 - (self.current_countdown_value / self.current_countdown_max)
+                self.task_timeline_widget.set_task_border_progress(progress)
+            
             # Check if we just reached 0
             if self.current_countdown_value == 0:
+                # Task border is now complete - NOW start the connection animation
+                if self.task_timeline_widget:
+                    self.task_timeline_widget.complete_current_task()
+                    # Start connection animation immediately after task completion
+                    self.task_timeline_widget._active_connection_index = self.task_timeline_widget._current_task_index
+                    self.task_timeline_widget.set_connection_progress(0.0)
                 # Emit signal that countdown reached 0
                 self.countdown_zero_signal.emit()
         else:
             self.widgets.c_t_s_value_2.setText("0")
             if self.current_circular_countdown:
                 self.current_circular_countdown.set_value(0, self.current_countdown_max)
+            # Complete the timeline animation for current task border
+            if self.task_timeline_widget:
+                self.task_timeline_widget.complete_current_task()
             self.current_countdown_timer.stop()
 
     def update_next_countdown(self):
@@ -208,10 +267,22 @@ class HomePage(BasePage):
             if self.next_circular_countdown:
                 # Animate to the new value over 1 second
                 self.next_circular_countdown.animate_to(self.next_countdown_value, duration_ms=1000)
+            
+            # Only animate connection line if current task border is complete (progress = 1.0)
+            if self.task_timeline_widget and self.next_countdown_max > 0:
+                # Check if current task border is complete
+                if self.task_timeline_widget._current_task_progress >= 1.0:
+                    # Current task is complete, now animate the connection
+                    progress = 1.0 - (self.next_countdown_value / self.next_countdown_max)
+                    self.task_timeline_widget.set_connection_progress(progress)
+                # If current task border isn't complete, don't animate connection yet
         else:
             self.widgets.n_t_s_value_2.setText("0")
             if self.next_circular_countdown:
                 self.next_circular_countdown.set_value(0, self.next_countdown_max)
+            # Complete the connection animation to next task
+            if self.task_timeline_widget:
+                self.task_timeline_widget.set_connection_progress(1.0)
             self.next_countdown_timer.stop()
     
     def start_current_countdown(self, seconds):
@@ -220,6 +291,9 @@ class HomePage(BasePage):
         self.current_countdown_max = seconds  # Store max for progress calculation
         if self.current_circular_countdown:
             self.current_circular_countdown.set_value(seconds, seconds)
+        # Reset task border animation when starting new countdown
+        if self.task_timeline_widget:
+            self.task_timeline_widget.set_task_border_progress(0.0)
         self.current_countdown_timer.start()
     
     def start_next_countdown(self, seconds):
@@ -228,7 +302,31 @@ class HomePage(BasePage):
         self.next_countdown_max = seconds  # Store max for progress calculation
         if self.next_circular_countdown:
             self.next_circular_countdown.set_value(seconds, seconds)
+        # DON'T start connection animation here - it will start when current task border completes
+        # Just prepare the connection index but keep progress at 0
+        if self.task_timeline_widget:
+            self.task_timeline_widget._active_connection_index = self.task_timeline_widget._current_task_index
+            # Connection stays at 0 until current task border is complete
         self.next_countdown_timer.start()
+        self.next_countdown_timer.start()
+    
+    def handle_human_task(self):
+        """Handle task when performer is human (no countdown needed)"""
+        # Stop any running countdown
+        self.current_countdown_timer.stop()
+        self.current_countdown_value = 0
+        self.current_countdown_max = 1  # Set a default for progress calculation
+        
+        # Immediately complete the task border animation for human tasks
+        if self.task_timeline_widget:
+            self.task_timeline_widget.set_task_border_progress(1.0)
+            self.task_timeline_widget.complete_current_task()
+            # Start connection animation immediately since there's no countdown
+            self.task_timeline_widget._active_connection_index = self.task_timeline_widget._current_task_index
+            self.task_timeline_widget.set_connection_progress(0.0)
+        
+        # Emit signal that the "countdown" is complete (for FSM synchronization)
+        self.countdown_zero_signal.emit()
     
     # LABEL UTILITY METHODS
     # ///////////////////////////////////////////////////////////////
@@ -260,7 +358,10 @@ class HomePage(BasePage):
                         border-radius: 5px;
                         background-color: rgba(0, 48, 20, 255);
                         font: 600 16pt "JetBrains Mono";
+                        outline: none;
                     """)
+            # Remove focus to prevent Qt's default blue focus border
+            btn.clearFocus()
         self.start_glow_effect(self.widgets.current_task_container_3, "green")
         
         # Emit signal to notify MainWindow
@@ -271,12 +372,36 @@ class HomePage(BasePage):
         btn = self.sender()
         if btn:  # Safety check
             btn.setStyleSheet(f"""
-                        border: 2px solid #3399ff;
+                        padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);
                         border-radius: 5px;
                         background-color: rgba(108, 04, 04, 255);
                         font: 600 16pt "JetBrains Mono";
+                        outline: none;
                     """)
+            # Remove focus to prevent Qt's default blue focus border
+            btn.clearFocus()
         self.start_glow_effect(self.widgets.current_task_container_3, "red")
+        
+        # Stop the countdown timer and update UI
+        self.current_countdown_timer.stop()
+        self.current_countdown_value = 0
+        if self.current_circular_countdown:
+            self.current_circular_countdown.hide()
+        self.widgets.c_t_s_unit_2.show()
+        self.widgets.c_t_s_value_2.show()
+        self.widgets.c_t_s_value_2.setText("N/A")
+        
+        # Complete the task border animation in timeline widget
+        if self.task_timeline_widget:
+            # Set border progress to 100% (completed)
+            self.task_timeline_widget._target_task_progress = 1.0
+            self.task_timeline_widget._current_task_progress = 1.0
+            # Mark task as complete and start connection animation
+            self.task_timeline_widget.complete_current_task()
+            self.task_timeline_widget.update()
+        
+        # Emit signal to inhibit current action
+        self.task_cancel_signal.emit()
         
         # Emit signal to notify MainWindow
         self.task_cancel_signal.emit()
@@ -337,23 +462,17 @@ class HomePage(BasePage):
                 }}
             """)
     
+    def reset_radio_button(self, button):
+        button.setChecked(False)
+
     def show_button(self, button, color):
         """Show button with specified color styling"""
-        if color == "green":
+        if color == "red":
             button.setStyleSheet("""
                 QPushButton {
-                    border: 2px solid #3399ff;
+                    padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);
                     border-radius: 5px;
-                    background-color: rgba(0, 168, 120, 255);
-                    font: 600 16pt "JetBrains Mono";
-                }
-            """)
-        elif color == "red":
-            button.setStyleSheet("""
-                QPushButton {
-                    border: 2px solid #3399ff;
-                    border-radius: 5px;
-                    background-color: rgba(168, 0, 0, 255);
+                    background-color: rgba(33, 37, 43, 255);
                     font: 600 16pt "JetBrains Mono";
                 }
             """)

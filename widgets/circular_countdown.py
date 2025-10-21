@@ -30,6 +30,12 @@ class CircularCountdown(QWidget):
         self._text_color = QColor(210, 210, 210)  # Text color
         self._ring_width = 8
         
+        # Task firing properties
+        self._show_tick = False
+        self._tick_color = QColor(85, 170, 255)  # Blue tick mark
+        self._tick_animation_timer = None
+        self._delayed_tick_timer = None  # Timer for delayed tick mark display
+        
         # Animation
         self._animation = QPropertyAnimation(self, b"progress")
         self._animation.setEasingCurve(QEasingCurve.Type.Linear)
@@ -99,7 +105,7 @@ class CircularCountdown(QWidget):
         self._animation.setEndValue(target_progress)    # Animate to target progress
         self._animation.start()
     
-    def set_colors(self, progress_color=None, background_color=None, text_color=None):
+    def set_colors(self, progress_color=None, background_color=None, text_color=None, tick_color=None):
         """
         Set custom colors for the widget
         
@@ -107,6 +113,7 @@ class CircularCountdown(QWidget):
             progress_color: Color for the progress arc
             background_color: Color for the background circle
             text_color: Color for the text
+            tick_color: Color for the tick mark when task fires
         """
         if progress_color:
             self._progress_color = QColor(progress_color)
@@ -114,11 +121,78 @@ class CircularCountdown(QWidget):
             self._circle_color = QColor(background_color)
         if text_color:
             self._text_color = QColor(text_color)
+        if tick_color:
+            self._tick_color = QColor(tick_color)
+        self.update()
+    
+    def show_task_fired(self, duration_ms=2000):
+        """
+        Show a tick mark indicating the task has fired
+        
+        Args:
+            duration_ms: How long to show the tick mark (default: 2 seconds)
+        """
+        # Stop any existing animation
+        if self._animation:
+            self._animation.stop()
+        
+        # Show tick mark
+        self._show_tick = True
+        self.update()
+        
+        # Set up timer to hide tick mark after duration
+        if self._tick_animation_timer:
+            self._tick_animation_timer.stop()
+            self._tick_animation_timer = None
+        
+        self._tick_animation_timer = QTimer()
+        self._tick_animation_timer.setSingleShot(True)
+        self._tick_animation_timer.timeout.connect(self._hide_tick_mark)
+        self._tick_animation_timer.start(duration_ms)
+    
+    def schedule_task_fired(self, delay_ms=500, duration_ms=2000):
+        """
+        Schedule a tick mark to appear after a delay (for synchronization)
+        
+        Args:
+            delay_ms: Delay before showing tick mark (default: 500ms = 0.5 seconds)
+            duration_ms: How long to show the tick mark (default: 2 seconds)
+        """
+        # Stop any existing delayed tick timer
+        if self._delayed_tick_timer:
+            self._delayed_tick_timer.stop()
+            self._delayed_tick_timer = None
+        
+        # Create timer for delayed tick mark
+        self._delayed_tick_timer = QTimer()
+        self._delayed_tick_timer.setSingleShot(True)
+        self._delayed_tick_timer.timeout.connect(lambda: self.show_task_fired(duration_ms))
+        self._delayed_tick_timer.start(delay_ms)
+    
+    def _hide_tick_mark(self):
+        """Hide the tick mark and return to normal countdown display"""
+        self._show_tick = False
+        self.update()
+        
+        # Clean up timer
+        if self._tick_animation_timer:
+            self._tick_animation_timer.stop()
+            self._tick_animation_timer = None
+    
+    def reset_to_countdown(self):
+        """Reset widget to normal countdown mode (hide tick mark)"""
+        self._show_tick = False
+        if self._tick_animation_timer:
+            self._tick_animation_timer.stop()
+            self._tick_animation_timer = None
+        if self._delayed_tick_timer:
+            self._delayed_tick_timer.stop()
+            self._delayed_tick_timer = None
         self.update()
     
     def paintEvent(self, event):
         """
-        Paint the circular countdown
+        Paint the circular countdown or tick mark
         """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -128,6 +202,17 @@ class CircularCountdown(QWidget):
         height = self.height()
         size = min(width, height)
         
+        if self._show_tick:
+            # Draw tick mark mode (task fired)
+            self._draw_tick_mark(painter, size)
+        else:
+            # Draw normal countdown mode
+            self._draw_countdown(painter, size)
+        
+        painter.end()
+    
+    def _draw_countdown(self, painter, size):
+        """Draw the normal countdown display"""
         # Calculate rectangle for arcs
         margin = self._ring_width
         rect = QtCore.QRectF(margin, margin, size - 2*margin, size - 2*margin)
@@ -170,7 +255,41 @@ class CircularCountdown(QWidget):
         font_small = QFont("JetBrains Mono", 9, QFont.Weight.Light)
         painter.setFont(font_small)
         
-        label_rect = QtCore.QRectF(0, size * 0.55, size, size * 0.45)
+        label_rect = QtCore.QRectF(0, size * 0.45, size, size * 0.45)
         painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, "sec")
+    
+    def _draw_tick_mark(self, painter, size):
+        """Draw the tick mark (task fired) display"""
+        # Draw background circle in green
+        margin = self._ring_width
+        rect = QtCore.QRectF(margin, margin, size - 2*margin, size - 2*margin)
         
-        painter.end()
+        pen = QPen(self._tick_color)
+        pen.setWidth(self._ring_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.drawArc(rect, 0, 360 * 16)  # Full circle in green
+        
+        # Draw tick mark (checkmark) in center
+        tick_pen = QPen(self._tick_color)
+        tick_pen.setWidth(4)
+        tick_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(tick_pen)
+        
+        # Calculate checkmark coordinates
+        center_x = size / 2
+        center_y = size / 2
+        check_size = size * 0.25  # Size of checkmark relative to widget
+        
+        # Checkmark points
+        from PySide6.QtCore import QPointF
+        # Start point (bottom-left of check)
+        p1 = QPointF(center_x - check_size * 0.5, center_y)
+        # Middle point (bottom of check)  
+        p2 = QPointF(center_x - check_size * 0.1, center_y + check_size * 0.3)
+        # End point (top-right of check)
+        p3 = QPointF(center_x + check_size * 0.5, center_y - check_size * 0.3)
+        
+        # Draw checkmark as two lines
+        painter.drawLine(p1, p2)  # Left stroke
+        painter.drawLine(p2, p3)  # Right stroke

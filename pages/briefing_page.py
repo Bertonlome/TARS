@@ -987,6 +987,16 @@ class BriefingPage(BasePage):
                 QRadioButton::indicator {
                     width: 15px;
                     height: 15px;
+                    border-radius: 10px;
+                    border: 3px solid rgb(52, 59, 72);
+                    background: rgb(44, 49, 60);
+                }
+                QRadioButton::indicator:hover {
+                    border: 3px solid rgb(58, 66, 81);
+                }
+                QRadioButton::indicator:checked {
+                    background: #35de71;
+                    border: 3px solid rgb(52, 59, 72);
                 }
             """
             

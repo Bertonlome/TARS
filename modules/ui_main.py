@@ -1169,40 +1169,6 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_10.addWidget(self.previous_task_container)
 
-        self.p_t_m_container_2 = QVBoxLayout()
-        self.p_t_m_container_2.setObjectName(u"p_t_m_container_2")
-        self.p_t_m_value_2 = QLabel(self.previous_task_container_6)
-        self.p_t_m_value_2.setObjectName(u"p_t_m_value_2")
-        self.p_t_m_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
-
-        self.p_t_m_container_2.addWidget(self.p_t_m_value_2)
-
-        self.p_t_m_unit_2 = QLabel(self.previous_task_container_6)
-        self.p_t_m_unit_2.setObjectName(u"p_t_m_unit_2")
-        self.p_t_m_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
-
-        self.p_t_m_container_2.addWidget(self.p_t_m_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
-
-
-        self.horizontalLayout_10.addLayout(self.p_t_m_container_2)
-
-        self.p_t_s_container_2 = QVBoxLayout()
-        self.p_t_s_container_2.setObjectName(u"p_t_s_container_2")
-        self.p_t_s_value_2 = QLabel(self.previous_task_container_6)
-        self.p_t_s_value_2.setObjectName(u"p_t_s_value_2")
-        self.p_t_s_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
-
-        self.p_t_s_container_2.addWidget(self.p_t_s_value_2)
-
-        self.p_t_s_unit_2 = QLabel(self.previous_task_container_6)
-        self.p_t_s_unit_2.setObjectName(u"p_t_s_unit_2")
-        self.p_t_s_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
-
-        self.p_t_s_container_2.addWidget(self.p_t_s_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
-
-
-        self.horizontalLayout_10.addLayout(self.p_t_s_container_2)
-
 
         self.previous_task_container_5.addWidget(self.previous_task_container_6)
 
@@ -1254,11 +1220,34 @@ class Ui_MainWindow(object):
 
         self.current_task_container_4.addWidget(self.current_task_container)
 
+        self.check_radio_button = QRadioButton(self.current_task_container_3)
+        self.check_radio_button.setObjectName(u"check_radio_button")
+        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        sizePolicy5.setHorizontalStretch(0)
+        sizePolicy5.setVerticalStretch(0)
+        sizePolicy5.setHeightForWidth(self.check_radio_button.sizePolicy().hasHeightForWidth())
+        self.check_radio_button.setSizePolicy(sizePolicy5)
+        font5 = QFont()
+        font5.setFamilies([u"JetBrains Mono"])
+        font5.setPointSize(16)
+        font5.setWeight(QFont.DemiBold)
+        font5.setItalic(False)
+        font5.setStrikeOut(False)
+        self.check_radio_button.setFont(font5)
+        self.check_radio_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.check_radio_button.setStyleSheet(u"padding: 5px,5px;padding-left:10px;padding-right:10px; border: 2px solid rgba(221,221,221,255);\n"
+"    border-radius: 5px;\n"
+"    background-color: rgba(33, 37, 43, 255);\n"
+"font: 600 16pt \"JetBrains Mono\";")
+        self.check_radio_button.setChecked(False)
+
+        self.current_task_container_4.addWidget(self.check_radio_button)
+
         self.cancel_task_button_2 = QPushButton(self.current_task_container_3)
         self.cancel_task_button_2.setObjectName(u"cancel_task_button_2")
         self.cancel_task_button_2.setMinimumSize(QSize(128, 32))
         self.cancel_task_button_2.setMaximumSize(QSize(150, 16777215))
-        self.cancel_task_button_2.setStyleSheet(u"border: 2px solid rgba(235, 0, 20, 255);\n"
+        self.cancel_task_button_2.setStyleSheet(u"padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);\n"
 "    border-radius: 5px;\n"
 "    background-color: rgba(33, 37, 43, 255);\n"
 "font: 600 16pt \"JetBrains Mono\";")
@@ -1267,24 +1256,6 @@ class Ui_MainWindow(object):
         self.cancel_task_button_2.setIcon(icon4)
 
         self.current_task_container_4.addWidget(self.cancel_task_button_2)
-
-        self.c_t_m_container_2 = QVBoxLayout()
-        self.c_t_m_container_2.setSpacing(6)
-        self.c_t_m_container_2.setObjectName(u"c_t_m_container_2")
-        self.c_t_m_value_2 = QLabel(self.current_task_container_3)
-        self.c_t_m_value_2.setObjectName(u"c_t_m_value_2")
-        self.c_t_m_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
-
-        self.c_t_m_container_2.addWidget(self.c_t_m_value_2)
-
-        self.c_t_m_unit_2 = QLabel(self.current_task_container_3)
-        self.c_t_m_unit_2.setObjectName(u"c_t_m_unit_2")
-        self.c_t_m_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
-
-        self.c_t_m_container_2.addWidget(self.c_t_m_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
-
-
-        self.current_task_container_4.addLayout(self.c_t_m_container_2)
 
         self.c_t_s_container_2 = QVBoxLayout()
         self.c_t_s_container_2.setObjectName(u"c_t_s_container_2")
@@ -1355,23 +1326,6 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_13.addWidget(self.next_task_container)
 
-        self.n_t_m_container_2 = QVBoxLayout()
-        self.n_t_m_container_2.setObjectName(u"n_t_m_container_2")
-        self.n_t_m_value_2 = QLabel(self.next_task_container_6)
-        self.n_t_m_value_2.setObjectName(u"n_t_m_value_2")
-        self.n_t_m_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
-
-        self.n_t_m_container_2.addWidget(self.n_t_m_value_2)
-
-        self.n_t_m_unit_2 = QLabel(self.next_task_container_6)
-        self.n_t_m_unit_2.setObjectName(u"n_t_m_unit_2")
-        self.n_t_m_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
-
-        self.n_t_m_container_2.addWidget(self.n_t_m_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
-
-
-        self.horizontalLayout_13.addLayout(self.n_t_m_container_2)
-
         self.n_t_s_container_2 = QVBoxLayout()
         self.n_t_s_container_2.setObjectName(u"n_t_s_container_2")
         self.n_t_s_value_2 = QLabel(self.next_task_container_6)
@@ -1403,11 +1357,11 @@ class Ui_MainWindow(object):
 
         self.stack_container = QWidget(self.home)
         self.stack_container.setObjectName(u"stack_container")
-        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
-        sizePolicy5.setHorizontalStretch(0)
-        sizePolicy5.setVerticalStretch(0)
-        sizePolicy5.setHeightForWidth(self.stack_container.sizePolicy().hasHeightForWidth())
-        self.stack_container.setSizePolicy(sizePolicy5)
+        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        sizePolicy6.setHorizontalStretch(0)
+        sizePolicy6.setVerticalStretch(0)
+        sizePolicy6.setHeightForWidth(self.stack_container.sizePolicy().hasHeightForWidth())
+        self.stack_container.setSizePolicy(sizePolicy6)
         self.stack_container.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);border-radius: 10px;background-color: rgba(33, 37, 43, 255)")
         self.stack_vertical_layout_container = QVBoxLayout(self.stack_container)
         self.stack_vertical_layout_container.setObjectName(u"stack_vertical_layout_container")
@@ -1438,11 +1392,11 @@ class Ui_MainWindow(object):
 
         self.interaction_panel_text = QLabel(self.interaction_container)
         self.interaction_panel_text.setObjectName(u"interaction_panel_text")
-        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy6.setHorizontalStretch(0)
-        sizePolicy6.setVerticalStretch(1)
-        sizePolicy6.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
-        self.interaction_panel_text.setSizePolicy(sizePolicy6)
+        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy7.setHorizontalStretch(0)
+        sizePolicy7.setVerticalStretch(1)
+        sizePolicy7.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
+        self.interaction_panel_text.setSizePolicy(sizePolicy7)
         self.interaction_panel_text.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\";")
 
         self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -1711,10 +1665,10 @@ class Ui_MainWindow(object):
         self.tableWidget.setHorizontalHeaderItem(3, __qtablewidgetitem3)
         if (self.tableWidget.rowCount() < 16):
             self.tableWidget.setRowCount(16)
-        font5 = QFont()
-        font5.setFamilies([u"Segoe UI"])
+        font6 = QFont()
+        font6.setFamilies([u"Segoe UI"])
         __qtablewidgetitem4 = QTableWidgetItem()
-        __qtablewidgetitem4.setFont(font5);
+        __qtablewidgetitem4.setFont(font6);
         self.tableWidget.setVerticalHeaderItem(0, __qtablewidgetitem4)
         __qtablewidgetitem5 = QTableWidgetItem()
         self.tableWidget.setVerticalHeaderItem(1, __qtablewidgetitem5)
@@ -1755,11 +1709,11 @@ class Ui_MainWindow(object):
         __qtablewidgetitem23 = QTableWidgetItem()
         self.tableWidget.setItem(0, 3, __qtablewidgetitem23)
         self.tableWidget.setObjectName(u"tableWidget")
-        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy7.setHorizontalStretch(0)
-        sizePolicy7.setVerticalStretch(0)
-        sizePolicy7.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
-        self.tableWidget.setSizePolicy(sizePolicy7)
+        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy8.setHorizontalStretch(0)
+        sizePolicy8.setVerticalStretch(0)
+        sizePolicy8.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicy8)
         palette = QPalette()
         brush = QBrush(QColor(221, 221, 221, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -2042,11 +1996,11 @@ class Ui_MainWindow(object):
         self.creditsLabel = QLabel(self.bottomBar)
         self.creditsLabel.setObjectName(u"creditsLabel")
         self.creditsLabel.setMaximumSize(QSize(16777215, 16))
-        font6 = QFont()
-        font6.setFamilies([u"Segoe UI"])
-        font6.setBold(False)
-        font6.setItalic(False)
-        self.creditsLabel.setFont(font6)
+        font7 = QFont()
+        font7.setFamilies([u"Segoe UI"])
+        font7.setBold(False)
+        font7.setItalic(False)
+        self.creditsLabel.setFont(font7)
         self.creditsLabel.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
 
         self.horizontalLayout_5.addWidget(self.creditsLabel)
@@ -2148,23 +2102,16 @@ class Ui_MainWindow(object):
         self.p_t_prog_widget_2.setText("")
         self.p_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.p_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.p_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
-        self.p_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
-        self.p_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
-        self.p_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
         self.c_t_prog_widget_2.setText("")
         self.c_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.c_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.check_radio_button.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
         self.cancel_task_button_2.setText(QCoreApplication.translate("MainWindow", u"CANCEL", None))
-        self.c_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
-        self.c_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
         self.c_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.c_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
         self.n_t_prog_widget_2.setText("")
         self.n_t_label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.n_g_label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.n_t_m_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
-        self.n_t_m_unit_2.setText(QCoreApplication.translate("MainWindow", u"minutes", None))
         self.n_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
         self.stack_container_title.setText(QCoreApplication.translate("MainWindow", u"Procedure Timeline", None))

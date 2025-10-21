@@ -63,7 +63,7 @@ def register_finished_callback(cb):
 
 def speak_wait(text: str):
     """Queue text to be spoken."""
-    _speech_queue.put("TARS -" + text)
+    _speech_queue.put(text)
 
 def shutdown():
     """Call this on program exit to cleanly stop the TTS thread."""
