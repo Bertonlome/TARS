@@ -184,9 +184,14 @@ class FSMWorker(QtCore.QObject):
         if delay is None:
             delay = 0
         elif isinstance(delay, str):
-            try:
-                delay = float(delay)
-            except ValueError:
+            if delay.lower() == 'is_acked':
+                # Acknowledgment-based waiting - return 0, will be handled by UI
+                print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment before action")
+                delay = 0
+            else:
+                try:
+                    delay = float(delay)
+                except ValueError:
                     delay = 0
         if delay and delay > 0:
             print(f"waiting for {delay} seconds before executing action for state ({state.procedure}, {state.task_object}, {state.value})")
@@ -197,9 +202,14 @@ class FSMWorker(QtCore.QObject):
         if delay is None:
             delay = 0
         elif isinstance(delay, str):
-            try:
-                delay = float(delay)
-            except ValueError:
+            if delay.lower() == 'is_acked':
+                # Acknowledgment-based waiting - return 0, will be handled by UI
+                print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment after action")
+                delay = 0
+            else:
+                try:
+                    delay = float(delay)
+                except ValueError:
                     delay = 0
         if delay and delay > 0:
             print(f"waiting for {delay} seconds after executing action for state ({state.procedure}, {state.task_object}, {state.value})")
@@ -408,7 +418,19 @@ class MainWindow(QMainWindow):
         if state_obj.autonomy_role == "performer":
             # Blue glow for performer tasks
             home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
-            home_page.current_circular_countdown.schedule_task_fired(1000, state_obj.delay_after_action * 1000)
+            
+            # Get delay_after_action and convert to int for timer
+            delay_after = state_obj.delay_after_action
+            if delay_after == 'is_acked':
+                # Don't show tick mark for acknowledgment-based tasks
+                pass
+            else:
+                try:
+                    delay_after_ms = int(float(delay_after) * 1000)
+                    home_page.current_circular_countdown.schedule_task_fired(1000, delay_after_ms)
+                except (ValueError, TypeError):
+                    # If conversion fails, don't schedule tick mark
+                    pass
 
     def get_home_page(self):
         """
@@ -551,18 +573,31 @@ class MainWindow(QMainWindow):
         # For next task counter (current delay_after_action + next delay_before_action)
         try:
             if next_state_obj:
-                current_delay_after = int(current_state_obj.delay_after_action) if current_state_obj.delay_after_action else 0
-                next_delay_before = int(next_state_obj.delay_before_action) if next_state_obj.delay_before_action else 0
-                total_seconds = current_delay_after + next_delay_before
-                print(f"\nNext task : {next_state_obj.task_object} estimated time: {total_seconds} seconds")
-                self.ui.n_t_s_value_2.setText(str(total_seconds))
-                if total_seconds > 0:
-                    home_page.start_next_countdown(total_seconds)  # Use the proper method
-                else:
+                # Check if either delay is 'is_acked' (waiting for human input)
+                current_delay_after = current_state_obj.delay_after_action
+                next_delay_before = next_state_obj.delay_before_action
+                
+                if current_delay_after == 'is_acked' or next_delay_before == 'is_acked':
+                    # Waiting for human acknowledgment - show N/A
+                    self.ui.n_t_s_value_2.setText("N/A")
+                    home_page.next_countdown_timer.stop()
                     home_page.next_countdown_value = 0
+                    print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
+                else:
+                    # Normal time-based delays
+                    current_delay_after = int(current_delay_after) if current_delay_after else 0
+                    next_delay_before = int(next_delay_before) if next_delay_before else 0
+                    total_seconds = current_delay_after + next_delay_before
+                    print(f"\nNext task : {next_state_obj.task_object} estimated time: {total_seconds} seconds")
+                    self.ui.n_t_s_value_2.setText(str(total_seconds))
+                    if total_seconds > 0:
+                        home_page.start_next_countdown(total_seconds)  # Use the proper method
+                    else:
+                        home_page.next_countdown_value = 0
             else:
                 self.ui.n_t_s_value_2.setText("N/A")
-        except (ValueError, TypeError, AttributeError):
+        except (ValueError, TypeError, AttributeError) as e:
+            print(f"Error calculating next task countdown: {e}")
             home_page.next_countdown_timer.stop()
             self.ui.n_t_s_value_2.setText("N/A")
 

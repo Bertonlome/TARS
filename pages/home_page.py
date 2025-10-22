@@ -108,6 +108,7 @@ class HomePage(BasePage):
         # Connect task buttons to home page handlers
         #self.widgets.task_done_button.clicked.connect(self.task_done_clicked)
         self.widgets.int_panel_right_button.clicked.connect(self.task_done_clicked)
+        self.widgets.check_radio_button.clicked.connect(self.task_done_clicked)
         self.widgets.cancel_task_button_2.clicked.connect(self.task_cancel_clicked)
         self.widgets.int_panel_left_button.clicked.connect(self.task_cancel_clicked)
         
@@ -351,19 +352,7 @@ class HomePage(BasePage):
     # ///////////////////////////////////////////////////////////////
     def task_done_clicked(self):
         """Handle task done button click"""
-        btn = self.sender()
-        if btn:  # Safety check
-            btn.setStyleSheet(f"""
-                        border: 2px solid #3399ff;
-                        border-radius: 5px;
-                        background-color: rgba(0, 48, 20, 255);
-                        font: 600 16pt "JetBrains Mono";
-                        outline: none;
-                    """)
-            # Remove focus to prevent Qt's default blue focus border
-            btn.clearFocus()
         self.start_glow_effect(self.widgets.current_task_container_3, "green")
-        
         # Emit signal to notify MainWindow
         self.task_done_signal.emit()
         
