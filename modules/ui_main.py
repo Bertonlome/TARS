@@ -1355,24 +1355,48 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_22.addWidget(self.row_1_container)
 
-        self.stack_container = QWidget(self.home)
-        self.stack_container.setObjectName(u"stack_container")
-        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        self.stack_tab_container = QTabWidget(self.home)
+        self.stack_tab_container.setObjectName(u"stack_tab_container")
+        sizePolicy6 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
         sizePolicy6.setHorizontalStretch(0)
         sizePolicy6.setVerticalStretch(0)
-        sizePolicy6.setHeightForWidth(self.stack_container.sizePolicy().hasHeightForWidth())
-        self.stack_container.setSizePolicy(sizePolicy6)
-        self.stack_container.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);border-radius: 10px;background-color: rgba(33, 37, 43, 255)")
-        self.stack_vertical_layout_container = QVBoxLayout(self.stack_container)
-        self.stack_vertical_layout_container.setObjectName(u"stack_vertical_layout_container")
-        self.stack_container_title = QLabel(self.stack_container)
-        self.stack_container_title.setObjectName(u"stack_container_title")
-        self.stack_container_title.setStyleSheet(u"font: 500 20pt \"JetBrains Mono\";")
+        sizePolicy6.setHeightForWidth(self.stack_tab_container.sizePolicy().hasHeightForWidth())
+        self.stack_tab_container.setSizePolicy(sizePolicy6)
+        self.stack_tab_container.setStyleSheet(u"QTabWidget::pane {\n"
+"border: 2px solid rgb(40, 44, 52);\n"
+"border-radius: 10px;\n"
+"background-color: rgb(33, 37, 43);\n"
+"padding: 5px;\n"
+"}\n"
+"QTabBar::tab {\n"
+"background-color: rgb(44, 49, 60);\n"
+"color: rgb(210, 210, 210);\n"
+"border: 2px solid rgb(52, 59, 72);\n"
+"border-bottom: none;\n"
+"border-top-left-radius: 10px;\n"
+"border-top-right-radius: 10px;\n"
+"padding: 8px 16px;\n"
+"margin-right: 2px;\n"
+"font: 600 10pt \"JetBrains Mono\";\n"
+"}\n"
+"QTabBar::tab:selected {\n"
+"background-color: rgb(33, 37, 43);\n"
+"color: #55aaff;\n"
+"border-bottom: 2px solid rgb(33, 37, 43);\n"
+"}\n"
+"QTabBar::tab:hover {\n"
+"background-color: rgb(52, 59, 72);\n"
+"}")
+        self.stack_tab_1 = QWidget()
+        self.stack_tab_1.setObjectName(u"stack_tab_1")
+        self.stack_tab_1.setStyleSheet(u"background-color: rgba(33, 37, 43, 255);")
+        self.stack_tab_container.addTab(self.stack_tab_1, "")
+        self.stack_tab_2 = QWidget()
+        self.stack_tab_2.setObjectName(u"stack_tab_2")
+        self.stack_tab_2.setStyleSheet(u"background-color: rgba(33, 37, 43, 255)")
+        self.stack_tab_container.addTab(self.stack_tab_2, "")
 
-        self.stack_vertical_layout_container.addWidget(self.stack_container_title, 0, Qt.AlignmentFlag.AlignTop)
-
-
-        self.verticalLayout_22.addWidget(self.stack_container)
+        self.verticalLayout_22.addWidget(self.stack_tab_container)
 
         self.interaction_container = QWidget(self.home)
         self.interaction_container.setObjectName(u"interaction_container")
@@ -2037,6 +2061,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         self.stackedWidget.setCurrentIndex(0)
+        self.stack_tab_container.setCurrentIndex(0)
         self.tabWidget.setCurrentIndex(0)
 
 
@@ -2114,7 +2139,8 @@ class Ui_MainWindow(object):
         self.n_g_label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.n_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
-        self.stack_container_title.setText(QCoreApplication.translate("MainWindow", u"Procedure Timeline", None))
+        self.stack_tab_container.setTabText(self.stack_tab_container.indexOf(self.stack_tab_1), QCoreApplication.translate("MainWindow", u"Tab 1", None))
+        self.stack_tab_container.setTabText(self.stack_tab_container.indexOf(self.stack_tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))

@@ -41,6 +41,33 @@ class TarsAgent:
         
         # Reference to main window - will be set by MainWindow for countdown synchronization
         self.main_window = None
+        
+        # Input-to-condition mapping for event-driven monitoring
+        # Maps input names to condition function names that depend on them
+        self.input_to_conditions = {
+            'control_throttle': ['is_thrust_toga', 'is_throttle_clb'],
+            'control_gear': ['is_gear_up'],
+            'control_flaps': ['is_flaps_retracted'],
+            'airspeed': ['is_airspeed_alive', 'is_seventy_kts', 'is_v_one', 'is_v_rotate', 'is_airspeed_v_two', 'is_v2_plus_10', 'is_v2_plus_12'],
+            'altitude': ['is_400_ft_no_alarm', 'is_ap_altitude', 'is_v2_plus_12'],
+            'master_warning': ['is_alarm', 'is_400_ft_no_alarm', 'is_master_warning_reset'],
+            'e1_n1_percent': ['is_engine_spool_even', 'is_n1_percent_above_90', 'is_failed', 'is_not_failed'],
+            'e2_n1_percent': ['is_engine_spool_even', 'is_n1_percent_above_90', 'is_failed', 'is_not_failed'],
+            'vertical_speed': ['is_positive_rate'],
+            'pitch': ['is_pitch_maintained'],
+            'park_brake': ['is_brake_released'],
+            'n1_match_bug': ['is_fadec_bug_to'],
+            'l_throttle': ['is_throttle_idle', 'is_throttle_cutoff'],
+            'r_throttle': ['is_throttle_idle', 'is_throttle_cutoff'],
+            'fuel_boost_l': ['is_fuel_boost_off', 'is_fuel_boost_norm'],
+            'fuel_boost_r': ['is_fuel_boost_off', 'is_fuel_boost_norm'],
+            'test_knob': ['is_test_knob_turned'],
+            'l_gen_switch': ['is_gen_switch_off'],
+            'r_gen_switch': ['is_gen_switch_off'],
+            'l_ign_switch': ['is_ignition_switch_norm'],
+            'r_ign_switch': ['is_ignition_switch_norm'],
+            'slip': ['is_slip_skid_centered'],
+        }
 
         # Load task definitions with role allocations
         allocation_csv_path = Path(__file__).parent / "briefing_export_HIGH_LOA.csv"        
@@ -140,7 +167,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
             self.states[("TAKEOFF", "FADEC bug", "CHECK TO")], 
-            self.is_thrust_sensed, 
+            self.is_thrust_toga, 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
@@ -170,7 +197,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Brakes", "RELEASE")], 
             self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")], 
-            self.is_brake_released_sensed, 
+            self.is_brake_released, 
             lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].callout)))
         
         self.fsm.add_transition(Transition(
@@ -191,56 +218,99 @@ class TarsAgent:
             self.is_v_one, 
             lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].callout)))
         
+        # Rotation and initial climb if no alarms        
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")], 
             self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
-            self.allow_transition, 
+            lambda: not self.is_alarm(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
-            self.is_v_rotate, 
+            lambda: self.is_v_rotate and not self.is_alarm(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
-            self.is_pitch_maintained, 
+            lambda: self.is_pitch_maintained and not self.is_alarm(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
-            self.allow_transition, 
+            lambda: not self.is_alarm(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
             self.states[("TAKEOFF", "\"Positive rate, gear up\"", "ANNOUNCE")], 
-            self.is_positive_rate, 
+            lambda : self.is_positive_rate and not self.is_alarm(), 
             lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Positive rate, gear up\"", "ANNOUNCE")].callout)))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Positive rate, gear up\"", "ANNOUNCE")], 
             self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
-            self.allow_transition, 
+            lambda : not self.is_alarm(), 
             self.dummy_action))
         
         # Branch: Normal path to AFTER TAKEOFF
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")], 
-            self.is_400_ft, 
+            self.is_400_ft_no_alarm, 
             self.dummy_action))
         
-        # Branch: Emergency path - ENGINE FAILURE DURING TAKEOFF
+        # Branch: Emergency path - ENGINE FAILURE DURING TAKEOFF AFTER V1 added transitions for EACH state after V1
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")],
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")],
+            self.is_alarm,
+            self.dummy_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")],
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")],
+            self.is_alarm,
+            self.dummy_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Elevator Control", "ROTATE")],
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")],
+            self.is_alarm,
+            self.dummy_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")], 
+            self.is_alarm, 
+            self.dummy_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")], 
+            self.is_alarm, 
+            self.dummy_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")],
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")],
+            self.is_alarm,
+            self.dummy_action))
+        
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "\"Positive rate, gear up\"", "ANNOUNCE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")], 
+            self.is_alarm, 
+            self.dummy_action))
+
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")], 
             self.is_alarm, 
             lambda: self.on_speak_action("Engine failure detected")))
-        
+
         # ENG FAILURE DURING TAKEOFF transitions
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "APPLY")], 
@@ -353,7 +423,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Airspeed", "CHECK V2+10")], 
-            self.is_v2_plus_12, 
+            self.is_v2_plus_10, 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
@@ -591,12 +661,12 @@ class TarsAgent:
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "LANDING GEAR Handle", "UP")], 
-            self.states[("AFTER TAKEOFF", "Airspeed", "CHECK V2 + 12")], 
+            self.states[("AFTER TAKEOFF", "Airspeed", "CHECK V2 + 10")], 
             self.is_gear_up, 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
-            self.states[("AFTER TAKEOFF", "Airspeed", "CHECK V2 + 12")], 
+            self.states[("AFTER TAKEOFF", "Airspeed", "CHECK V2 + 10")], 
             self.states[("AFTER TAKEOFF", "Obstacles", "CHECK CLEAR")], 
             self.allow_transition, 
             self.dummy_action))
@@ -665,7 +735,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")], 
             self.states[("AFTER TAKEOFF", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")], 
-            self.is_failed, 
+            self.is_engine_failed, 
             lambda: self.on_speak_action("Start checklist: Engine Failure/Precautionary Shutdown Procedure and Checklist")))
         
         # ENGINE FAILURE/PRECAUTIONARY SHUTDOWN transitions
@@ -740,7 +810,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")], 
             self.states[finished_key], 
-            self.is_not_failed, 
+            self.is_engine_not_failed, 
             self.dummy_action))
 
         self.agent = Echo()
@@ -822,6 +892,19 @@ class TarsAgent:
                     
                     callout = row.get('Callout', '').strip()
                     
+                    # Parse condition monitoring fields
+                    condition_type = row.get('Condition Type', '').strip().lower()
+                    if not condition_type:
+                        condition_type = None
+                    
+                    condition_function = row.get('Condition Function', '').strip()
+                    if not condition_function:
+                        condition_function = None
+                    
+                    monitor_scope = row.get('Monitor Scope', '').strip().lower()
+                    if not monitor_scope:
+                        monitor_scope = None
+                    
                     # Create State object
                     state = State(
                         procedure=procedure,
@@ -836,7 +919,11 @@ class TarsAgent:
                         interaction=interaction,
                         delay_before_action=delay_before_action,
                         delay_after_action=delay_after_action,
-                        callout=callout
+                        callout=callout,
+                        condition=None,  # Initialize as None (will be set to True/False during monitoring)
+                        condition_type=condition_type,
+                        condition_function=condition_function,
+                        monitor_scope=monitor_scope
                     )
                     states[state_key] = state
                 else:
@@ -876,7 +963,7 @@ class TarsAgent:
             return True
         return False
 
-    def is_thrust_sensed(self):
+    def is_thrust_toga(self):
         if self.agent.control_throttle_i is not None and self.agent.control_throttle_i == 1:
             return True
         return False
@@ -900,7 +987,7 @@ class TarsAgent:
             return True
         return False
 
-    def is_brake_released_sensed(self):
+    def is_brake_released(self):
         if self.agent.park_brakes_i is not None and self.agent.park_brakes_i == 0:
             return True
         return False
@@ -931,14 +1018,20 @@ class TarsAgent:
                 return True
         return False
 
+    def is_slip_skid_centered(self):
+        if self.agent.slip_skid_i is not None and abs(self.agent.slip_skid_i) < 2:
+            return True
+        return False
+
     def is_positive_rate(self):
         if self.agent.vertical_speed_i is not None and self.agent.vertical_speed_i > 100:
             return True
         return False
     
-    def is_400_ft(self):
+    def is_400_ft_no_alarm(self):
         if self.agent.altitude_i is not None and self.agent.altitude_i >= 400:
-            return True
+            if self.agent.master_warning_i is None or self.agent.master_warning_i == 0:
+                return True
         return False
 
     def is_gear_up(self):
@@ -947,18 +1040,19 @@ class TarsAgent:
         return False
 
     def is_alarm(self):
+        # Just return the alarm condition - UI will auto-discover the procedure
         if self.agent.master_warning_i is not None and self.agent.master_warning_i == 1:
             return True
         return False
     
-    def is_failed(self):
+    def is_engine_failed(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e1_n1_percent_i < 50:
             return True
         if self.agent.e2_n1_percent_i is not None and self.agent.e2_n1_percent_i < 50:
             return True
         return False
 
-    def is_not_failed(self):
+    def is_engine_not_failed(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e1_n1_percent_i >= 50:
             if self.agent.e2_n1_percent_i is not None and self.agent.e2_n1_percent_i >= 50:
                 return True
@@ -979,8 +1073,8 @@ class TarsAgent:
             return True
         return False
     
-    def is_v2_plus_12(self):
-        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 132:
+    def is_v2_plus_10(self):
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 130:
             return True
         return False
     
@@ -1030,6 +1124,75 @@ class TarsAgent:
         if self.agent.l_ign_switch_i == 1 or self.agent.r_ign_switch_i == 1:
             return True
         return False
+    
+    def is_slip_skid_centered(self):
+        """Check if slip/skid indicator is centered (within tolerance)"""
+        if self.agent.slip_i is not None:
+            # Consider centered if within ±0.5 units
+            return abs(self.agent.slip_i) <= 0.5
+        return False
+    
+    def is_v2_plus_10(self):
+        """Check if airspeed is at V2+10 (120 + 10 = 130 kts)"""
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 130:
+            return True
+        return False
+    
+    def is_brake_released(self):
+        """Check if parking brake is released"""
+        if self.agent.park_brakes_i is not None and self.agent.park_brakes_i == 0:
+            return True
+        return False
+    
+    def check_affected_conditions(self, input_name, new_value, affected_condition_names):
+        """
+        Event-driven condition monitoring - called when an input changes
+        
+        Args:
+            input_name: Name of the input that changed (e.g., 'control_gear')
+            new_value: New value of the input
+            affected_condition_names: List of condition function names that depend on this input
+        """
+        # Only check if main_window and FSM worker are available
+        if not self.main_window or not hasattr(self.main_window, 'fsm_worker'):
+            return
+        
+        fsm_worker = self.main_window.fsm_worker
+        
+        # Iterate through all actively monitored conditions
+        for state_key, monitor_info in list(fsm_worker.active_monitored_conditions.items()):
+            condition_func_name = monitor_info['condition_func_name']
+            
+            # Is this monitored condition affected by the input that just changed?
+            if condition_func_name in affected_condition_names:
+                # Re-evaluate the condition
+                condition_func = monitor_info['condition_func']
+                try:
+                    current_value = condition_func()  # Call it (e.g., is_gear_up())
+                except Exception as e:
+                    print(f"Error evaluating condition {condition_func_name}: {e}")
+                    continue
+                
+                last_value = monitor_info['last_value']
+                
+                # Has the condition changed?
+                if current_value != last_value:
+                    # VIOLATION or RESTORATION detected!
+                    monitor_info['last_value'] = current_value
+                    state = monitor_info['state']
+                    
+                    # Update state.condition attribute
+                    state.condition = current_value
+                    
+                    # Emit signal to UI thread
+                    if current_value is False:
+                        # Condition violated (was True, now False)
+                        print(f"⚠️  VIOLATION: {state.procedure} - {state.task_object} - condition '{condition_func_name}' no longer satisfied!")
+                        fsm_worker.condition_violated_signal.emit(state, condition_func_name)
+                    elif current_value is True:
+                        # Condition restored (was False, now True)
+                        print(f"✅ RESTORED: {state.procedure} - {state.task_object} - condition '{condition_func_name}' satisfied again!")
+                        fsm_worker.condition_restored_signal.emit(state, condition_func_name)
 
     def on_start(self):
         print("Action: Starting FSM...")
@@ -1142,6 +1305,12 @@ class TarsAgent:
             agent_object.speed_mode_i = value
         elif name == "heading_mode":
             agent_object.heading_mode_i = value
+        
+        # EVENT-DRIVEN CONDITION MONITORING
+        # Check if this input affects any monitored conditions
+        if name in self.input_to_conditions:
+            affected_condition_names = self.input_to_conditions[name]
+            self.check_affected_conditions(name, value, affected_condition_names)
 
     def string_input_callback(self, io_type, name, value_type, value, my_data):
         igs.info(f"Input {name} written to {value}")

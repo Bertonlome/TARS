@@ -36,6 +36,9 @@ class CircularCountdown(QWidget):
         self._tick_animation_timer = None
         self._delayed_tick_timer = None  # Timer for delayed tick mark display
         
+        # N/A state (waiting for acknowledgment)
+        self._show_na = False
+        
         # Animation
         self._animation = QPropertyAnimation(self, b"progress")
         self._animation.setEasingCurve(QEasingCurve.Type.Linear)
@@ -70,6 +73,9 @@ class CircularCountdown(QWidget):
         # IMPORTANT: Stop any running animation first
         self._animation.stop()
         
+        # Reset N/A mode when setting a value
+        self._show_na = False
+        
         self._value = current
         self._display_value = float(current)
         self._max_value = maximum if maximum > 0 else 1
@@ -90,6 +96,9 @@ class CircularCountdown(QWidget):
             target_value: Target countdown value
             duration_ms: Animation duration in milliseconds
         """
+        # Reset N/A mode when starting an animation
+        self._show_na = False
+        
         if self._max_value > 0:
             target_progress = (target_value / self._max_value) * 100.0
         else:
@@ -180,14 +189,38 @@ class CircularCountdown(QWidget):
             self._tick_animation_timer = None
     
     def reset_to_countdown(self):
-        """Reset widget to normal countdown mode (hide tick mark)"""
+        """Reset widget to normal countdown mode (hide tick mark and N/A)"""
         self._show_tick = False
+        self._show_na = False
         if self._tick_animation_timer:
             self._tick_animation_timer.stop()
             self._tick_animation_timer = None
         if self._delayed_tick_timer:
             self._delayed_tick_timer.stop()
             self._delayed_tick_timer = None
+        self.update()
+    
+    def set_na(self):
+        """
+        Set widget to N/A mode (waiting for acknowledgment)
+        Shows "N/A" text with a non-lit circle
+        """
+        # Stop any animations
+        self._animation.stop()
+        if self._tick_animation_timer:
+            self._tick_animation_timer.stop()
+            self._tick_animation_timer = None
+        if self._delayed_tick_timer:
+            self._delayed_tick_timer.stop()
+            self._delayed_tick_timer = None
+        
+        # Set to N/A mode
+        self._show_tick = False
+        self._show_na = True
+        self._progress = 0.0  # Empty circle (non-lit)
+        self._value = 0
+        self._display_value = 0.0
+        
         self.update()
     
     def paintEvent(self, event):
@@ -238,25 +271,34 @@ class CircularCountdown(QWidget):
             
             painter.drawArc(rect, start_angle, int(span_angle))
         
-        # Draw text (countdown value)
+        # Draw text (countdown value or N/A)
         painter.setPen(self._text_color)
         
-        # Large font for the number
-        font = QFont("JetBrains Mono", 20, QFont.Weight.Medium)
-        painter.setFont(font)
-        
-        # Use the animated display value, rounded to nearest integer
-        display_text = str(int(round(self._display_value)))
-        
-        text_rect = QtCore.QRectF(0, 0, size, size * 0.6)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, display_text)
-        
-        # Small font for "sec" label
-        font_small = QFont("JetBrains Mono", 9, QFont.Weight.Light)
-        painter.setFont(font_small)
-        
-        label_rect = QtCore.QRectF(0, size * 0.45, size, size * 0.45)
-        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, "sec")
+        if self._show_na:
+            # N/A mode - larger text, no "sec" label
+            font = QFont("JetBrains Mono", 18, QFont.Weight.Medium)
+            painter.setFont(font)
+            
+            text_rect = QtCore.QRectF(0, 0, size, size)
+            painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "N/A")
+        else:
+            # Normal countdown mode
+            # Large font for the number
+            font = QFont("JetBrains Mono", 20, QFont.Weight.Medium)
+            painter.setFont(font)
+            
+            # Use the animated display value, rounded to nearest integer
+            display_text = str(int(round(self._display_value)))
+            
+            text_rect = QtCore.QRectF(0, 0, size, size * 0.6)
+            painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, display_text)
+            
+            # Small font for "sec" label
+            font_small = QFont("JetBrains Mono", 9, QFont.Weight.Light)
+            painter.setFont(font_small)
+            
+            label_rect = QtCore.QRectF(0, size * 0.45, size, size * 0.45)
+            painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, "sec")
     
     def _draw_tick_mark(self, painter, size):
         """Draw the tick mark (task fired) display"""

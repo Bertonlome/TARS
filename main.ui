@@ -2342,28 +2342,59 @@ background-color: rgba(0, 26, 56, 200);}</string>
                         </widget>
                        </item>
                        <item>
-                        <widget class="QWidget" name="stack_container" native="true">
+                        <widget class="QTabWidget" name="stack_tab_container">
                          <property name="sizePolicy">
-                          <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
                            <horstretch>0</horstretch>
                            <verstretch>0</verstretch>
                           </sizepolicy>
                          </property>
                          <property name="styleSheet">
-                          <string notr="true">border: 2px solid rgba(40, 44, 52, 255);border-radius: 10px;background-color: rgba(33, 37, 43, 255)</string>
+                          <string notr="true">QTabWidget::pane {
+border: 2px solid rgb(40, 44, 52);
+border-radius: 10px;
+background-color: rgb(33, 37, 43);
+padding: 5px;
+}
+QTabBar::tab {
+background-color: rgb(44, 49, 60);
+color: rgb(210, 210, 210);
+border: 2px solid rgb(52, 59, 72);
+border-bottom: none;
+border-top-left-radius: 10px;
+border-top-right-radius: 10px;
+padding: 8px 16px;
+margin-right: 2px;
+font: 600 10pt &quot;JetBrains Mono&quot;;
+}
+QTabBar::tab:selected {
+background-color: rgb(33, 37, 43);
+color: #55aaff;
+border-bottom: 2px solid rgb(33, 37, 43);
+}
+QTabBar::tab:hover {
+background-color: rgb(52, 59, 72);
+}</string>
                          </property>
-                         <layout class="QVBoxLayout" name="stack_vertical_layout_container">
-                          <item alignment="Qt::AlignmentFlag::AlignTop">
-                           <widget class="QLabel" name="stack_container_title">
-                            <property name="styleSheet">
-                             <string notr="true">font: 500 20pt &quot;JetBrains Mono&quot;;</string>
-                            </property>
-                            <property name="text">
-                             <string>Procedure Timeline</string>
-                            </property>
-                           </widget>
-                          </item>
-                         </layout>
+                         <property name="currentIndex">
+                          <number>0</number>
+                         </property>
+                         <widget class="QWidget" name="stack_tab_1">
+                          <property name="styleSheet">
+                           <string notr="true">background-color: rgba(33, 37, 43, 255);</string>
+                          </property>
+                          <attribute name="title">
+                           <string>Tab 1</string>
+                          </attribute>
+                         </widget>
+                         <widget class="QWidget" name="stack_tab_2">
+                          <property name="styleSheet">
+                           <string notr="true">background-color: rgba(33, 37, 43, 255)</string>
+                          </property>
+                          <attribute name="title">
+                           <string>Tab 2</string>
+                          </attribute>
+                         </widget>
                         </widget>
                        </item>
                        <item>

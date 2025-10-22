@@ -43,6 +43,8 @@ widgets = None
 class FSMWorker(QtCore.QObject):
     state_changed = QtCore.Signal(object)  # Changed from str to object to emit State object
     action_about_to_fire = QtCore.Signal(object)  # Emitted right before action executes (after countdown)
+    condition_violated_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now False
+    condition_restored_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now True
     current_state = None
 
     def __init__(self, agent: TarsAgent):
@@ -54,6 +56,11 @@ class FSMWorker(QtCore.QObject):
         self.last_performance_report = time.perf_counter()
         # Action inhibition flag
         self.skip_current_action = False
+        
+        # Active condition monitoring registry
+        # Dict: state_key -> monitoring_info
+        self.active_monitored_conditions = {}
+        self.current_procedure = None  # Track current procedure for scope management
 
     def start_performance_timer(self, action_name):
         """Start timing for a specific action"""
@@ -84,6 +91,68 @@ class FSMWorker(QtCore.QObject):
         """Slot to cancel/skip the current action execution"""
         self.skip_current_action = True
         print(f"Current action inhibited - user reclaimed task")
+    
+    def add_to_monitoring(self, state):
+        """Add state to continuous condition monitoring"""
+        # Only monitor states with 'continuous' condition type
+        if state.condition_type != 'continuous' or not state.condition_function:
+            return
+        
+        state_key = (state.procedure, state.task_object, state.value)
+        
+        # Get condition function by name from agent
+        try:
+            condition_func = getattr(self.agent, state.condition_function)
+        except AttributeError:
+            print(f"Warning: Condition function '{state.condition_function}' not found in agent")
+            return
+        
+        # Evaluate initial value
+        try:
+            initial_value = condition_func()
+        except Exception as e:
+            print(f"Error evaluating initial condition {state.condition_function}: {e}")
+            initial_value = None
+        
+        # Set state.condition to initial value
+        state.condition = initial_value
+        
+        self.active_monitored_conditions[state_key] = {
+            'state': state,
+            'condition_func_name': state.condition_function,
+            'condition_func': condition_func,
+            'last_value': initial_value,
+            'monitor_scope': state.monitor_scope,
+            'procedure': state.procedure
+        }
+        
+        print(f"📊 Monitoring: {state.procedure} - {state.task_object} - {state.condition_function} = {initial_value}")
+    
+    def remove_from_monitoring(self, state_key):
+        """Stop monitoring a condition"""
+        if state_key in self.active_monitored_conditions:
+            monitor_info = self.active_monitored_conditions[state_key]
+            print(f"🛑 Stop monitoring: {monitor_info['procedure']} - {monitor_info['state'].task_object}")
+            del self.active_monitored_conditions[state_key]
+    
+    def cleanup_monitoring_for_scope(self, scope_type, current_state):
+        """Remove conditions from monitoring based on scope"""
+        to_remove = []
+        
+        for state_key, monitor_info in self.active_monitored_conditions.items():
+            monitor_scope = monitor_info['monitor_scope']
+            
+            if scope_type == 'next_task' and monitor_scope == 'next_task':
+                # Remove conditions that should only be monitored until next task
+                to_remove.append(state_key)
+            
+            elif scope_type == 'procedure_change':
+                # Remove conditions when procedure changes
+                if monitor_scope == 'end_of_procedure' and monitor_info['procedure'] != current_state.procedure:
+                    to_remove.append(state_key)
+        
+        for state_key in to_remove:
+            self.remove_from_monitoring(state_key)
 
     @QtCore.Slot()
     def run(self):
@@ -120,9 +189,21 @@ class FSMWorker(QtCore.QObject):
                         transition_time = self.stop_performance_timer("transition_check", transition_start)
                         print(f"State transition: {fsm.current_state.procedure} {fsm.current_state.task_object} {fsm.current_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value} (check took {transition_time*1000:.2f}ms)")
                         
+                        # CONDITION MONITORING: Cleanup for 'next_task' scope
+                        self.cleanup_monitoring_for_scope('next_task', t.to_state)
+                        
+                        # CONDITION MONITORING: Check if procedure changed
+                        if self.current_procedure and self.current_procedure != t.to_state.procedure:
+                            self.cleanup_monitoring_for_scope('procedure_change', t.to_state)
+                        
+                        self.current_procedure = t.to_state.procedure
+                        
                         fsm.current_state = t.to_state
                         self.state_changed.emit(fsm.current_state)  # Emit the State object instead of just procedure
                         self.current_state = fsm.current_state
+                        
+                        # CONDITION MONITORING: Add new state to monitoring if it has continuous condition
+                        self.add_to_monitoring(fsm.current_state)
                         
                         # wait before action - wait for countdown timer to reach 0
                         delay = self.get_delay_before_action(fsm.current_state)
@@ -241,6 +322,7 @@ class AgentThread(QtCore.QThread):
 class MainWindow(QMainWindow):
     tts_speak_signal = QtCore.Signal(str)
     tts_finished_signal = QtCore.Signal(str)
+    inject_emergency_signal = QtCore.Signal(str)  # New signal for emergency injection
 
     def __init__(self):
         QMainWindow.__init__(self)
@@ -268,6 +350,8 @@ class MainWindow(QMainWindow):
         self.fsm_worker.moveToThread(self.fsm_thread)
         self.fsm_worker.state_changed.connect(self.update_state)
         self.fsm_worker.action_about_to_fire.connect(self.handle_action_about_to_fire)
+        self.fsm_worker.condition_violated_signal.connect(self.handle_condition_violation)
+        self.fsm_worker.condition_restored_signal.connect(self.handle_condition_restoration)
         self.fsm_thread.started.connect(self.fsm_worker.run)
         self.fsm_thread.start()
         self.current_state = None
@@ -288,6 +372,10 @@ class MainWindow(QMainWindow):
         register_speak_callback(self.tts_callback)
         register_finished_callback(self.tts_finished_callback)
         self.tts_finished_signal.connect(self.on_tts_finished)
+        
+        # Connect emergency injection signal to slot (thread-safe)
+        self.inject_emergency_signal.connect(self.inject_emergency_procedure)
+        
         global widgets
         
         widgets = self.ui
@@ -446,6 +534,32 @@ class MainWindow(QMainWindow):
         if home_page:
             home_page.refresh_task_timeline_data()
     
+    @QtCore.Slot(str)
+    def inject_emergency_procedure(self, procedure_name):
+        """
+        Inject an emergency procedure into the timeline
+        Called when an emergency condition is detected
+        This runs in the main GUI thread (connected via signal)
+        
+        Args:
+            procedure_name: Name of the emergency procedure (e.g., "ENGINE FIRE")
+        """
+        home_page = self.get_home_page()
+        if home_page:
+            home_page.inject_emergency_procedure(procedure_name)
+    
+    def request_emergency_injection(self, procedure_name):
+        """
+        Request emergency procedure injection from any thread (thread-safe)
+        Use this method when calling from worker threads or agent thread
+        
+        Args:
+            procedure_name: Name of the emergency procedure
+        """
+        # Emit signal to inject in main GUI thread
+        self.inject_emergency_signal.emit(procedure_name)
+
+    
 
     def tts_callback(self, text):
         # Clear the event - TTS is starting, not ready yet
@@ -475,6 +589,58 @@ class MainWindow(QMainWindow):
         self.ui.tars_picture.setPixmap(pixmap)
         self.ui.tars_output_speech_label.show()
         self.ui.tars_output_speech_label.setText(f"\"{text}\"")
+    
+    @QtCore.Slot(object, str)
+    def handle_condition_violation(self, state_obj, condition_name):
+        """Handle condition violation signal from FSM worker
+        
+        Args:
+            state_obj: State object with violated condition
+            condition_name: Name of the condition function that was violated
+        """
+        print(f"🚨 CONDITION VIOLATION: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
+        
+        # Get home page
+        home_page = self.get_home_page()
+        if not home_page:
+            return
+        
+        # Update timeline to show violation
+        timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
+        if timeline_widget:
+            state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
+            # TODO: Add method to timeline widget to mark task as violated
+            # timeline_widget.mark_task_violated(state_key)
+            print(f"  → Would mark task violated in timeline for procedure {state_obj.procedure}")
+        
+        # TODO: Show warning banner or notification
+        # home_page.show_warning_banner(f"⚠️ {state_obj.task_object} - condition violated!")
+    
+    @QtCore.Slot(object, str)
+    def handle_condition_restoration(self, state_obj, condition_name):
+        """Handle condition restoration signal from FSM worker
+        
+        Args:
+            state_obj: State object with restored condition
+            condition_name: Name of the condition function that was restored
+        """
+        print(f"✅ CONDITION RESTORED: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
+        
+        # Get home page
+        home_page = self.get_home_page()
+        if not home_page:
+            return
+        
+        # Update timeline to show restoration
+        timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
+        if timeline_widget:
+            state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
+            # TODO: Add method to timeline widget to mark task as restored
+            # timeline_widget.mark_task_restored(state_key)
+            print(f"  → Would mark task restored in timeline for procedure {state_obj.procedure}")
+        
+        # TODO: Clear warning banner or show restoration notification
+        # home_page.clear_warning_banner()
     
     @QtCore.Slot(str)
     def on_tts_finished(self, text):
@@ -548,22 +714,23 @@ class MainWindow(QMainWindow):
                         home_page.current_circular_countdown.set_value(0, 0)
                     
                     # Initialize task border animation and immediately complete it
-                    if home_page.task_timeline_widget:
+                    timeline_widget = home_page.get_current_timeline_widget()
+                    if timeline_widget:
                         # Directly set both target and current progress to 1.0 (no animation)
-                        home_page.task_timeline_widget._target_task_progress = 1.0
-                        home_page.task_timeline_widget._current_task_progress = 1.0
+                        timeline_widget._target_task_progress = 1.0
+                        timeline_widget._current_task_progress = 1.0
                         # Force a repaint to show the blue border immediately
-                        home_page.task_timeline_widget.update()
+                        timeline_widget.update()
                         # Mark task as complete and prepare connection animation
-                        home_page.task_timeline_widget.complete_current_task()
+                        timeline_widget.complete_current_task()
                         # The connection animation progress will be driven by next_countdown timer
                         # Calculate current connection progress based on how much next_countdown has elapsed
                         if home_page.next_countdown_max > 0 and home_page.next_countdown_value < home_page.next_countdown_max:
                             elapsed_progress = 1.0 - (home_page.next_countdown_value / home_page.next_countdown_max)
-                            home_page.task_timeline_widget.set_connection_progress(elapsed_progress)
+                            timeline_widget.set_connection_progress(elapsed_progress)
                         else:
                             # Next countdown hasn't started yet or just started
-                            home_page.task_timeline_widget.set_connection_progress(0.0)
+                            timeline_widget.set_connection_progress(0.0)
                     
                     # Emit completion signal for FSM
                     home_page.countdown_zero_signal.emit()
@@ -579,15 +746,16 @@ class MainWindow(QMainWindow):
                 
                 if current_delay_after == 'is_acked' or next_delay_before == 'is_acked':
                     # Waiting for human acknowledgment - show N/A
-                    self.ui.n_t_s_value_2.setText("N/A")
+                    home_page.next_circular_countdown.set_na()
                     home_page.next_countdown_timer.stop()
                     home_page.next_countdown_value = 0
                     print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
                 else:
                     # Normal time-based delays
+                    current_delay_before = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
                     current_delay_after = int(current_delay_after) if current_delay_after else 0
                     next_delay_before = int(next_delay_before) if next_delay_before else 0
-                    total_seconds = current_delay_after + next_delay_before
+                    total_seconds = current_delay_before + current_delay_after + next_delay_before
                     print(f"\nNext task : {next_state_obj.task_object} estimated time: {total_seconds} seconds")
                     self.ui.n_t_s_value_2.setText(str(total_seconds))
                     if total_seconds > 0:
@@ -609,7 +777,6 @@ class MainWindow(QMainWindow):
         self.ui.n_g_label_2.setText(next_procedure_text)
         self.ui.n_t_label_2.setText(next_task_text)
         self.ui.alert_label_2.setText(f"{current_procedure_text}")
-        self.ui.stack_container_title.setText(f"Procedure Timeline: {current_procedure_text}")
         
         # Handle previous task autonomy role display
         if previous_state_obj is not None:

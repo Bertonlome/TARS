@@ -59,8 +59,10 @@ class HomePage(BasePage):
         self.current_circular_countdown = None
         self.next_circular_countdown = None
         
-        # Create task timeline widget
-        self.task_timeline_widget = None
+        # Create task timeline widgets - one per procedure (stored in dict)
+        self.task_timeline_widgets = {}  # Dict: procedure_name -> TaskTimelineWidget
+        self.current_procedure = None  # Track current active procedure
+        self.discovered_procedures = set()  # Track which procedures have been revealed
         
         # Initialize glow effect timer
         self._glow_timer = None
@@ -156,18 +158,204 @@ class HomePage(BasePage):
         self.widgets.n_t_s_container_2.addWidget(self.next_circular_countdown)
     
     def _setup_task_timeline(self):
-        """Setup the task timeline widget"""
-        # Create the task timeline widget
-        self.task_timeline_widget = TaskTimelineWidget()
+        """Setup the task timeline widget with tabs for each procedure"""
+        # Get the tab widget from UI (stack_tab_container)
+        if not hasattr(self.widgets, 'stack_tab_container'):
+            print("Error: stack_tab_container not found in UI")
+            return
+        
+        tab_widget = self.widgets.stack_tab_container
+        
+        # Apply styling to tab widget with rounded corners
+        tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: 2px solid rgb(52, 59, 72);
+                border-radius: 10px;
+                background-color: rgb(33, 37, 43);
+                padding: 5px;
+            }
+            QTabBar::tab {
+                background-color: rgb(44, 49, 60);
+                color: rgb(210, 210, 210);
+                border: 2px solid rgb(52, 59, 72);
+                border-bottom: none;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+                padding: 8px 16px;
+                margin-right: 2px;
+                font: 600 10pt "JetBrains Mono";
+            }
+            QTabBar::tab:selected {
+                background-color: rgb(33, 37, 43);
+                color: #55aaff;
+                border-bottom: 2px solid rgb(33, 37, 43);
+            }
+            QTabBar::tab:hover {
+                background-color: rgb(52, 59, 72);
+            }
+            QTabBar::tab[emergency="true"] {
+                background-color: rgb(108, 4, 4);
+                color: rgb(255, 200, 200);
+                border: 2px solid rgba(235, 0, 20, 255);
+            }
+            QTabBar::tab[emergency="true"]:selected {
+                background-color: rgb(150, 10, 10);
+                color: #ff6666;
+            }
+        """)
+        
+        # Clear any existing tabs
+        tab_widget.clear()
+        self.task_timeline_widgets.clear()
         
         # Load tasks directly from agent (single source of truth)
-        if hasattr(self.main_window, 'agent') and self.main_window.agent:
-            self.task_timeline_widget.load_tasks_from_agent(self.main_window.agent)
-        else:
+        if not (hasattr(self.main_window, 'agent') and self.main_window.agent):
             print("Warning: Agent not available, TaskTimeline will be empty")
+            return
         
-        # Add to the stack container layout (verticalLayout_26 is the layout inside stack_container)
-        self.widgets.stack_vertical_layout_container.addWidget(self.task_timeline_widget)
+        agent = self.main_window.agent
+        
+        # Extract unique procedures from agent states (in order of appearance)
+        # Only include NORM classification procedures initially
+        procedures_data = []  # List of (procedure_name, classification) tuples
+        procedures_seen = []
+        
+        for state_key, state in agent.states.items():
+            # Skip special states (IDLE, FINISHED)
+            if state.procedure in ['IDLE', 'FINISHED']:
+                continue
+            
+            # Add procedure if not seen before (maintains order)
+            if state.procedure not in procedures_seen:
+                procedures_seen.append(state.procedure)
+                classification = getattr(state, 'classification', 'NORM')
+                procedures_data.append((state.procedure, classification))
+        
+        # Filter: only create tabs for NORM procedures initially
+        normal_procedures = [(name, cls) for name, cls in procedures_data if cls == 'NORM']
+        
+        print(f"Creating timeline tabs for NORMAL procedures: {[p[0] for p in normal_procedures]}")
+        
+        # Create a tab for each normal procedure
+        for procedure_name, classification in normal_procedures:
+            self._create_procedure_tab(procedure_name, classification)
+            self.discovered_procedures.add(procedure_name)
+        
+        print(f"Created {len(self.task_timeline_widgets)} normal procedure timeline tabs")
+    
+    def _create_procedure_tab(self, procedure_name, classification='NORM'):
+        """Create a single procedure tab
+        
+        Args:
+            procedure_name: Name of the procedure
+            classification: NORM, EMER, or ABNORM
+        """
+        tab_widget = self.widgets.stack_tab_container
+        
+        # Create a new TaskTimelineWidget for this procedure with proper parent
+        # IMPORTANT: Pass tab_widget as parent to prevent standalone window
+        timeline_widget = TaskTimelineWidget(parent=tab_widget)
+        
+        # Ensure it's not set as a window (should be embedded widget only)
+        timeline_widget.setWindowFlags(QtCore.Qt.Widget)
+        
+        # Determine tab label based on classification
+        if classification == 'EMER':
+            tab_label = f"️{procedure_name}"
+        elif classification == 'ABNORM':
+            tab_label = f"{procedure_name}"
+        else:
+            tab_label = procedure_name
+        
+        # Add widget to tab FIRST before loading data
+        # This ensures Qt properly manages the widget hierarchy
+        tab_index = tab_widget.addTab(timeline_widget, tab_label)
+        
+        # NOW load tasks and configure the widget after it's in the tab
+        timeline_widget.load_tasks_from_agent(self.main_window.agent)
+        timeline_widget.set_current_procedure(procedure_name)
+        
+        # Store widget in dictionary
+        self.task_timeline_widgets[procedure_name] = timeline_widget
+        
+        # Mark emergency tabs for styling
+        if classification == 'EMER':
+            tab_widget.tabBar().setTabData(tab_index, {'emergency': 'true'})
+        
+        print(f"Created tab for {procedure_name} (classification: {classification}) at index {tab_index}")
+    
+    def inject_emergency_procedure(self, procedure_name):
+        """Dynamically inject a procedure tab (emergency, abnormal, or any newly discovered procedure)
+        
+        This is called when a new procedure is encountered during runtime.
+        The tab will be created and automatically switched to.
+        
+        Args:
+            procedure_name: Name of the procedure to inject
+        """
+        # Check if this procedure is already displayed
+        if procedure_name in self.task_timeline_widgets:
+            print(f"Procedure {procedure_name} already exists, switching to it")
+            # Just switch to it
+            tab_widget = self.widgets.stack_tab_container
+            for i in range(tab_widget.count()):
+                # Remove emoji prefix for comparison
+                tab_text = tab_widget.tabText(i).replace("⚠️ ", "").replace("⚡ ", "").replace("📋 ", "").strip()
+                if tab_text == procedure_name:
+                    tab_widget.setCurrentIndex(i)
+                    break
+            return
+        
+        # Get the classification for this procedure
+        agent = self.main_window.agent
+        classification = 'NORM'  # Default
+        
+        for state_key, state in agent.states.items():
+            if state.procedure == procedure_name:
+                classification = getattr(state, 'classification', 'NORM')
+                break
+        
+        print(f"➕ Injecting procedure: {procedure_name} (classification: {classification})")
+        
+        # Find the current tab index to insert right after current procedure
+        tab_widget = self.widgets.stack_tab_container
+        current_tab_index = tab_widget.currentIndex()
+        insert_position = current_tab_index + 1  # Insert right after current tab
+        
+        # Create the widget
+        timeline_widget = TaskTimelineWidget(parent=tab_widget)
+        
+        # Ensure it's not set as a window (should be embedded widget only)
+        timeline_widget.setWindowFlags(QtCore.Qt.Widget)
+        
+        # Determine tab label based on classification
+        if classification == 'EMER':
+            tab_label = f"⚠️ {procedure_name}"
+        elif classification == 'ABNORM':
+            tab_label = f"⚡ {procedure_name}"
+        else:
+            # For normal procedures discovered during runtime (checklists, etc.)
+            tab_label = f"📋 {procedure_name}"
+        
+        # Insert tab at specific position (not at the end)
+        tab_index = tab_widget.insertTab(insert_position, timeline_widget, tab_label)
+        
+        # NOW load tasks and configure the widget after it's in the tab
+        timeline_widget.load_tasks_from_agent(agent)
+        timeline_widget.set_current_procedure(procedure_name)
+        
+        # Store widget in dictionary
+        self.task_timeline_widgets[procedure_name] = timeline_widget
+        self.discovered_procedures.add(procedure_name)
+        
+        # Mark emergency tabs for styling
+        if classification == 'EMER':
+            tab_widget.tabBar().setTabData(tab_index, {'emergency': 'true'})
+        
+        # Switch to the newly created tab
+        tab_widget.setCurrentIndex(tab_index)
+        
+        print(f"✅ Inserted procedure tab at position {insert_position}, switched to index {tab_index}")
     
     def update_task_timeline(self, current_state_obj):
         """Update the task timeline to show current procedure and highlight current task
@@ -175,30 +363,74 @@ class HomePage(BasePage):
         Args:
             current_state_obj: State object with procedure, task_object, value attributes
         """
-        if self.task_timeline_widget and current_state_obj:
-            # Get previous task key to detect task changes
-            previous_task_key = self.task_timeline_widget._current_task_key
+        if not current_state_obj:
+            return
+        
+        procedure_name = current_state_obj.procedure
+        classification = getattr(current_state_obj, 'classification', 'NORM')
+        
+        # AUTO-DISCOVERY: Check if this procedure hasn't been discovered yet
+        # This handles emergency procedures AND their cascading checklists/subsequent procedures
+        if procedure_name not in self.discovered_procedures:
+            # New procedure discovered! Inject it dynamically
+            if classification in ['EMER', 'ABNORM']:
+                print(f"🚨 Emergency/Abnormal procedure discovered: {procedure_name} ({classification})")
+            else:
+                print(f"� New procedure discovered: {procedure_name} ({classification})")
             
-            # Set current procedure
-            self.task_timeline_widget.set_current_procedure(current_state_obj.procedure)
+            self.inject_emergency_procedure(procedure_name)
+        
+        # Switch to the tab for the current procedure
+        if procedure_name != self.current_procedure:
+            self.current_procedure = procedure_name
             
-            # Set current task (highlight it) - use the same key format as agent
-            task_key = (current_state_obj.procedure, current_state_obj.task_object, current_state_obj.value)
-            self.task_timeline_widget.set_current_task(task_key)
-            
-            # If task actually changed, advance the animation
-            if previous_task_key != task_key and previous_task_key is not None:
-                print(f"Task changed from {previous_task_key} to {task_key}")
-                self.task_timeline_widget.advance_to_next_task()
-                # Don't start connection animation here - it will start when next_countdown begins
-            elif previous_task_key is None:
-                # First task - reset animation
-                self.task_timeline_widget.reset_animation()
+            # Find and activate the tab for this procedure
+            tab_widget = self.widgets.stack_tab_container
+            for i in range(tab_widget.count()):
+                # Remove emoji prefix for comparison
+                tab_text = tab_widget.tabText(i).replace("⚠️ ", "").replace("⚡ ", "").replace("📋 ", "").strip()
+                if tab_text == procedure_name:
+                    tab_widget.setCurrentIndex(i)
+                    break
+        
+        # Get the timeline widget for this procedure
+        timeline_widget = self.task_timeline_widgets.get(procedure_name)
+        if not timeline_widget:
+            return
+        
+        # Get previous task key to detect task changes
+        previous_task_key = timeline_widget._current_task_key
+        
+        # Set current procedure (should already be set, but ensure it)
+        timeline_widget.set_current_procedure(procedure_name)
+        
+        # Set current task (highlight it) - use the same key format as agent
+        task_key = (current_state_obj.procedure, current_state_obj.task_object, current_state_obj.value)
+        timeline_widget.set_current_task(task_key)
+        
+        # If task actually changed, advance the animation
+        if previous_task_key != task_key and previous_task_key is not None:
+            print(f"Task changed from {previous_task_key} to {task_key}")
+            timeline_widget.advance_to_next_task()
+            # Don't start connection animation here - it will start when next_countdown begins
+        elif previous_task_key is None:
+            # First task - reset animation
+            timeline_widget.reset_animation()
     
     def refresh_task_timeline_data(self):
         """Refresh task timeline data from agent (call when agent data updates)"""
-        if self.task_timeline_widget and hasattr(self.main_window, 'agent') and self.main_window.agent:
-            self.task_timeline_widget.load_tasks_from_agent(self.main_window.agent)
+        # Recreate all tabs with fresh data
+        self._setup_task_timeline()
+    
+    def get_current_timeline_widget(self):
+        """Get the timeline widget for the current active procedure
+        
+        Returns:
+            TaskTimelineWidget or None if no current procedure
+        """
+        if self.current_procedure and self.current_procedure in self.task_timeline_widgets:
+            return self.task_timeline_widgets[self.current_procedure]
+        return None
     
     def show_page(self):
         """
@@ -235,19 +467,20 @@ class HomePage(BasePage):
                 self.current_circular_countdown.animate_to(self.current_countdown_value, duration_ms=1000)
             
             # Update timeline animation for current task border (delay_before_action countdown)
-            if self.task_timeline_widget and self.current_countdown_max > 0:
+            timeline_widget = self.get_current_timeline_widget()
+            if timeline_widget and self.current_countdown_max > 0:
                 # Progress from 0.0 to 1.0 as countdown decreases
                 progress = 1.0 - (self.current_countdown_value / self.current_countdown_max)
-                self.task_timeline_widget.set_task_border_progress(progress)
+                timeline_widget.set_task_border_progress(progress)
             
             # Check if we just reached 0
             if self.current_countdown_value == 0:
                 # Task border is now complete - NOW start the connection animation
-                if self.task_timeline_widget:
-                    self.task_timeline_widget.complete_current_task()
+                if timeline_widget:
+                    timeline_widget.complete_current_task()
                     # Start connection animation immediately after task completion
-                    self.task_timeline_widget._active_connection_index = self.task_timeline_widget._current_task_index
-                    self.task_timeline_widget.set_connection_progress(0.0)
+                    timeline_widget._active_connection_index = timeline_widget._current_task_index
+                    timeline_widget.set_connection_progress(0.0)
                 # Emit signal that countdown reached 0
                 self.countdown_zero_signal.emit()
         else:
@@ -255,8 +488,9 @@ class HomePage(BasePage):
             if self.current_circular_countdown:
                 self.current_circular_countdown.set_value(0, self.current_countdown_max)
             # Complete the timeline animation for current task border
-            if self.task_timeline_widget:
-                self.task_timeline_widget.complete_current_task()
+            timeline_widget = self.get_current_timeline_widget()
+            if timeline_widget:
+                timeline_widget.complete_current_task()
             self.current_countdown_timer.stop()
 
     def update_next_countdown(self):
@@ -270,20 +504,22 @@ class HomePage(BasePage):
                 self.next_circular_countdown.animate_to(self.next_countdown_value, duration_ms=1000)
             
             # Only animate connection line if current task border is complete (progress = 1.0)
-            if self.task_timeline_widget and self.next_countdown_max > 0:
+            timeline_widget = self.get_current_timeline_widget()
+            if timeline_widget and self.next_countdown_max > 0:
                 # Check if current task border is complete
-                if self.task_timeline_widget._current_task_progress >= 1.0:
+                if timeline_widget._current_task_progress >= 1.0:
                     # Current task is complete, now animate the connection
                     progress = 1.0 - (self.next_countdown_value / self.next_countdown_max)
-                    self.task_timeline_widget.set_connection_progress(progress)
+                    timeline_widget.set_connection_progress(progress)
                 # If current task border isn't complete, don't animate connection yet
         else:
             self.widgets.n_t_s_value_2.setText("0")
             if self.next_circular_countdown:
                 self.next_circular_countdown.set_value(0, self.next_countdown_max)
             # Complete the connection animation to next task
-            if self.task_timeline_widget:
-                self.task_timeline_widget.set_connection_progress(1.0)
+            timeline_widget = self.get_current_timeline_widget()
+            if timeline_widget:
+                timeline_widget.set_connection_progress(1.0)
             self.next_countdown_timer.stop()
     
     def start_current_countdown(self, seconds):
@@ -293,8 +529,9 @@ class HomePage(BasePage):
         if self.current_circular_countdown:
             self.current_circular_countdown.set_value(seconds, seconds)
         # Reset task border animation when starting new countdown
-        if self.task_timeline_widget:
-            self.task_timeline_widget.set_task_border_progress(0.0)
+        timeline_widget = self.get_current_timeline_widget()
+        if timeline_widget:
+            timeline_widget.set_task_border_progress(0.0)
         self.current_countdown_timer.start()
     
     def start_next_countdown(self, seconds):
@@ -305,8 +542,9 @@ class HomePage(BasePage):
             self.next_circular_countdown.set_value(seconds, seconds)
         # DON'T start connection animation here - it will start when current task border completes
         # Just prepare the connection index but keep progress at 0
-        if self.task_timeline_widget:
-            self.task_timeline_widget._active_connection_index = self.task_timeline_widget._current_task_index
+        timeline_widget = self.get_current_timeline_widget()
+        if timeline_widget:
+            timeline_widget._active_connection_index = timeline_widget._current_task_index
             # Connection stays at 0 until current task border is complete
         self.next_countdown_timer.start()
         self.next_countdown_timer.start()
@@ -319,12 +557,13 @@ class HomePage(BasePage):
         self.current_countdown_max = 1  # Set a default for progress calculation
         
         # Immediately complete the task border animation for human tasks
-        if self.task_timeline_widget:
-            self.task_timeline_widget.set_task_border_progress(1.0)
-            self.task_timeline_widget.complete_current_task()
+        timeline_widget = self.get_current_timeline_widget()
+        if timeline_widget:
+            timeline_widget.set_task_border_progress(1.0)
+            timeline_widget.complete_current_task()
             # Start connection animation immediately since there's no countdown
-            self.task_timeline_widget._active_connection_index = self.task_timeline_widget._current_task_index
-            self.task_timeline_widget.set_connection_progress(0.0)
+            timeline_widget._active_connection_index = timeline_widget._current_task_index
+            timeline_widget.set_connection_progress(0.0)
         
         # Emit signal that the "countdown" is complete (for FSM synchronization)
         self.countdown_zero_signal.emit()
@@ -381,18 +620,16 @@ class HomePage(BasePage):
         self.widgets.c_t_s_value_2.setText("N/A")
         
         # Complete the task border animation in timeline widget
-        if self.task_timeline_widget:
+        timeline_widget = self.get_current_timeline_widget()
+        if timeline_widget:
             # Set border progress to 100% (completed)
-            self.task_timeline_widget._target_task_progress = 1.0
-            self.task_timeline_widget._current_task_progress = 1.0
+            timeline_widget._target_task_progress = 1.0
+            timeline_widget._current_task_progress = 1.0
             # Mark task as complete and start connection animation
-            self.task_timeline_widget.complete_current_task()
-            self.task_timeline_widget.update()
+            timeline_widget.complete_current_task()
+            timeline_widget.update()
         
         # Emit signal to inhibit current action
-        self.task_cancel_signal.emit()
-        
-        # Emit signal to notify MainWindow
         self.task_cancel_signal.emit()
     
     # VISUAL EFFECTS
