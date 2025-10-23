@@ -2434,6 +2434,16 @@ background-color: rgb(52, 59, 72);
                             </property>
                            </widget>
                           </item>
+                          <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                           <widget class="QLabel" name="interaction_panel_tars_input">
+                            <property name="styleSheet">
+                             <string notr="true">font: 300 14pt &quot;JetBrains Mono&quot;; color: #3399ff</string>
+                            </property>
+                            <property name="text">
+                             <string>TextLabel</string>
+                            </property>
+                           </widget>
+                          </item>
                           <item>
                            <widget class="QWidget" name="int_panel_button_container" native="true">
                             <property name="minimumSize">

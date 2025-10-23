@@ -1801,6 +1801,13 @@ class BriefingPage(BasePage):
                                   f"• States updated: {updated_count}\n\n"
                                   f"The agent is now using the validated role assignments.")
             
+            # Emit signal so UI (HomePage) can refresh timeline display
+            try:
+                if hasattr(self.main_window, 'allocation_sent_signal'):
+                    self.main_window.allocation_sent_signal.emit()
+            except Exception:
+                pass
+
             #print(f"Sent allocation to agent: {updated_count} states updated from {len(self.validated_allocation_data)} tasks")
             
         except Exception as e:

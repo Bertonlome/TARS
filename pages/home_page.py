@@ -123,6 +123,13 @@ class HomePage(BasePage):
         # Setup task timeline widget
         self._setup_task_timeline()
         
+        # Connect to allocation sent signal so timeline refreshes when allocations change
+        try:
+            if hasattr(self.main_window, 'allocation_sent_signal'):
+                self.main_window.allocation_sent_signal.connect(self.refresh_task_timeline_data)
+        except Exception:
+            pass
+
         #print("Home page setup complete")
     
     def _setup_circular_countdowns(self):

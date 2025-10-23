@@ -1425,6 +1425,12 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter)
 
+        self.interaction_panel_tars_input = QLabel(self.interaction_container)
+        self.interaction_panel_tars_input.setObjectName(u"interaction_panel_tars_input")
+        self.interaction_panel_tars_input.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\"; color: #3399ff")
+
+        self.verticalLayout_23.addWidget(self.interaction_panel_tars_input, 0, Qt.AlignmentFlag.AlignHCenter)
+
         self.int_panel_button_container = QWidget(self.interaction_container)
         self.int_panel_button_container.setObjectName(u"int_panel_button_container")
         self.int_panel_button_container.setMinimumSize(QSize(0, 50))
@@ -2143,6 +2149,7 @@ class Ui_MainWindow(object):
         self.stack_tab_container.setTabText(self.stack_tab_container.indexOf(self.stack_tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
+        self.interaction_panel_tars_input.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
         self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"ACKNOWLEDGE", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))

@@ -323,6 +323,7 @@ class MainWindow(QMainWindow):
     tts_speak_signal = QtCore.Signal(str)
     tts_finished_signal = QtCore.Signal(str)
     inject_emergency_signal = QtCore.Signal(str)  # New signal for emergency injection
+    allocation_sent_signal = QtCore.Signal()  # Emitted when allocation is sent to agent
 
     def __init__(self):
         QMainWindow.__init__(self)
@@ -686,6 +687,8 @@ class MainWindow(QMainWindow):
         home_page.reset_radio_button(self.ui.check_radio_button)
         self.ui.c_t_s_unit_2.hide()
         self.ui.c_t_s_value_2.hide()
+
+        self.ui.interaction_panel_tars_input.hide()
         
         # For current task counter (uses delay_before_action)
         if current_state_obj.autonomy_role != "performer":
@@ -810,12 +813,56 @@ class MainWindow(QMainWindow):
         else:
             self.ui.n_t_prog_widget_2.hide()
 
+        self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
         # Handle interaction panel based on current state's interaction attribute
         if current_state_obj.interaction is not None and current_state_obj.interaction != "":
             self.ui.int_panel_right_button.hide()
             self.ui.int_panel_left_button.hide()
             self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
             match current_state_obj.interaction:
+                case "pitot-static-switch":
+                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
+                    self.ui.interaction_panel_text.setText("Pitot-Static Switches----------------PITOT-STATIC")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("CHECK")
+                case "engine-anti-ice-requirement":
+                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
+                    self.ui.interaction_panel_text.setText("ENGINE ANTI-ICE Switches----------------AS REQUIRED")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("CHECK")
+                case "windshield-anti-ice-requirement":
+                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
+                    self.ui.interaction_panel_text.setText("WINDSHIELD ANTI-ICE Switch----------------AS REQUIRED")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("CHECK")
+                case "pax-safety-switch":
+                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
+                    self.ui.interaction_panel_text.setText("PAX SAFETY Switch----------------PAX SAFETY")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("CHECK")
+                case "landing-light-recommendation":
+                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
+                    self.ui.interaction_panel_text.setText("LANDING LIGHT Switch----------------AS DESIRED")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("LANDING LIGHTS ON")
+                    self.ui.int_panel_right_button.setText("CHECK")
+                case "anti-coll-light-switch":
+                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
+                    self.ui.interaction_panel_text.setText("ANTI-COLLISION LIGHT Switch----------------ON")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("CHECK")
+                case "radar-requirement":
+                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
+                    self.ui.interaction_panel_text.setText("RADAR----------------AS REQUIRED")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("NO SPECIAL WEATHER CONDITIONS AS PER LAST METAR")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_right_button.setText("CHECK")
                 case "display_winds_and_ack":
                     self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
