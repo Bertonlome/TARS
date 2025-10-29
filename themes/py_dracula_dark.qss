@@ -297,7 +297,7 @@ QScrollBar:horizontal {
 	border-radius: 0px;
 }
 QScrollBar::handle:horizontal {
-    background: rgb(189, 147, 249);
+    background: rgb(51, 153, 255);
     min-width: 25px;
 	border-radius: 4px
 }
@@ -335,7 +335,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal
 	border-radius: 0px;
  }
  QScrollBar::handle:vertical {	
-	background: rgb(189, 147, 249);
+	background: rgb(51, 153, 255);
     min-height: 25px;
 	border-radius: 4px
  }
@@ -444,7 +444,7 @@ QSlider::groove:horizontal:hover {
 	background-color: rgb(55, 62, 76);
 }
 QSlider::handle:horizontal {
-    background-color: rgb(189, 147, 249);
+    background-color: rgb(51, 153, 255);
     border: none;
     height: 10px;
     width: 10px;
@@ -452,7 +452,7 @@ QSlider::handle:horizontal {
 	border-radius: 5px;
 }
 QSlider::handle:horizontal:hover {
-    background-color: rgb(195, 155, 255);
+    background-color: rgb(51, 153, 255);
 }
 QSlider::handle:horizontal:pressed {
     background-color: rgb(51, 153, 255);
@@ -468,7 +468,7 @@ QSlider::groove:vertical:hover {
 	background-color: rgb(55, 62, 76);
 }
 QSlider::handle:vertical {
-    background-color: rgb(189, 147, 249);
+    background-color: rgb(51, 153, 255);
 	border: none;
     height: 10px;
     width: 10px;
@@ -476,7 +476,7 @@ QSlider::handle:vertical {
 	border-radius: 5px;
 }
 QSlider::handle:vertical:hover {
-    background-color: rgb(195, 155, 255);
+    background-color: rgb(51, 153, 255);
 }
 QSlider::handle:vertical:pressed {
     background-color: rgb(51, 153, 255);

@@ -267,7 +267,7 @@ class FSMWorker(QtCore.QObject):
         elif isinstance(delay, str):
             if delay.lower() == 'is_acked':
                 # Acknowledgment-based waiting - return 0, will be handled by UI
-                print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment before action")
+                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment before action")
                 delay = 0
             else:
                 try:
@@ -285,7 +285,7 @@ class FSMWorker(QtCore.QObject):
         elif isinstance(delay, str):
             if delay.lower() == 'is_acked':
                 # Acknowledgment-based waiting - return 0, will be handled by UI
-                print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment after action")
+                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment after action")
                 delay = 0
             else:
                 try:
@@ -477,7 +477,7 @@ class MainWindow(QMainWindow):
         # This is where MainWindow handles the task completion
         # Update agent state
         self.agent.task_done_human[0] = True
-        print("Task marked as done")
+        print("Task marked as done\n\n")
     
     def handle_task_cancel(self):
         """
@@ -669,6 +669,7 @@ class MainWindow(QMainWindow):
         # Get previous, current, and next state objects
         previous_state_obj = getattr(self, '_previous_state_obj', None)
         
+        
         # Extract display text from state objects
         previous_procedure_text = previous_state_obj.procedure if previous_state_obj else ""
         previous_task_text = f"{previous_state_obj.task_object}     {previous_state_obj.value}" if previous_state_obj else ""
@@ -683,6 +684,7 @@ class MainWindow(QMainWindow):
         home_page = self.get_home_page()
         home_page.current_countdown_timer.stop()
         home_page.next_countdown_timer.stop()
+        home_page.set_checklist_label_passed(previous_state_obj.procedure, previous_state_obj.task_object, previous_state_obj.value) if previous_state_obj else None
 
         home_page.reset_radio_button(self.ui.check_radio_button)
         self.ui.c_t_s_unit_2.hide()
@@ -752,7 +754,7 @@ class MainWindow(QMainWindow):
                     home_page.next_circular_countdown.set_na()
                     home_page.next_countdown_timer.stop()
                     home_page.next_countdown_value = 0
-                    print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
+                    #print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
                 else:
                     # Normal time-based delays
                     current_delay_before = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
@@ -812,57 +814,49 @@ class MainWindow(QMainWindow):
                 self.get_home_page().show_label(self.ui.n_t_prog_widget_2)
         else:
             self.ui.n_t_prog_widget_2.hide()
+        
+        # Setup Electronic Checklist Panel
+        current_tab_text = self.ui.ecl_tab_container.tabText(self.ui.ecl_tab_container.currentIndex())
+        if current_tab_text != current_procedure_text:
+            # Switch to the tab matching the current procedure
+            tab_widget = self.ui.ecl_tab_container
+            tab_count = tab_widget.count()
+            tab_index = -1
+            for i in range(tab_count):
+                if tab_widget.tabText(i) == current_procedure_text:
+                    tab_index = i
+                    break
+            if tab_index != -1:
+                tab_widget.setCurrentIndex(tab_index)
+        home_page.set_checklist_label_current(current_procedure_text, current_state_obj.task_object, current_state_obj.value)
 
-        self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
+        if current_state_obj.type == "Checklist":
+            self.ui.interaction_panel_text.setText(self.format_checklist_line(current_state_obj.task_object, current_state_obj.value))
+            if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+            self.ui.int_panel_right_button.setText("CHECK")
+            self.ui.int_panel_left_button.hide()
+        else :
+            self.ui.interaction_panel_text.setText(current_state_obj.task_object)
+            self.ui.int_panel_right_button.hide()
+            self.ui.int_panel_left_button.hide()
+    
         # Handle interaction panel based on current state's interaction attribute
         if current_state_obj.interaction is not None and current_state_obj.interaction != "":
             self.ui.int_panel_right_button.hide()
             self.ui.int_panel_left_button.hide()
-            self.ui.interaction_panel_text.setText("There is no interaction for the current task...")
             match current_state_obj.interaction:
-                case "pitot-static-switch":
-                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
-                    self.ui.interaction_panel_text.setText("Pitot-Static Switches----------------PITOT-STATIC")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("CHECK")
                 case "engine-anti-ice-requirement":
-                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
-                    self.ui.interaction_panel_text.setText("ENGINE ANTI-ICE Switches----------------AS REQUIRED")
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("CHECK")
                 case "windshield-anti-ice-requirement":
-                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
-                    self.ui.interaction_panel_text.setText("WINDSHIELD ANTI-ICE Switch----------------AS REQUIRED")
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("CHECK")
-                case "pax-safety-switch":
-                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
-                    self.ui.interaction_panel_text.setText("PAX SAFETY Switch----------------PAX SAFETY")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("CHECK")
                 case "landing-light-recommendation":
-                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
-                    self.ui.interaction_panel_text.setText("LANDING LIGHT Switch----------------AS DESIRED")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("LANDING LIGHTS ON")
-                    self.ui.int_panel_right_button.setText("CHECK")
-                case "anti-coll-light-switch":
-                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
-                    self.ui.interaction_panel_text.setText("ANTI-COLLISION LIGHT Switch----------------ON")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("CHECK")
                 case "radar-requirement":
-                    self.ui.interaction_panel_title.setText("BEFORE TAKEOFF NORMAL CHECKLIST")
-                    self.ui.interaction_panel_text.setText("RADAR----------------AS REQUIRED")
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("NO SPECIAL WEATHER CONDITIONS AS PER LAST METAR")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("CHECK")
                 case "display_winds_and_ack":
                     self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
@@ -963,7 +957,7 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Caution text \nIf possible, the engines should remain at idle for a minimum of two minutes prior to shutdown to allow the engine inter-turbine temperature to stabilize and avoid turbine blade rub.\nIf the engine windmills for more than 15 minutes without a positive indication of oil pressure, a notation is required in the engine logbook and the engine must be inspected in accordance with the Pratt & Whitney engine maintenance manual.\nIf the engine windmills for more than 30 minutes with the firewall shutoff closed or the boost pump turned off, the engine fuel pump must be inspected in accordance with the Pratt & Whitney engine maintenance manual.")
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
-        
+    
         # Update task timeline widget
         home_page.update_task_timeline(current_state_obj)
 
@@ -1023,6 +1017,14 @@ class MainWindow(QMainWindow):
             #print('Mouse click: LEFT CLICK')
         #if event.buttons() == Qt.RightButton:
             #print('Mouse click: RIGHT CLICK')
+    
+    # Helper function
+    def format_checklist_line(self, left: str, right: str, total_width: int = 48, dash_char: str = "-") -> str:
+        """Return a string with left and right text separated by dashes, aligned to total_width."""
+        left = str(left)
+        right = str(right)
+        dash_count = max(2, total_width - len(left) - len(right))
+        return f"{left}{dash_char * dash_count}{right}"
 
 
 if __name__ == "__main__":

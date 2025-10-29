@@ -73,6 +73,7 @@ class TarsAgent:
         allocation_csv_path = Path(__file__).parent / "briefing_export_HIGH_LOA.csv"        
         # Create states from allocation CSV
         self.states = self.create_states_from_csv(allocation_csv_path)
+        self.checklists = self.create_checklists_from_states(self.states)
         idle_key = ("IDLE", "Idle", "WAITING")
         finished_key = ("FINISHED", "Finished", "COMPLETED")
         self.fsm = FiniteStateMachine(self.states[idle_key])
@@ -948,6 +949,23 @@ class TarsAgent:
         states[end_key] = end_state
         return states
     
+    def create_checklists_from_states(self, states):
+        checklists = {}
+        for state in states.values():
+            if state.type is not None and state.type == "Checklist":
+                checklist_item = {
+                    "procedure": state.procedure,
+                    "task_object": state.task_object,
+                    "value": state.value,
+                }
+                if state.procedure not in checklists:
+                    checklists[state.procedure] = []
+                    checklists[state.procedure].append(checklist_item)
+                else:
+                    checklists[state.procedure].append(checklist_item)
+        return checklists
+
+
     def is_started(self):
         if self.is_on_off[0]:
             return True
@@ -1089,7 +1107,7 @@ class TarsAgent:
         return False
     
     def is_fuel_boost_off(self):
-        print(f"Checking if fuel boost is off - Left: {self.agent.fuel_boost_l_i}, Right: {self.agent.fuel_boost_r_i}")
+        #print(f"Checking if fuel boost is off - Left: {self.agent.fuel_boost_l_i}, Right: {self.agent.fuel_boost_r_i}")
         if self.agent.fuel_boost_l_i == 1 or self.agent.fuel_boost_r_i == 1:
             return True
         return False

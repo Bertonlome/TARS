@@ -3,9 +3,10 @@ Home Page
 Main landing page for the TARS GUI application
 """
 
+from tabnanny import check
 from pages.base_page import BasePage
 from PySide6 import QtCore
-from PySide6.QtWidgets import QGraphicsOpacityEffect
+from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QWidget, QVBoxLayout
 from widgets.circular_countdown import CircularCountdown
 from widgets.task_timeline import TaskTimelineWidget
 from pathlib import Path
@@ -17,6 +18,33 @@ if TYPE_CHECKING:
     from main import MainWindow
 
 class HomePage(BasePage):
+    def set_checklist_label_current(self, procedure_name, task_object, value):
+        """Set the checklist label to 'current' (grey box)"""
+        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if label:
+            label.setStyleSheet("""
+                QLabel {
+                    font: 600 12pt 'OCR A';
+                    color: white;
+                    border: 2px solid #888888;
+                    border-radius: 8px;
+                    padding: 4px;
+                }
+            """)
+
+    def set_checklist_label_passed(self, procedure_name, task_object, value):
+        """Set the checklist label to 'passed' (neutral green, no box)"""
+        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if label:
+            label.setStyleSheet("""
+                QLabel {
+                    font: 600 12pt 'OCR A';
+                    color: #55de71;
+                    border: none;
+                    border-radius: 0px;
+                    padding: 4px;
+                }
+            """)
     """
     Home page implementation
     Contains the main dashboard and status information
@@ -64,10 +92,13 @@ class HomePage(BasePage):
         self.current_procedure = None  # Track current active procedure
         self.discovered_procedures = set()  # Track which procedures have been revealed
         
-        # Initialize glow effect timer
+    # Initialize glow effect timer
         self._glow_timer = None
         self._glow_steps = []
         self._glow_index = 0
+
+        # Store checklist item labels for later access
+        self.checklist_item_labels = {}  # Dict: procedure_name -> list of QLabel
 
         radio_style = """
         QRadioButton {
@@ -122,7 +153,7 @@ class HomePage(BasePage):
         
         # Setup task timeline widget
         self._setup_task_timeline()
-        
+
         # Connect to allocation sent signal so timeline refreshes when allocations change
         try:
             if hasattr(self.main_window, 'allocation_sent_signal'):
@@ -249,7 +280,9 @@ class HomePage(BasePage):
             self.discovered_procedures.add(procedure_name)
         
         print(f"Created {len(self.task_timeline_widgets)} normal procedure timeline tabs")
-    
+
+        self._create_checklists_tabs(agent.checklists)
+
     def _create_procedure_tab(self, procedure_name, classification='NORM'):
         """Create a single procedure tab
         
@@ -289,7 +322,43 @@ class HomePage(BasePage):
         if classification == 'EMER':
             tab_widget.tabBar().setTabData(tab_index, {'emergency': 'true'})
         
-        print(f"Created tab for {procedure_name} (classification: {classification}) at index {tab_index}")
+        #print(f"Created tab for {procedure_name} (classification: {classification}) at index {tab_index}")
+
+    def _create_checklists_tabs(self, checklists):
+        tab_widget = self.widgets.ecl_tab_container
+        tab_widget.removeTab(0)
+        tab_widget.removeTab(0)
+        from PySide6.QtWidgets import QScrollArea
+        for checklist in checklists.values():
+            procedure_name = checklist[0]['procedure']
+            item_labels = {}  # (task_object, value) -> QLabel
+            # Create a container widget for the checklist items
+            container = QWidget()
+            layout = QVBoxLayout(container)
+            layout.setContentsMargins(10, 10, 10, 10)
+            layout.setSpacing(14)
+            for checklist_item in checklist:
+                line = self.format_checklist_line(checklist_item['task_object'], checklist_item['value'])
+                item_label = QLabel(line)
+                item_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+                item_label.setTextFormat(QtCore.Qt.RichText)
+                item_label.setStyleSheet("""
+                    QLabel {
+                        font: 600 12pt 'OCR A';
+                        color: white;
+                    }
+                """)
+                layout.addWidget(item_label)
+                key = (checklist_item['task_object'], checklist_item['value'])
+                item_labels[key] = item_label
+            layout.addStretch(1)
+            self.checklist_item_labels[procedure_name] = item_labels
+            # Make scrollable area
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setWidget(container)
+            tab_index = tab_widget.addTab(scroll, procedure_name)
+        print(f"Created checklist tab with {len(checklists)} checklists at index {tab_index}")
     
     def inject_emergency_procedure(self, procedure_name):
         """Dynamically inject a procedure tab (emergency, abnormal, or any newly discovered procedure)
@@ -710,4 +779,11 @@ class HomePage(BasePage):
                 }
             """)
         # Actually show the button
-        button.show()
+        button.show()    # Helper function
+
+    def format_checklist_line(self, left: str, right: str, total_width: int = 60, dash_char: str = "-") -> str:
+        """Return a string with left and right text separated by dashes, aligned to total_width."""
+        left = str(left)
+        right = str(right)
+        dash_count = max(2, total_width - len(left) - len(right))
+        return f"{left}{dash_char * dash_count}{right}"

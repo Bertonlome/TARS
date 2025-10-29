@@ -1398,6 +1398,62 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_22.addWidget(self.stack_tab_container)
 
+        self.bottom_horizontal_layout = QHBoxLayout()
+        self.bottom_horizontal_layout.setObjectName(u"bottom_horizontal_layout")
+        self.ecl_vertical_container = QWidget(self.home)
+        self.ecl_vertical_container.setObjectName(u"ecl_vertical_container")
+        self.ecl_vertical_container.setStyleSheet(u"QWidget#ecl_vertical_container {\n"
+"    border: 2px solid rgba(40, 44, 52, 255);\n"
+"    border-radius: 10px;\n"
+"	background-color: rgba(33, 37, 43, 255);\n"
+"}\n"
+"")
+        self.ecl_container = QVBoxLayout(self.ecl_vertical_container)
+        self.ecl_container.setObjectName(u"ecl_container")
+        self.ecl_tab_container = QTabWidget(self.ecl_vertical_container)
+        self.ecl_tab_container.setObjectName(u"ecl_tab_container")
+        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        sizePolicy7.setHorizontalStretch(0)
+        sizePolicy7.setVerticalStretch(0)
+        sizePolicy7.setHeightForWidth(self.ecl_tab_container.sizePolicy().hasHeightForWidth())
+        self.ecl_tab_container.setSizePolicy(sizePolicy7)
+        self.ecl_tab_container.setStyleSheet(u"QTabWidget::pane {\n"
+"border: 2px solid rgb(40, 44, 52);\n"
+"border-radius: 10px;\n"
+"background-color: rgb(33, 37, 43);\n"
+"padding: 5px;\n"
+"}\n"
+"QTabBar::tab {\n"
+"background-color: rgb(44, 49, 60);\n"
+"color: rgb(210, 210, 210);\n"
+"border: 2px solid rgb(52, 59, 72);\n"
+"border-bottom: none;\n"
+"border-top-left-radius: 10px;\n"
+"border-top-right-radius: 10px;\n"
+"padding: 8px 16px;\n"
+"margin-right: 2px;\n"
+"font: 600 10pt \"JetBrains Mono\";\n"
+"}\n"
+"QTabBar::tab:selected {\n"
+"background-color: rgb(33, 37, 43);\n"
+"color: #55aaff;\n"
+"border-bottom: 2px solid rgb(33, 37, 43);\n"
+"}\n"
+"QTabBar::tab:hover {\n"
+"background-color: rgb(52, 59, 72);\n"
+"}")
+        self.tab = QWidget()
+        self.tab.setObjectName(u"tab")
+        self.ecl_tab_container.addTab(self.tab, "")
+        self.tab_2 = QWidget()
+        self.tab_2.setObjectName(u"tab_2")
+        self.ecl_tab_container.addTab(self.tab_2, "")
+
+        self.ecl_container.addWidget(self.ecl_tab_container)
+
+
+        self.bottom_horizontal_layout.addWidget(self.ecl_vertical_container)
+
         self.interaction_container = QWidget(self.home)
         self.interaction_container.setObjectName(u"interaction_container")
         self.interaction_container.setStyleSheet(u"QWidget#interaction_container {\n"
@@ -1416,11 +1472,11 @@ class Ui_MainWindow(object):
 
         self.interaction_panel_text = QLabel(self.interaction_container)
         self.interaction_panel_text.setObjectName(u"interaction_panel_text")
-        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy7.setHorizontalStretch(0)
-        sizePolicy7.setVerticalStretch(1)
-        sizePolicy7.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
-        self.interaction_panel_text.setSizePolicy(sizePolicy7)
+        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy8.setHorizontalStretch(0)
+        sizePolicy8.setVerticalStretch(1)
+        sizePolicy8.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
+        self.interaction_panel_text.setSizePolicy(sizePolicy8)
         self.interaction_panel_text.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\";")
 
         self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -1462,7 +1518,10 @@ class Ui_MainWindow(object):
         self.verticalLayout_23.addWidget(self.int_panel_button_container)
 
 
-        self.verticalLayout_22.addWidget(self.interaction_container)
+        self.bottom_horizontal_layout.addWidget(self.interaction_container)
+
+
+        self.verticalLayout_22.addLayout(self.bottom_horizontal_layout)
 
         self.stackedWidget.addWidget(self.home)
         self.widgets = QWidget()
@@ -1739,11 +1798,11 @@ class Ui_MainWindow(object):
         __qtablewidgetitem23 = QTableWidgetItem()
         self.tableWidget.setItem(0, 3, __qtablewidgetitem23)
         self.tableWidget.setObjectName(u"tableWidget")
-        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy8.setHorizontalStretch(0)
-        sizePolicy8.setVerticalStretch(0)
-        sizePolicy8.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
-        self.tableWidget.setSizePolicy(sizePolicy8)
+        sizePolicy9 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy9.setHorizontalStretch(0)
+        sizePolicy9.setVerticalStretch(0)
+        sizePolicy9.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicy9)
         palette = QPalette()
         brush = QBrush(QColor(221, 221, 221, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -2147,6 +2206,8 @@ class Ui_MainWindow(object):
         self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
         self.stack_tab_container.setTabText(self.stack_tab_container.indexOf(self.stack_tab_1), QCoreApplication.translate("MainWindow", u"Tab 1", None))
         self.stack_tab_container.setTabText(self.stack_tab_container.indexOf(self.stack_tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
+        self.ecl_tab_container.setTabText(self.ecl_tab_container.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Tab 1", None))
+        self.ecl_tab_container.setTabText(self.ecl_tab_container.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
         self.interaction_panel_tars_input.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))

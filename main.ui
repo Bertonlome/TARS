@@ -2398,111 +2398,176 @@ background-color: rgb(52, 59, 72);
                         </widget>
                        </item>
                        <item>
-                        <widget class="QWidget" name="interaction_container" native="true">
-                         <property name="styleSheet">
-                          <string notr="true">QWidget#interaction_container {
+                        <layout class="QHBoxLayout" name="bottom_horizontal_layout">
+                         <item>
+                          <widget class="QWidget" name="ecl_vertical_container" native="true">
+                           <property name="styleSheet">
+                            <string notr="true">QWidget#ecl_vertical_container {
     border: 2px solid rgba(40, 44, 52, 255);
     border-radius: 10px;
 	background-color: rgba(33, 37, 43, 255);
 }
 </string>
-                         </property>
-                         <layout class="QVBoxLayout" name="verticalLayout_23">
-                          <item alignment="Qt::AlignmentFlag::AlignTop">
-                           <widget class="QLabel" name="interaction_panel_title">
-                            <property name="styleSheet">
-                             <string notr="true">font: 500 20pt &quot;JetBrains Mono&quot;;</string>
-                            </property>
-                            <property name="text">
-                             <string>Interaction Panel</string>
-                            </property>
-                           </widget>
-                          </item>
-                          <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                           <widget class="QLabel" name="interaction_panel_text">
-                            <property name="sizePolicy">
-                             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-                              <horstretch>0</horstretch>
-                              <verstretch>1</verstretch>
-                             </sizepolicy>
-                            </property>
-                            <property name="styleSheet">
-                             <string notr="true">font: 300 14pt &quot;JetBrains Mono&quot;;</string>
-                            </property>
-                            <property name="text">
-                             <string>There is no interaction available for the ongoing task</string>
-                            </property>
-                           </widget>
-                          </item>
-                          <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                           <widget class="QLabel" name="interaction_panel_tars_input">
-                            <property name="styleSheet">
-                             <string notr="true">font: 300 14pt &quot;JetBrains Mono&quot;; color: #3399ff</string>
-                            </property>
-                            <property name="text">
-                             <string>TextLabel</string>
-                            </property>
-                           </widget>
-                          </item>
-                          <item>
-                           <widget class="QWidget" name="int_panel_button_container" native="true">
-                            <property name="minimumSize">
-                             <size>
-                              <width>0</width>
-                              <height>50</height>
-                             </size>
-                            </property>
-                            <layout class="QHBoxLayout" name="horizontalLayout_15">
-                             <property name="sizeConstraint">
-                              <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
-                             </property>
-                             <item>
-                              <widget class="QPushButton" name="int_panel_left_button">
-                               <property name="minimumSize">
-                                <size>
-                                 <width>0</width>
-                                 <height>50</height>
-                                </size>
+                           </property>
+                           <layout class="QVBoxLayout" name="ecl_container">
+                            <item>
+                             <widget class="QTabWidget" name="ecl_tab_container">
+                              <property name="sizePolicy">
+                               <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                               </sizepolicy>
+                              </property>
+                              <property name="styleSheet">
+                               <string notr="true">QTabWidget::pane {
+border: 2px solid rgb(40, 44, 52);
+border-radius: 10px;
+background-color: rgb(33, 37, 43);
+padding: 5px;
+}
+QTabBar::tab {
+background-color: rgb(44, 49, 60);
+color: rgb(210, 210, 210);
+border: 2px solid rgb(52, 59, 72);
+border-bottom: none;
+border-top-left-radius: 10px;
+border-top-right-radius: 10px;
+padding: 8px 16px;
+margin-right: 2px;
+font: 600 10pt &quot;JetBrains Mono&quot;;
+}
+QTabBar::tab:selected {
+background-color: rgb(33, 37, 43);
+color: #55aaff;
+border-bottom: 2px solid rgb(33, 37, 43);
+}
+QTabBar::tab:hover {
+background-color: rgb(52, 59, 72);
+}</string>
+                              </property>
+                              <widget class="QWidget" name="tab">
+                               <attribute name="title">
+                                <string>Tab 1</string>
+                               </attribute>
+                              </widget>
+                              <widget class="QWidget" name="tab_2">
+                               <attribute name="title">
+                                <string>Tab 2</string>
+                               </attribute>
+                              </widget>
+                             </widget>
+                            </item>
+                           </layout>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QWidget" name="interaction_container" native="true">
+                           <property name="styleSheet">
+                            <string notr="true">QWidget#interaction_container {
+    border: 2px solid rgba(40, 44, 52, 255);
+    border-radius: 10px;
+	background-color: rgba(33, 37, 43, 255);
+}
+</string>
+                           </property>
+                           <layout class="QVBoxLayout" name="verticalLayout_23">
+                            <item alignment="Qt::AlignmentFlag::AlignTop">
+                             <widget class="QLabel" name="interaction_panel_title">
+                              <property name="styleSheet">
+                               <string notr="true">font: 500 20pt &quot;JetBrains Mono&quot;;</string>
+                              </property>
+                              <property name="text">
+                               <string>Interaction Panel</string>
+                              </property>
+                             </widget>
+                            </item>
+                            <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                             <widget class="QLabel" name="interaction_panel_text">
+                              <property name="sizePolicy">
+                               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                <horstretch>0</horstretch>
+                                <verstretch>1</verstretch>
+                               </sizepolicy>
+                              </property>
+                              <property name="styleSheet">
+                               <string notr="true">font: 300 14pt &quot;JetBrains Mono&quot;;</string>
+                              </property>
+                              <property name="text">
+                               <string>There is no interaction available for the ongoing task</string>
+                              </property>
+                             </widget>
+                            </item>
+                            <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                             <widget class="QLabel" name="interaction_panel_tars_input">
+                              <property name="styleSheet">
+                               <string notr="true">font: 300 14pt &quot;JetBrains Mono&quot;; color: #3399ff</string>
+                              </property>
+                              <property name="text">
+                               <string>TextLabel</string>
+                              </property>
+                             </widget>
+                            </item>
+                            <item>
+                             <widget class="QWidget" name="int_panel_button_container" native="true">
+                              <property name="minimumSize">
+                               <size>
+                                <width>0</width>
+                                <height>50</height>
+                               </size>
+                              </property>
+                              <layout class="QHBoxLayout" name="horizontalLayout_15">
+                               <property name="sizeConstraint">
+                                <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
                                </property>
-                               <property name="styleSheet">
-                                <string notr="true">border: 2px solid rgba(235, 0, 20, 255);
+                               <item>
+                                <widget class="QPushButton" name="int_panel_left_button">
+                                 <property name="minimumSize">
+                                  <size>
+                                   <width>0</width>
+                                   <height>50</height>
+                                  </size>
+                                 </property>
+                                 <property name="styleSheet">
+                                  <string notr="true">border: 2px solid rgba(235, 0, 20, 255);
     border-radius: 5px;
     background-color: rgba(33, 37, 43, 255);
 font: 600 16pt &quot;JetBrains Mono&quot;;</string>
-                               </property>
-                               <property name="text">
-                                <string>CANCEL EXECUTION</string>
-                               </property>
-                               <property name="icon">
-                                <iconset resource="resources.qrc">
-                                 <normaloff>:/icons/images/icons/alarm-noack-iec.svg</normaloff>:/icons/images/icons/alarm-noack-iec.svg</iconset>
-                               </property>
-                              </widget>
-                             </item>
-                             <item>
-                              <widget class="QPushButton" name="int_panel_right_button">
-                               <property name="minimumSize">
-                                <size>
-                                 <width>0</width>
-                                 <height>50</height>
-                                </size>
-                               </property>
-                               <property name="styleSheet">
-                                <string notr="true">    border: 2px solid rgba(221, 221, 221, 255);
+                                 </property>
+                                 <property name="text">
+                                  <string>CANCEL EXECUTION</string>
+                                 </property>
+                                 <property name="icon">
+                                  <iconset resource="resources.qrc">
+                                   <normaloff>:/icons/images/icons/alarm-noack-iec.svg</normaloff>:/icons/images/icons/alarm-noack-iec.svg</iconset>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="QPushButton" name="int_panel_right_button">
+                                 <property name="minimumSize">
+                                  <size>
+                                   <width>0</width>
+                                   <height>50</height>
+                                  </size>
+                                 </property>
+                                 <property name="styleSheet">
+                                  <string notr="true">    border: 2px solid rgba(221, 221, 221, 255);
     border-radius: 5px;
     background-color: rgba(221, 221, 221, 255);
 font: 600 16pt &quot;JetBrains Mono&quot;;color: rgba(33, 37, 43, 255)</string>
-                               </property>
-                               <property name="text">
-                                <string>ACKNOWLEDGE</string>
-                               </property>
-                              </widget>
-                             </item>
-                            </layout>
-                           </widget>
-                          </item>
-                         </layout>
-                        </widget>
+                                 </property>
+                                 <property name="text">
+                                  <string>ACKNOWLEDGE</string>
+                                 </property>
+                                </widget>
+                               </item>
+                              </layout>
+                             </widget>
+                            </item>
+                           </layout>
+                          </widget>
+                         </item>
+                        </layout>
                        </item>
                       </layout>
                      </widget>

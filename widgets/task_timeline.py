@@ -64,6 +64,9 @@ class TaskTimelineWidget(QWidget):
         self._cache_valid = False
         self._last_size = None
         
+        # Task item references for violation marking
+        self._task_items = {}
+        
     def load_tasks_from_agent(self, agent):
         """Load tasks directly from agent's state data (preferred method)
         
@@ -88,7 +91,7 @@ class TaskTimelineWidget(QWidget):
                     'key': state_key  # Use the same key as agent
                 })
             
-            print(f"TaskTimeline: Loaded {len(all_tasks)} tasks from agent states")
+            #print(f"TaskTimeline: Loaded {len(all_tasks)} tasks from agent states")
         except Exception as e:
             print(f"Error loading tasks from agent: {e}")
         
@@ -658,3 +661,15 @@ class TaskTimelineWidget(QWidget):
             self._line_color = QColor(line_color)
         self._cache_valid = False
         self.update()
+    
+    def mark_task_violated(self, state_key):
+        """Visually mark a task as violated (red text)"""
+        task_item = self._task_items.get(state_key)
+        if task_item:
+            task_item.setStyleSheet("color: red;")
+
+    def mark_task_restored(self, state_key):
+        """Visually mark a task as restored (green text)"""
+        task_item = self._task_items.get(state_key)
+        if task_item:
+            task_item.setStyleSheet("color: green;")
