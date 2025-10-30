@@ -96,6 +96,7 @@ class Echo(metaclass=Singleton):
     def flight_directorO(self, value):
         self._flight_directorO = value
         if self._flight_directorO is not None:
+            print(f"Setting flight_director to {self._flight_directorO}")
             igs.output_set_double("flight_director", self._flight_directorO)
     
     @property

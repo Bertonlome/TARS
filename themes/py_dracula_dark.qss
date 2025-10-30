@@ -15,6 +15,10 @@ DARK THEME - DRACULA COLOR BASED
 # commercially, I recommend reading them on the official website:
 # https://doc.qt.io/qtforpython/licenses.html
 
+* {
+	font-family: "B612";
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////// */
 
 QWidget{

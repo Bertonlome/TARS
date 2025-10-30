@@ -53,6 +53,8 @@ class HomePage(BasePage):
     # Signals for communicating with MainWindow
     task_done_signal = QtCore.Signal()
     task_cancel_signal = QtCore.Signal()
+    task_allowed_signal = QtCore.Signal()
+    task_not_allowed_signal = QtCore.Signal()
     countdown_zero_signal = QtCore.Signal()  # Emitted when current countdown reaches 0
     
     def __init__(self, widgets: 'Ui_MainWindow', main_window: 'MainWindow'):
@@ -163,6 +165,36 @@ class HomePage(BasePage):
 
         #print("Home page setup complete")
     
+    def disconnect_int_panel_buttons(self):
+        """Disconnect the internal panel buttons from their signals"""
+        try:
+            self.widgets.int_panel_right_button.clicked.disconnect(self.task_done_clicked)
+        except Exception:
+            pass
+        try:
+            self.widgets.int_panel_left_button.clicked.disconnect(self.task_cancel_clicked)
+        except Exception:
+            pass
+        try:
+            self.widgets.int_panel_right_button.clicked.disconnect(self.task_allowed_clicked)
+        except Exception:
+            pass
+        try:
+            self.widgets.int_panel_left_button.clicked.disconnect(self.task_not_allowed_clicked)
+        except Exception:
+            pass
+
+    def connect_int_panel_buttons(self, default=True):
+        """Reconnect the internal panel buttons to their signals"""
+        self.disconnect_int_panel_buttons()
+        if default:
+            self.widgets.int_panel_right_button.clicked.connect(self.task_done_clicked)
+            self.widgets.int_panel_left_button.clicked.connect(self.task_cancel_clicked)
+        else:
+            self.widgets.int_panel_right_button.clicked.connect(self.task_allowed_clicked)
+            self.widgets.int_panel_left_button.clicked.connect(self.task_not_allowed_clicked)
+
+
     def _setup_circular_countdowns(self):
         """Replace the QLabel countdown displays with circular countdown widgets"""
         # Current task countdown
@@ -408,10 +440,10 @@ class HomePage(BasePage):
         if classification == 'EMER':
             tab_label = f"⚠️ {procedure_name}"
         elif classification == 'ABNORM':
-            tab_label = f"⚡ {procedure_name}"
+            tab_label = f"{procedure_name}"
         else:
             # For normal procedures discovered during runtime (checklists, etc.)
-            tab_label = f"📋 {procedure_name}"
+            tab_label = f"{procedure_name}"
         
         # Insert tab at specific position (not at the end)
         tab_index = tab_widget.insertTab(insert_position, timeline_widget, tab_label)
@@ -670,7 +702,19 @@ class HomePage(BasePage):
         self.start_glow_effect(self.widgets.current_task_container_3, "green")
         # Emit signal to notify MainWindow
         self.task_done_signal.emit()
-        
+    
+    def task_allowed_clicked(self):
+        """Handle task allowed button click"""
+        self.start_glow_effect(self.widgets.current_task_container_3, "blue")
+        # Emit signal to notify MainWindow
+        self.task_allowed_signal.emit()
+
+    def task_not_allowed_clicked(self):
+        """Handle task not allowed button click"""
+        self.start_glow_effect(self.widgets.current_task_container_3, "red")
+        # Emit signal to notify MainWindow
+        self.task_not_allowed_signal.emit()
+
     def task_cancel_clicked(self):
         """Handle task cancel button click"""
         btn = self.sender()

@@ -468,6 +468,8 @@ class MainWindow(QMainWindow):
         if home_page:
             home_page.task_done_signal.connect(self.handle_task_done)
             home_page.task_cancel_signal.connect(self.handle_task_cancel)
+            home_page.task_allowed_signal.connect(self.handle_task_allowed)
+            home_page.task_not_allowed_signal.connect(self.handle_task_not_allowed)
             home_page.countdown_zero_signal.connect(self.handle_countdown_zero)
     
     def handle_task_done(self):
@@ -486,9 +488,22 @@ class MainWindow(QMainWindow):
         # Signal FSM worker to skip the current action
         print("⚠️ Task cancelled by user - inhibiting action")
         self.fsm_worker.cancel_current_action()
-        
         # Signal FSM to continue (don't wait for countdown)
         self.countdown_completion_event.set()
+
+    def handle_task_allowed(self):
+        """
+        Handle task allowed signal from HomePage  
+        """
+        self.agent.is_allowed_to_comm_atc[0] = True
+        self.agent.is_requesting_vectors[0] = True
+    
+    def handle_task_not_allowed(self):
+        """
+        Handle task not allowed signal from HomePage  
+        """
+        self.agent.is_allowed_to_comm_atc[0] = False
+        self.agent.is_requesting_vectors[0] = False
     
     def handle_countdown_zero(self):
         """
@@ -687,6 +702,7 @@ class MainWindow(QMainWindow):
         home_page.set_checklist_label_passed(previous_state_obj.procedure, previous_state_obj.task_object, previous_state_obj.value) if previous_state_obj else None
 
         home_page.reset_radio_button(self.ui.check_radio_button)
+        home_page.connect_int_panel_buttons()
         self.ui.c_t_s_unit_2.hide()
         self.ui.c_t_s_value_2.hide()
 
@@ -823,7 +839,7 @@ class MainWindow(QMainWindow):
             tab_count = tab_widget.count()
             tab_index = -1
             for i in range(tab_count):
-                if tab_widget.tabText(i) == current_procedure_text:
+                if tab_widget.tabText(i) == current_procedure_text and current_state_obj.type == "Checklist":
                     tab_index = i
                     break
             if tab_index != -1:
@@ -832,7 +848,8 @@ class MainWindow(QMainWindow):
 
         if current_state_obj.type == "Checklist":
             self.ui.interaction_panel_text.setText(self.format_checklist_line(current_state_obj.task_object, current_state_obj.value))
-            if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+            #if not self.ui.int_panel_right_button.isVisible() :
+            self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
             self.ui.int_panel_right_button.setText("CHECK")
             self.ui.int_panel_left_button.hide()
         else :
@@ -842,11 +859,11 @@ class MainWindow(QMainWindow):
     
         # Handle interaction panel based on current state's interaction attribute
         if current_state_obj.interaction is not None and current_state_obj.interaction != "":
-            self.ui.int_panel_right_button.hide()
-            self.ui.int_panel_left_button.hide()
+            #self.ui.int_panel_right_button.hide()
+            #self.ui.int_panel_left_button.hide()
             match current_state_obj.interaction:
                 case "engine-anti-ice-requirement":
-                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.show()            
                     self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
                 case "windshield-anti-ice-requirement":
                     self.ui.interaction_panel_tars_input.show()
@@ -864,11 +881,47 @@ class MainWindow(QMainWindow):
                 case "display_cas":
                     self.ui.interaction_panel_text.setText("CAS: CLEAR")
                 case "display_fadec":
-                    self.ui.interaction_panel_text.setText("Clear")
+                    self.ui.interaction_panel_text.setText("Placeholder")
                 case "display_eng_spool_evenly":
-                    self.ui.interaction_panel_text.setText("Clear")
+                    self.ui.interaction_panel_text.setText("Placeholder")
                 case "display_n1_matches_command_bug":
-                    self.ui.interaction_panel_text.setText("Clear")
+                    self.ui.interaction_panel_text.setText("Placeholder")
+                case "failure_detected":
+                    self.ui.interaction_panel_text.setText("Failure detected: ENGINE FIRE")
+                    self.ui.alert_container_3.setStyleSheet("QWidget#alert_container_3 {\n    border: 2px solid red;\n    border-radius: 5px;\n    background-color: rgba(33, 37, 43, 255);\n}")
+                    home_page.start_glow_effect(self.ui.alert_container_3, "red")
+                    self.ui.alert_label_2.setText("EMERGENCY: ENGINE FIRE DETECTED")
+                case "end_emer":
+                    self.ui.alert_container_3.setStyleSheet("QWidget#alert_container_3 {\n    border: 2px solid rgba(255, 174, 0, 255);\n    border-radius: 5px;\n    background-color: rgba(33, 37, 43, 255);\n}")
+                    self.ui.alert_label_2.setText("")
+                case "prompt_start_checklist":
+                    self.ui.interaction_panel_text.setText(f"{current_state_obj.callout}?")
+                    self.ui.int_panel_right_button.setText("START")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.setText("CANCEL")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                case "prompt_next_checklist":
+                    self.ui.interaction_panel_text.setText(f"{current_state_obj.value}?")
+                    self.ui.int_panel_right_button.setText("NEXT")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.setText("CANCEL")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                case "allow_comm":
+                    home_page.connect_int_panel_buttons(default=False)
+                    self.ui.interaction_panel_text.setText("Allow TARS to communicate with ATC?")
+                    self.ui.interaction_panel_tars_input.setText(current_state_obj.callout)
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.int_panel_right_button.setText("ALLOW")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.setText("DENY")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                case "add_request_vectors":
+                    self.ui.interaction_panel_text.setText("Add request for vectors to return runway MyRunway?")
+                    self.ui.int_panel_right_button.setText("ADD REQUEST")
+                    self.ui.interaction_panel_tars_input.setText(previous_state_obj.callout + " " + current_state_obj.callout)
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.setText("CANCEL")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                 case "display_trim_rudder":
                     self.ui.interaction_panel_text.setText("Current trim : 0%")
                 case "display_alarm":
