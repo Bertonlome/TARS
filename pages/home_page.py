@@ -3,6 +3,7 @@ Home Page
 Main landing page for the TARS GUI application
 """
 
+from operator import index
 from tabnanny import check
 from pages.base_page import BasePage
 from PySide6 import QtCore
@@ -35,6 +36,17 @@ class HomePage(BasePage):
     def set_checklist_label_passed(self, procedure_name, task_object, value):
         """Set the checklist label to 'passed' (neutral green, no box)"""
         label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if not label:
+            return  # or handle the missing label case appropriately
+        target = task_object
+        label_text = label.text() if label else ""
+        index = label_text.find(target)
+        if index != -1:
+            end_index = index + len(target)
+            label_text = label_text[:end_index] + ": " + label_text[end_index:]
+        label_text = label_text
+        label_text = label_text.replace("-", "")
+        label.setText(label_text)
         if label:
             label.setStyleSheet("""
                 QLabel {
