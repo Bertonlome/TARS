@@ -2218,7 +2218,7 @@ class Ui_MainWindow(object):
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
         self.interaction_panel_tars_input.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
-        self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"ACKNOWLEDGE", None))
+        self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))
         self.lineEdit.setText("")
         self.lineEdit.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type here", None))

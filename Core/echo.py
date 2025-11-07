@@ -64,6 +64,7 @@ class Echo(metaclass=Singleton):
         self.l_gen_switch_i = None
         self.r_gen_switch_i = None
         self.transfer_knob_i = None
+        self.trim_rudder_i = None
 
         # outputs
         self.pax_safety_o = None
@@ -74,6 +75,7 @@ class Echo(metaclass=Singleton):
         self.autopilot_heading_set_o = None
         self.autopilot_state_o = None
         self.yaw_damper_o = None
+        self.trim_rudder_o = None
         
     # outputs
     @staticmethod
@@ -152,6 +154,15 @@ class Echo(metaclass=Singleton):
         self._yaw_damperO = value
         if self._yaw_damperO is not None:
             igs.output_set_double("yaw_damper", self._yaw_damperO)
+
+    @property
+    def trim_rudderO(self):
+        return self._trim_rudderO
+    @trim_rudderO.setter
+    def trim_rudderO(self, value):
+        self._trim_rudderO = value
+        if self._trim_rudderO is not None:
+            igs.output_set_double("trim_rudder", self._trim_rudderO)
     
 
     # services

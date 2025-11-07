@@ -13,8 +13,8 @@ LINE-UP AND HOLD,NORM,SOP,Flight Control,Brakes,HOLD,performer,,"Brake pressure,
 TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,,performer,"CAS status, system alerts, checklist progress.",Soft-time,30.0,Cyclic,display_cas,5,5,C A S is clear,,,
 TAKEOFF,NORM,SOP,Callout,"""Set thrust""",ANNOUNCE,performer,,"Thrust lever position, engine RPM, N1, and takeoff checklist status.",Hard-time,10.0,One-off,,0,is_acked,,,,
 TAKEOFF,NORM,SOP,Flight Control,THROTTLES,TO Detent,performer,,"Throttle position, engine parameters, runway conditions.",Hard-time,5.0,One-off,display_fadec,0,is_sensed,,continuous,is_thrust_toga,end_of_procedure
-TAKEOFF,NORM,SOP,System Check,FADEC bug,CHECK TO,,performer,"FADEC status, engine parameters, TARS action log.",Soft-time,30.0,Continuous,display_eng_spool_evenly,1,1,,continuous,is_fadec_bug_to,end_of_procedure
-TAKEOFF,NORM,SOP,System Check,Engine spool,CHECK EVEN,,performer,"Engine RPM, temperature, pressure, and spool rate.",Soft-time,10.0,Continuous,display_n1_matches_command_bug,1,1,Engine normal,continuous,is_engine_spool_even,end_of_procedure
+TAKEOFF,NORM,SOP,System Check,FADEC bug,CHECK TO,,performer,"FADEC status, engine parameters, TARS action log.",Soft-time,30.0,Continuous,display_eng_spool_evenly,1,2,FADEC normal,continuous,is_fadec_bug_to,end_of_procedure
+TAKEOFF,NORM,SOP,System Check,Engine spool,CHECK EVEN,,performer,"Engine RPM, temperature, pressure, and spool rate.",Soft-time,10.0,Continuous,display_n1_matches_command_bug,1,2,Engine Spool Normal,continuous,is_engine_spool_even,end_of_procedure
 TAKEOFF,NORM,SOP,Callout,"""Thrust set""",ANNOUNCE,,performer,"Thrust level, engine performance data, takeoff checklist status.",Hard-time,10.0,One-off,,0,2,,,,
 TAKEOFF,NORM,Checklist,System Check,Engine Instruments,CHECK NORMAL,,performer,"Engine RPM, oil pressure, temperature, fuel flow.",Soft-time,10.0,Monitoring,,0,3,,continuous,is_n1_percent_above_90,end_of_procedure
 TAKEOFF,NORM,Checklist,Flight Control,Brakes,RELEASE,performer,,"Brake status, takeoff checklist completion.",Soft-time,10.0,One-off,,0,is_sensed,,continuous,is_brake_released,end_of_procedure

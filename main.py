@@ -471,6 +471,10 @@ class MainWindow(QMainWindow):
             home_page.task_allowed_signal.connect(self.handle_task_allowed)
             home_page.task_not_allowed_signal.connect(self.handle_task_not_allowed)
             home_page.countdown_zero_signal.connect(self.handle_countdown_zero)
+            
+            # Connect agent alert signals to home page
+            if hasattr(self, 'agent') and self.agent:
+                self.agent.alertRequested.connect(home_page.displayAlert)
     
     def handle_task_done(self):
         """
@@ -850,7 +854,10 @@ class MainWindow(QMainWindow):
             self.ui.interaction_panel_text.setText(self.format_checklist_line(current_state_obj.task_object, current_state_obj.value))
             #if not self.ui.int_panel_right_button.isVisible() :
             self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-            self.ui.int_panel_right_button.setText("CHECK")
+            if current_state_obj.autonomy_role == "performer":
+                self.ui.int_panel_right_button.setText("CROSSCHECK")
+            else:
+                self.ui.int_panel_right_button.setText("CHECK")
             self.ui.int_panel_left_button.hide()
         else :
             self.ui.interaction_panel_text.setText(current_state_obj.task_object)
@@ -887,10 +894,7 @@ class MainWindow(QMainWindow):
                 case "display_n1_matches_command_bug":
                     self.ui.interaction_panel_text.setText("Placeholder")
                 case "failure_detected":
-                    self.ui.interaction_panel_text.setText("Failure detected: ENGINE FIRE")
-                    self.ui.alert_container_3.setStyleSheet("QWidget#alert_container_3 {\n    border: 2px solid red;\n    border-radius: 5px;\n    background-color: rgba(33, 37, 43, 255);\n}")
-                    home_page.start_glow_effect(self.ui.alert_container_3, "red")
-                    self.ui.alert_label_2.setText("EMERGENCY: ENGINE FIRE DETECTED")
+                    home_page.displayAlert("Failure detected: ENGINE FIRE", "red")
                 case "end_emer":
                     self.ui.alert_container_3.setStyleSheet("QWidget#alert_container_3 {\n    border: 2px solid rgba(255, 174, 0, 255);\n    border-radius: 5px;\n    background-color: rgba(33, 37, 43, 255);\n}")
                     self.ui.alert_label_2.setText("")

@@ -835,8 +835,28 @@ class HomePage(BasePage):
                 }
             """)
         # Actually show the button
-        button.show()    # Helper function
+        button.show()
 
+    @QtCore.Slot(str, str)
+    def displayAlert(self, text: str, color: str = "red"):
+        """Display alert with specified text and color
+        
+        Args:
+            text: Alert text to display
+            color: Alert border color (red, orange, yellow, etc.)
+        """
+        self.widgets.interaction_panel_text.setText(text)
+        self.widgets.alert_container_3.setStyleSheet(f"""
+            QWidget#alert_container_3 {{
+                border: 2px solid {color};
+                border-radius: 5px;
+                background-color: rgba(33, 37, 43, 255);
+            }}
+        """)
+        self.widgets.alert_label_2.setText(text)
+        self.start_glow_effect(self.widgets.alert_container_3, color)
+
+    # Helper function
     def format_checklist_line(self, left: str, right: str, total_width: int = 60, dash_char: str = "-") -> str:
         """Return a string with left and right text separated by dashes, aligned to total_width."""
         left = str(left)

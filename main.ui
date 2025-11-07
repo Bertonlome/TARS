@@ -2566,7 +2566,7 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
 font: 600 16pt &quot;JetBrains Mono&quot;;color: rgba(33, 37, 43, 255)</string>
                                  </property>
                                  <property name="text">
-                                  <string>ACKNOWLEDGE</string>
+                                  <string>CHECK</string>
                                  </property>
                                 </widget>
                                </item>
