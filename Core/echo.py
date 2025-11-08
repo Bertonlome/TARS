@@ -65,6 +65,7 @@ class Echo(metaclass=Singleton):
         self.r_gen_switch_i = None
         self.transfer_knob_i = None
         self.trim_rudder_i = None
+        self.cabin_altitude_i = None
 
         # outputs
         self.pax_safety_o = None

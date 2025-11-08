@@ -45,7 +45,7 @@ class HomePage(BasePage):
             end_index = index + len(target)
             label_text = label_text[:end_index] + ": " + label_text[end_index:]
         label_text = label_text
-        label_text = label_text.replace("-", "")
+        #label_text = label_text.replace("-", "")
         label.setText(label_text)
         if label:
             label.setStyleSheet("""

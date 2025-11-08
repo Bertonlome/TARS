@@ -10,7 +10,7 @@ BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Radar,AS REQUIRED,yellow,yellow,red
 LINE-UP AND HOLD,NORM,SOP,Flight Control,Runway centerline,ALIGN,yellow,red,red,,,,,"Runway alignment, wind speed/direction, aircraft heading.",Soft-time,30.0,Continuous,,3,5,
 LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,green,green,yellow,yellow,TARS displays available wind data and status. Pilot can enrich by crosschecking with visual information,,Both can perform in parallel and crosscheck,"Wind speed, direction, runway alignment.",Soft-time,30.0,Cyclic,display_winds_and_ack,3,5,
 LINE-UP AND HOLD,NORM,SOP,Flight Control,Brakes,HOLD,green,red,red,,,,,"Brake pressure, runway position, ATC clearance status.",Soft-time.,30.0,One-off.,,3,5,
-TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,yellow,yellow,green,,Human must see TARS's CAS status updates.,Human must anticipate TARS's CAS check completion time.,,"CAS status, system alerts, checklist progress.",Soft-time,30.0,Cyclic,display_cas,3,5,
+TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,yellow,yellow,red,,,,,"CAS status, system alerts, checklist progress.",Soft-time,30.0,Cyclic,display_cas,3,5,
 TAKEOFF,NORM,SOP,Callout,"""Set thrust""",ANNOUNCE,green,red,red,,,,,"Thrust lever position, engine RPM, N1, and takeoff checklist status.",Hard-time,10.0,One-off,,3,5,
 TAKEOFF,NORM,SOP,Flight Control,THROTTLES,TO Detent,green,red,red,,,,,"Throttle position, engine parameters, runway conditions.",Hard-time,5.0,One-off,display_fadec,3,5,
 TAKEOFF,NORM,SOP,System Check,FADEC bug,CHECK TO,yellow,yellow,green,,TARS displays FADEC status changes to pilot.,,TARS direct human to RTO if FADEC fails,"FADEC status, engine parameters, TARS action log.",Soft-time,30.0,Continuous,display_eng_spool_evenly,3,5,

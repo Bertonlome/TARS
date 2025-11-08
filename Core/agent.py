@@ -92,7 +92,7 @@ class TarsAgent(QObject):
         self.checklists = self.create_checklists_from_states(self.states)
         idle_key = ("IDLE", "Idle", "WAITING")
         finished_key = ("FINISHED", "Finished", "COMPLETED")
-        self.fsm = FiniteStateMachine(self.states[("TAKEOFF", "CAS", "CHECK CLEAR")])
+        self.fsm = FiniteStateMachine(self.states[(idle_key)])
 
         # BEFORE TAKEOFF Procedure
         self.fsm.add_transition(Transition(
@@ -167,7 +167,7 @@ class TarsAgent(QObject):
             self.states[("LINE-UP AND HOLD", "Brakes", "HOLD")], 
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")], 
             self.allow_transition, 
-            lambda: self.on_speak_action(self.states[("TAKEOFF", "CAS", "CHECK CLEAR")].callout) if self.states[("TAKEOFF", "CAS", "CHECK CLEAR")].autonomy_role == "performer" else self.dummy_action()))
+            self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")], 
@@ -505,7 +505,7 @@ class TarsAgent(QObject):
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "\"TOP\"", "ANNOUNCE")], 
             self.states[("ENGINE FIRE", "Chrono", "START")], 
-            self.is_acked, 
+            self.allow_transition, 
             lambda: self.on_speak_action(self.states[("ENGINE FIRE", "\"TOP\"", "ANNOUNCE")].callout) if self.states[("ENGINE FIRE", "\"TOP\"", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
@@ -523,19 +523,19 @@ class TarsAgent(QObject):
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")], 
             self.states[("ENGINE FIRE", "Checklist", "ORDER START")], 
-            self.allow_transition, 
+            self.is_acked, 
             lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Checklist", "ORDER START")].callout) if self.states[("ENGINE FIRE", "Checklist", "ORDER START")].autonomy_role == "performer" else self.dummy_action()))
         
-        #TO BE DELETED LATER
-        self.fsm.add_transition(Transition(
-            self.states[("ENGINE FIRE", "Checklist", "ORDER START")], 
-            self.states[("ENGINE FIRE", "Radio", "ALLOCATE")], 
-            self.is_acked, 
-            self.dummy_action))
+        ##TO BE DELETED LATER
+        ##self.fsm.add_transition(Transition(
+            #self.states[("ENGINE FIRE", "Checklist", "ORDER START")], 
+            #self.states[("ENGINE FIRE", "Radio", "ALLOCATE")], 
+            #self.is_acked, 
+            #self.dummy_action))
         #TO BE DELETED LATER END
         
         self.fsm.add_transition(Transition(
-            self.states[("ENGINE FIRE", "Radio", "ALLOCATE")], 
+            self.states[("ENGINE FIRE", "Checklist", "ORDER START")],
             self.states[("ENGINE FIRE", "Checklist", "RETRIEVE")], 
             self.is_acked, 
             self.dummy_action))
@@ -677,7 +677,7 @@ class TarsAgent(QObject):
         self.fsm.add_transition(Transition(
             self.states[("DECLARE EMERGENCY", "ATC", "READBACK")], 
             self.states[("DECLARE EMERGENCY", "Heading", "SET ACCORDINGLY")], 
-            self.is_acked, 
+            lambda: self.is_acked() and self.is_allowed_comm_and_vector(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
@@ -686,6 +686,13 @@ class TarsAgent(QObject):
             self.is_acked, 
             self.dummy_action))
         
+        # Skip to AFTER TAKEOFF if no vector requested
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE EMERGENCY", "ATC", "READBACK")],
+            self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")],
+            lambda: self.is_acked() and not self.is_allowed_comm_and_vector(),
+            self.dummy_action))
+
         # Continue to AFTER TAKEOFF from DECLARE EMERGENCY
         self.fsm.add_transition(Transition(
             self.states[("DECLARE EMERGENCY", "FLC", "SET ACCORDINGLY")], 
@@ -763,7 +770,7 @@ class TarsAgent(QObject):
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Pressurization", "CHECK")], 
             self.states[("AFTER TAKEOFF", "Altimeters (transition altitude)", "SET STD")], 
-            self.is_pressurization_checked, 
+            self.is_cab_alt_ok, 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
@@ -814,7 +821,7 @@ class TarsAgent(QObject):
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")], 
             self.is_throttle_cutoff, 
-            lambda: self.on_speak_action(self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].callout) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].autonomy_role == "performer" else self.dummy_action()))
+            lambda: self.on_speak_action(self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].callout) if self.is_acked() else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")], 
@@ -832,12 +839,12 @@ class TarsAgent(QObject):
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "IGNITION switch (affected side)", "NORM")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Electrical Load", "REDUCE as required (<= 300A)")], 
             self.is_ignition_switch_norm, 
-            self.dummy_action))
+            self.check_electrical_load_action))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Electrical Load", "REDUCE as required (<= 300A)")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Fuel TRANSFER Knob", "AS REQUIRED")], 
-            self.is_acked, 
+            self.is_electrical_load_under_limit, 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
@@ -1046,6 +1053,20 @@ class TarsAgent(QObject):
             self.task_done_human[0] = False
             return True
         return False
+    
+    def is_cab_alt_ok(self):
+        if self.agent.cabin_altitude_i is not None and self.agent.cabin_altitude_i < 8000:
+            return True
+        return False
+    
+    def is_electrical_load_under_limit(self):
+        if self.engine_failed_side == "Left":
+            if self.agent.l_gen_load_i is not None and self.agent.l_gen_load_i <= 300:
+                return True
+        if self.engine_failed_side == "Right":
+            if self.agent.r_gen_load_i is not None and self.agent.r_gen_load_i <= 300:
+                return True
+        return False
 
     def is_thrust_toga(self):
         if self.agent.control_throttle_i is not None and self.agent.control_throttle_i == 1:
@@ -1244,11 +1265,6 @@ class TarsAgent(QObject):
             return True
         return False
 
-    def is_pressurization_checked(self):
-        """Check if pressurization is set correctly (dummy implementation)"""
-        # In a real scenario, this would check specific pressurization parameters
-        return True  # Assume always checked for this example
-    
     def check_affected_conditions(self, input_name, new_value, affected_condition_names):
         """
         Event-driven condition monitoring - called when an input changes
@@ -1412,6 +1428,8 @@ class TarsAgent(QObject):
             agent_object.heading_mode_i = value
         elif name == "trim_rudder":
             agent_object.trim_rudder_i = value
+        elif name == "cabin_altitude":
+            agent_object.cabin_altitude_i = value
         
         # EVENT-DRIVEN CONDITION MONITORING
         # Check if this input affects any monitored conditions
@@ -1524,6 +1542,7 @@ class TarsAgent(QObject):
         igs.input_create("r_gen_switch", igs.DOUBLE_T, None)  # 0 is reset, 1 is off 2 is on
         igs.input_create("transfer_knob", igs.DOUBLE_T, None)  # 0 is left, 1 is off 2 is right
         igs.input_create("trim_rudder", igs.DOUBLE_T, None)  # -1.0 to 1.0 but can go beyond that programmatically
+        igs.input_create("cabin_altitude", igs.DOUBLE_T, None)  # in feet
 
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("airspeed", self.double_input_callback, self.agent)
@@ -1562,6 +1581,7 @@ class TarsAgent(QObject):
         igs.observe_input("r_gen_switch", self.double_input_callback, self.agent)  # 0 is reset, 1 is off 2 is on
         igs.observe_input("transfer_knob", self.double_input_callback, self.agent)  # 0 is left, 1 is off 2 is right
         igs.observe_input("trim_rudder", self.double_input_callback, self.agent)  # -1.0 to 1.0 but can go beyond that programmatically
+        igs.observe_input("cabin_altitude", self.double_input_callback, self.agent)  # in feet
 
         igs.log_set_console(True)
         igs.log_set_console_level(igs.LOG_INFO)
@@ -1597,6 +1617,10 @@ class TarsAgent(QObject):
     
     def dummy_action(self):
         print(f"Dummy action executed for {self.fsm.current_state}.")
+    
+    def check_electrical_load_action(self):
+        if not self.is_electrical_load_under_limit():
+            self.alertRequested.emit("Electrical load is above 300 amps", "red")
 
 # Example usage
 if __name__ == "__main__":
