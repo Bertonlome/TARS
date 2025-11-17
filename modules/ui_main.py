@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplicat
     QSizePolicy, QSlider, QSpacerItem, QStackedWidget,
     QTabWidget, QTableWidget, QTableWidgetItem, QTextEdit,
     QVBoxLayout, QWidget)
-import resources_rc
+from resources_rc import *
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -87,7 +87,7 @@ class Ui_MainWindow(object):
 "	background-repeat: no-repeat;\n"
 "}\n"
 "#titleLeftApp { font: 63 12pt \"Segoe UI Semibold\"; }\n"
-"#titleLeftDescription { font: 8pt \"Segoe UI\"; color: rgb(189, 147, 249); }\n"
+"#titleLeftDescription { font: 8pt \"Segoe UI\"; color: rgb(221, 221, 221); }\n"
 "\n"
 "/* MENUS */\n"
 "#topMenu .QPushButton {	\n"
@@ -120,7 +120,7 @@ class Ui_MainWindow(object):
 "	background-color: rgb(40, 44, 52);\n"
 "}\n"
 "#bottomMenu .QPushButton:pressed {	\n"
-"	background-color: rgb(189, 147, 249);\n"
+"	background-color: rgb(51, 153, 255);\n"
 "	color: rgb(255, 255, 255);\n"
 "}\n"
 "#leftMenuFrame{\n"
@@ -142,8 +142,8 @@ class Ui_MainWindow(object):
 "	background-color: rgb(40, 44, 52);\n"
 "}\n"
 "#toggleButton:pressed {\n"
-"	background-color: rgb(1"
-                        "89, 147, 249);\n"
+"	background-color: rgb(51"
+                        ", 153, 255);\n"
 "}\n"
 "\n"
 "/* Title Menu */\n"
@@ -156,7 +156,7 @@ class Ui_MainWindow(object):
 "	background-color: rgb(44, 49, 58);\n"
 "}\n"
 "#extraTopBg{	\n"
-"	background-color: rgb(189, 147, 249)\n"
+"	background-color: rgb(33, 37, 43)\n"
 "}\n"
 "\n"
 "/* Icon */\n"
@@ -176,8 +176,8 @@ class Ui_MainWindow(object):
 "\n"
 "/* Extra Content */\n"
 "#extraContent{\n"
-"	border-"
-                        "top: 3px solid rgb(40, 44, 52);\n"
+"	border-top: "
+                        "3px solid rgb(40, 44, 52);\n"
 "}\n"
 "\n"
 "/* Extra Top Menus */\n"
@@ -194,7 +194,7 @@ class Ui_MainWindow(object):
 "	background-color: rgb(40, 44, 52);\n"
 "}\n"
 "#extraTopMenu .QPushButton:pressed {	\n"
-"	background-color: rgb(189, 147, 249);\n"
+"	background-color: rgb(51, 153, 255);\n"
 "	color: rgb(255, 255, 255);\n"
 "}\n"
 "\n"
@@ -209,13 +209,13 @@ class Ui_MainWindow(object):
 "\n"
 "/* Top Buttons */\n"
 "#rightButtons .QPushButton { background-color: rgba(255, 255, 255, 0); border: none;  border-radius: 5px; }\n"
-"#rightButtons .QPushButton:hover { background-color: rgb(44, 49, 57); border-styl"
-                        "e: solid; border-radius: 4px; }\n"
+"#rightButtons .QPushButton:hover { background-color: rgb(44, 49, 57); border-style: sol"
+                        "id; border-radius: 4px; }\n"
 "#rightButtons .QPushButton:pressed { background-color: rgb(23, 26, 30); border-style: solid; border-radius: 4px; }\n"
 "\n"
 "/* Theme Settings */\n"
 "#extraRightBox { background-color: rgb(44, 49, 58); }\n"
-"#themeSettingsTopDetail { background-color: rgb(189, 147, 249); }\n"
+"#themeSettingsTopDetail { background-color: rgb(51, 153, 255); }\n"
 "\n"
 "/* Bottom Bar */\n"
 "#bottomBar { background-color: rgb(44, 49, 58); }\n"
@@ -236,9 +236,9 @@ class Ui_MainWindow(object):
 "	background-color: rgb(40, 44, 52);\n"
 "}\n"
 "#contentSettings .QPushButton:pressed {	\n"
-"	background-color: rgb(189, 147, 249);\n"
-"	color: rgb("
-                        "255, 255, 255);\n"
+"	background-color: rgb(51, 153, 255);\n"
+"	color: rgb(255, 255"
+                        ", 255);\n"
 "}\n"
 "\n"
 "/* /////////////////////////////////////////////////////////////////////////////////////////////////\n"
@@ -257,7 +257,7 @@ class Ui_MainWindow(object):
 "	gridline-color: rgb(44, 49, 60);\n"
 "}\n"
 "QTableWidget::item:selected{\n"
-"	background-color: rgb(189, 147, 249);\n"
+"	background-color: rgb(51, 153, 255);\n"
 "}\n"
 "QHeaderView::section{\n"
 "	background-color: rgb(33, 37, 43);\n"
@@ -273,8 +273,8 @@ class Ui_MainWindow(object):
 "QHeaderView::section:horizontal\n"
 "{\n"
 "    border: 1px solid rgb(33, 37, 43);\n"
-"	background-col"
-                        "or: rgb(33, 37, 43);\n"
+"	background-color: rgb(3"
+                        "3, 37, 43);\n"
 "	padding: 3px;\n"
 "	border-top-left-radius: 7px;\n"
 "    border-top-right-radius: 7px;\n"
@@ -308,8 +308,8 @@ class Ui_MainWindow(object):
 "	border-radius: 5px;\n"
 "	padding: 10px;\n"
 "	selection-color: rgb(255, 255, 255);\n"
-"	selection-background-co"
-                        "lor: rgb(255, 121, 198);\n"
+"	selection-background-color: rgb("
+                        "255, 121, 198);\n"
 "}\n"
 "QPlainTextEdit  QScrollBar:vertical {\n"
 "    width: 8px;\n"
@@ -334,7 +334,7 @@ class Ui_MainWindow(object):
 "	border-radius: 0px;\n"
 "}\n"
 "QScrollBar::handle:horizontal {\n"
-"    background: rgb(189, 147, 249);\n"
+"    background: rgb(51, 153, 255);\n"
 "    min-width: 25px;\n"
 "	border-radius: 4px\n"
 "}\n"
@@ -347,8 +347,8 @@ class Ui_MainWindow(object):
 "    subcontrol-position: right;\n"
 "    subcontrol-origin: margin;\n"
 "}\n"
-""
-                        "QScrollBar::sub-line:horizontal {\n"
+"QScrollBa"
+                        "r::sub-line:horizontal {\n"
 "    border: none;\n"
 "    background: rgb(55, 63, 77);\n"
 "    width: 20px;\n"
@@ -373,7 +373,7 @@ class Ui_MainWindow(object):
 "	border-radius: 0px;\n"
 " }\n"
 " QScrollBar::handle:vertical {	\n"
-"	background: rgb(189, 147, 249);\n"
+"	background: rgb(51, 153, 255);\n"
 "    min-height: 25px;\n"
 "	border-radius: 4px\n"
 " }\n"
@@ -384,8 +384,8 @@ class Ui_MainWindow(object):
 "	border-bottom-left-radius: 4px;\n"
 "    border-bottom-right-radius: 4px;\n"
 "     subcontrol-position: bottom;\n"
-"     su"
-                        "bcontrol-origin: margin;\n"
+"     subcontrol-o"
+                        "rigin: margin;\n"
 " }\n"
 " QScrollBar::sub-line:vertical {\n"
 "	border: none;\n"
@@ -419,8 +419,8 @@ class Ui_MainWindow(object):
 "QCheckBox::indicator:checked {\n"
 "    background: 3px solid rgb(52, 59, 72);\n"
 "	border: 3px solid rgb(52, 59, 72);	\n"
-"	back"
-                        "ground-image: url(:/icons/images/icons/cil-check-alt.png);\n"
+"	background-ima"
+                        "ge: url(:/icons/images/icons/cil-check-alt.png);\n"
 "}\n"
 "\n"
 "/* /////////////////////////////////////////////////////////////////////////////////////////////////\n"
@@ -454,8 +454,8 @@ class Ui_MainWindow(object):
 "}\n"
 "QComboBox::drop-down {\n"
 "	subcontrol-origin: padding;\n"
-"	subco"
-                        "ntrol-position: top right;\n"
+"	subcontrol-posi"
+                        "tion: top right;\n"
 "	width: 25px; \n"
 "	border-left-width: 3px;\n"
 "	border-left-color: rgba(39, 44, 54, 150);\n"
@@ -485,19 +485,19 @@ class Ui_MainWindow(object):
 "	background-color: rgb(55, 62, 76);\n"
 "}\n"
 "QSlider::handle:horizontal {\n"
-"    background-color: rgb(189, 147, 249);\n"
+"    background-color: rgb(51, 153, 255);\n"
 "    border: none;\n"
-"    h"
-                        "eight: 10px;\n"
+"    height: 10px"
+                        ";\n"
 "    width: 10px;\n"
 "    margin: 0px;\n"
 "	border-radius: 5px;\n"
 "}\n"
 "QSlider::handle:horizontal:hover {\n"
-"    background-color: rgb(195, 155, 255);\n"
+"    background-color: rgb(51, 153, 255);\n"
 "}\n"
 "QSlider::handle:horizontal:pressed {\n"
-"    background-color: rgb(255, 121, 198);\n"
+"    background-color: rgb(51, 153, 250);\n"
 "}\n"
 "\n"
 "QSlider::groove:vertical {\n"
@@ -510,7 +510,7 @@ class Ui_MainWindow(object):
 "	background-color: rgb(55, 62, 76);\n"
 "}\n"
 "QSlider::handle:vertical {\n"
-"    background-color: rgb(189, 147, 249);\n"
+"    background-color: rgb(51, 153, 255);\n"
 "	border: none;\n"
 "    height: 10px;\n"
 "    width: 10px;\n"
@@ -518,17 +518,17 @@ class Ui_MainWindow(object):
 "	border-radius: 5px;\n"
 "}\n"
 "QSlider::handle:vertical:hover {\n"
-"    background-color: rgb(195, 155, 255);\n"
+"    background-color: rgb(41, 143, 245);\n"
 "}\n"
 "QSlider::handle:vertical:pressed {\n"
-"    background-color: rgb(255, 121, 198);\n"
+"    background-color: rgb(31, 133, 235);\n"
 "}\n"
 "\n"
 "/* /////////////////////////////////////////////////////////////////////////////////////////////////\n"
 "CommandLinkButton */\n"
-"QCommandLi"
-                        "nkButton {	\n"
-"	color: rgb(255, 121, 198);\n"
+"QCommandLinkButton {	\n"
+""
+                        "	color: rgb(255, 121, 198);\n"
 "	border-radius: 5px;\n"
 "	padding: 5px;\n"
 "	color: rgb(255, 170, 255);\n"
@@ -538,7 +538,7 @@ class Ui_MainWindow(object):
 "	background-color: rgb(44, 49, 60);\n"
 "}\n"
 "QCommandLinkButton:pressed {	\n"
-"	color: rgb(189, 147, 249);\n"
+"	color: rgb(51, 153, 255);\n"
 "	background-color: rgb(52, 58, 71);\n"
 "}\n"
 "\n"
@@ -1502,10 +1502,31 @@ class Ui_MainWindow(object):
         self.int_panel_left_button = QPushButton(self.int_panel_button_container)
         self.int_panel_left_button.setObjectName(u"int_panel_left_button")
         self.int_panel_left_button.setMinimumSize(QSize(0, 50))
-        self.int_panel_left_button.setStyleSheet(u"border: 2px solid rgba(235, 0, 20, 255);\n"
-"    border-radius: 5px;\n"
-"    background-color: rgba(33, 37, 43, 255);\n"
-"font: 600 16pt \"JetBrains Mono\";")
+        font6 = QFont()
+        font6.setFamilies([u"JetBrains Mono"])
+        font6.setPointSize(16)
+        font6.setWeight(QFont.DemiBold)
+        font6.setItalic(False)
+        self.int_panel_left_button.setFont(font6)
+        self.int_panel_left_button.setStyleSheet(u"QPushButton {\n"
+"        border: 2px solid rgba(221, 0, 20, 255);\n"
+"        border-radius: 5px;\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(33, 37, 43, 255), stop:1 rgba(40,40,50,255));\n"
+"        font: 600 16pt \"JetBrains Mono\";\n"
+"        padding: 6px 10px;\n"
+"    }\n"
+"    QPushButton:pressed {\n"
+"        /* darker, slightly inset 3D pressed look */\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(221, 0, 20, 255), stop:1 rgba(230,0,30,255));\n"
+"        border: 2px solid rgba(221, 0, 20, 255);\n"
+"        padding-top: 8px;    /* push content down to simulate depression */\n"
+"        padding-bottom: 4px;\n"
+"    }\n"
+"    QPushButton:focus {\n"
+"        outline: none;\n"
+"    }")
         self.int_panel_left_button.setIcon(icon4)
 
         self.horizontalLayout_15.addWidget(self.int_panel_left_button)
@@ -1513,10 +1534,27 @@ class Ui_MainWindow(object):
         self.int_panel_right_button = QPushButton(self.int_panel_button_container)
         self.int_panel_right_button.setObjectName(u"int_panel_right_button")
         self.int_panel_right_button.setMinimumSize(QSize(0, 50))
-        self.int_panel_right_button.setStyleSheet(u"    border: 2px solid rgba(221, 221, 221, 255);\n"
-"    border-radius: 5px;\n"
-"    background-color: rgba(221, 221, 221, 255);\n"
-"font: 600 16pt \"JetBrains Mono\";color: rgba(33, 37, 43, 255)")
+        self.int_panel_right_button.setStyleSheet(u"QPushButton {\n"
+"        border: 2px solid rgba(221, 221, 221, 255);\n"
+"        border-radius: 5px;\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(245,245,245,255), stop:1 rgba(221,221,221,255));\n"
+"        font: 600 16pt \"JetBrains Mono\";\n"
+"        color: rgba(33, 37, 43, 255);\n"
+"        padding: 6px 10px;\n"
+"    }\n"
+"    QPushButton:pressed {\n"
+"        /* darker, slightly inset 3D pressed look */\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(190,190,190,255), stop:1 rgba(150,150,150,255));\n"
+"        border: 2px solid rgba(140,140,140,255);\n"
+"        padding-top: 8px;    /* push content down to simulate depression */\n"
+"        padding-bottom: 4px;\n"
+"        color: rgba(20, 24, 28, 255);\n"
+"    }\n"
+"    QPushButton:focus {\n"
+"        outline: none;\n"
+"    }")
 
         self.horizontalLayout_15.addWidget(self.int_panel_right_button)
 
@@ -1671,7 +1709,7 @@ class Ui_MainWindow(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 218, 218))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 609, 218))
         self.scrollAreaWidgetContents.setStyleSheet(u" QScrollBar:vertical {\n"
 "	border: none;\n"
 "    background: rgb(52, 59, 72);\n"
@@ -1760,10 +1798,10 @@ class Ui_MainWindow(object):
         self.tableWidget.setHorizontalHeaderItem(3, __qtablewidgetitem3)
         if (self.tableWidget.rowCount() < 16):
             self.tableWidget.setRowCount(16)
-        font6 = QFont()
-        font6.setFamilies([u"Segoe UI"])
+        font7 = QFont()
+        font7.setFamilies([u"Segoe UI"])
         __qtablewidgetitem4 = QTableWidgetItem()
-        __qtablewidgetitem4.setFont(font6);
+        __qtablewidgetitem4.setFont(font7);
         self.tableWidget.setVerticalHeaderItem(0, __qtablewidgetitem4)
         __qtablewidgetitem5 = QTableWidgetItem()
         self.tableWidget.setVerticalHeaderItem(1, __qtablewidgetitem5)
@@ -2091,11 +2129,11 @@ class Ui_MainWindow(object):
         self.creditsLabel = QLabel(self.bottomBar)
         self.creditsLabel.setObjectName(u"creditsLabel")
         self.creditsLabel.setMaximumSize(QSize(16777215, 16))
-        font7 = QFont()
-        font7.setFamilies([u"Segoe UI"])
-        font7.setBold(False)
-        font7.setItalic(False)
-        self.creditsLabel.setFont(font7)
+        font8 = QFont()
+        font8.setFamilies([u"Segoe UI"])
+        font8.setBold(False)
+        font8.setItalic(False)
+        self.creditsLabel.setFont(font8)
         self.creditsLabel.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
 
         self.horizontalLayout_5.addWidget(self.creditsLabel)
@@ -2131,8 +2169,8 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.stackedWidget.setCurrentIndex(0)
-        self.stack_tab_container.setCurrentIndex(0)
+        self.stackedWidget.setCurrentIndex(1)
+        self.stack_tab_container.setCurrentIndex(1)
         self.tabWidget.setCurrentIndex(0)
 
 

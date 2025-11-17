@@ -178,7 +178,7 @@ class HomePage(BasePage):
         #print("Home page setup complete")
     
     def disconnect_int_panel_buttons(self):
-        """Disconnect the internal panel buttons from their signals"""
+        """Disconnect the interaction panel buttons from their signals"""
         try:
             self.widgets.int_panel_right_button.clicked.disconnect(self.task_done_clicked)
         except Exception:
@@ -729,17 +729,7 @@ class HomePage(BasePage):
 
     def task_cancel_clicked(self):
         """Handle task cancel button click"""
-        btn = self.sender()
-        if btn:  # Safety check
-            btn.setStyleSheet(f"""
-                        padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);
-                        border-radius: 5px;
-                        background-color: rgba(108, 04, 04, 255);
-                        font: 600 16pt "JetBrains Mono";
-                        outline: none;
-                    """)
-            # Remove focus to prevent Qt's default blue focus border
-            btn.clearFocus()
+
         self.start_glow_effect(self.widgets.current_task_container_3, "red")
         
         # Stop the countdown timer and update UI
@@ -825,15 +815,15 @@ class HomePage(BasePage):
 
     def show_button(self, button, color):
         """Show button with specified color styling"""
-        if color == "red":
-            button.setStyleSheet("""
-                QPushButton {
-                    padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);
-                    border-radius: 5px;
-                    background-color: rgba(33, 37, 43, 255);
-                    font: 600 16pt "JetBrains Mono";
-                }
-            """)
+        #if color == "red":
+            #button.setStyleSheet("""
+                #QPushButton {
+                    #padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);
+                    #border-radius: 5px;
+                    #background-color: rgba(33, 37, 43, 255);
+                    #font: 600 16pt "JetBrains Mono";
+                #}
+            #""")
         # Actually show the button
         button.show()
 
@@ -855,6 +845,19 @@ class HomePage(BasePage):
         """)
         self.widgets.alert_label_2.setText(text)
         self.start_glow_effect(self.widgets.alert_container_3, color)
+    
+    @QtCore.Slot()
+    def clearAlert(self):
+        """Clear the alert display"""
+        self.widgets.interaction_panel_text.setText("")
+        self.widgets.alert_container_3.setStyleSheet("""
+            QWidget#alert_container_3 {
+                border: 2px solid rgba(52, 59, 72, 255);
+                border-radius: 5px;
+                background-color: rgba(33, 37, 43, 255);
+            }
+        """)
+        self.widgets.alert_label_2.setText("")
 
     # Helper function
     def format_checklist_line(self, left: str, right: str, total_width: int = 60, dash_char: str = "-") -> str:

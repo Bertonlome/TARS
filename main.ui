@@ -77,7 +77,7 @@ Left Menu */
 	background-repeat: no-repeat;
 }
 #titleLeftApp { font: 63 12pt &quot;Segoe UI Semibold&quot;; }
-#titleLeftDescription { font: 8pt &quot;Segoe UI&quot;; color: rgb(189, 147, 249); }
+#titleLeftDescription { font: 8pt &quot;Segoe UI&quot;; color: rgb(221, 221, 221); }
 
 /* MENUS */
 #topMenu .QPushButton {	
@@ -109,7 +109,7 @@ Left Menu */
 	background-color: rgb(40, 44, 52);
 }
 #bottomMenu .QPushButton:pressed {	
-	background-color: rgb(189, 147, 249);
+	background-color: rgb(51, 153, 255);
 	color: rgb(255, 255, 255);
 }
 #leftMenuFrame{
@@ -131,7 +131,7 @@ Left Menu */
 	background-color: rgb(40, 44, 52);
 }
 #toggleButton:pressed {
-	background-color: rgb(189, 147, 249);
+	background-color: rgb(51, 153, 255);
 }
 
 /* Title Menu */
@@ -144,7 +144,7 @@ Extra Tab */
 	background-color: rgb(44, 49, 58);
 }
 #extraTopBg{	
-	background-color: rgb(189, 147, 249)
+	background-color: rgb(33, 37, 43)
 }
 
 /* Icon */
@@ -181,7 +181,7 @@ background-position: left center;
 	background-color: rgb(40, 44, 52);
 }
 #extraTopMenu .QPushButton:pressed {	
-	background-color: rgb(189, 147, 249);
+	background-color: rgb(51, 153, 255);
 	color: rgb(255, 255, 255);
 }
 
@@ -201,7 +201,7 @@ Content App */
 
 /* Theme Settings */
 #extraRightBox { background-color: rgb(44, 49, 58); }
-#themeSettingsTopDetail { background-color: rgb(189, 147, 249); }
+#themeSettingsTopDetail { background-color: rgb(51, 153, 255); }
 
 /* Bottom Bar */
 #bottomBar { background-color: rgb(44, 49, 58); }
@@ -222,7 +222,7 @@ Content App */
 	background-color: rgb(40, 44, 52);
 }
 #contentSettings .QPushButton:pressed {	
-	background-color: rgb(189, 147, 249);
+	background-color: rgb(51, 153, 255);
 	color: rgb(255, 255, 255);
 }
 
@@ -242,7 +242,7 @@ QTableWidget::item{
 	gridline-color: rgb(44, 49, 60);
 }
 QTableWidget::item:selected{
-	background-color: rgb(189, 147, 249);
+	background-color: rgb(51, 153, 255);
 }
 QHeaderView::section{
 	background-color: rgb(33, 37, 43);
@@ -317,7 +317,7 @@ QScrollBar:horizontal {
 	border-radius: 0px;
 }
 QScrollBar::handle:horizontal {
-    background: rgb(189, 147, 249);
+    background: rgb(51, 153, 255);
     min-width: 25px;
 	border-radius: 4px
 }
@@ -355,7 +355,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal
 	border-radius: 0px;
  }
  QScrollBar::handle:vertical {	
-	background: rgb(189, 147, 249);
+	background: rgb(51, 153, 255);
     min-height: 25px;
 	border-radius: 4px
  }
@@ -464,7 +464,7 @@ QSlider::groove:horizontal:hover {
 	background-color: rgb(55, 62, 76);
 }
 QSlider::handle:horizontal {
-    background-color: rgb(189, 147, 249);
+    background-color: rgb(51, 153, 255);
     border: none;
     height: 10px;
     width: 10px;
@@ -472,10 +472,10 @@ QSlider::handle:horizontal {
 	border-radius: 5px;
 }
 QSlider::handle:horizontal:hover {
-    background-color: rgb(195, 155, 255);
+    background-color: rgb(51, 153, 255);
 }
 QSlider::handle:horizontal:pressed {
-    background-color: rgb(255, 121, 198);
+    background-color: rgb(51, 153, 250);
 }
 
 QSlider::groove:vertical {
@@ -488,7 +488,7 @@ QSlider::groove:vertical:hover {
 	background-color: rgb(55, 62, 76);
 }
 QSlider::handle:vertical {
-    background-color: rgb(189, 147, 249);
+    background-color: rgb(51, 153, 255);
 	border: none;
     height: 10px;
     width: 10px;
@@ -496,10 +496,10 @@ QSlider::handle:vertical {
 	border-radius: 5px;
 }
 QSlider::handle:vertical:hover {
-    background-color: rgb(195, 155, 255);
+    background-color: rgb(41, 143, 245);
 }
 QSlider::handle:vertical:pressed {
-    background-color: rgb(255, 121, 198);
+    background-color: rgb(31, 133, 235);
 }
 
 /* /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -515,7 +515,7 @@ QCommandLinkButton:hover {
 	background-color: rgb(44, 49, 60);
 }
 QCommandLinkButton:pressed {	
-	color: rgb(189, 147, 249);
+	color: rgb(51, 153, 255);
 	background-color: rgb(52, 58, 71);
 }
 
@@ -1740,7 +1740,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                       <string notr="true">background: transparent;</string>
                      </property>
                      <property name="currentIndex">
-                      <number>0</number>
+                      <number>1</number>
                      </property>
                      <widget class="QWidget" name="home">
                       <layout class="QVBoxLayout" name="verticalLayout_22">
@@ -2377,7 +2377,7 @@ background-color: rgb(52, 59, 72);
 }</string>
                          </property>
                          <property name="currentIndex">
-                          <number>0</number>
+                          <number>1</number>
                          </property>
                          <widget class="QWidget" name="stack_tab_1">
                           <property name="styleSheet">
@@ -2536,11 +2536,34 @@ background-color: rgb(52, 59, 72);
                                    <height>50</height>
                                   </size>
                                  </property>
+                                 <property name="font">
+                                  <font>
+                                   <family>JetBrains Mono</family>
+                                   <pointsize>16</pointsize>
+                                   <italic>false</italic>
+                                   <fontweight>DemiBold</fontweight>
+                                  </font>
+                                 </property>
                                  <property name="styleSheet">
-                                  <string notr="true">border: 2px solid rgba(235, 0, 20, 255);
-    border-radius: 5px;
-    background-color: rgba(33, 37, 43, 255);
-font: 600 16pt &quot;JetBrains Mono&quot;;</string>
+                                  <string notr="true">QPushButton {
+        border: 2px solid rgba(221, 0, 20, 255);
+        border-radius: 5px;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(33, 37, 43, 255), stop:1 rgba(40,40,50,255));
+        font: 600 16pt &quot;JetBrains Mono&quot;;
+        padding: 6px 10px;
+    }
+    QPushButton:pressed {
+        /* darker, slightly inset 3D pressed look */
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(221, 0, 20, 255), stop:1 rgba(230,0,30,255));
+        border: 2px solid rgba(221, 0, 20, 255);
+        padding-top: 8px;    /* push content down to simulate depression */
+        padding-bottom: 4px;
+    }
+    QPushButton:focus {
+        outline: none;
+    }</string>
                                  </property>
                                  <property name="text">
                                   <string>CANCEL EXECUTION</string>
@@ -2560,10 +2583,27 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                   </size>
                                  </property>
                                  <property name="styleSheet">
-                                  <string notr="true">    border: 2px solid rgba(221, 221, 221, 255);
-    border-radius: 5px;
-    background-color: rgba(221, 221, 221, 255);
-font: 600 16pt &quot;JetBrains Mono&quot;;color: rgba(33, 37, 43, 255)</string>
+                                  <string notr="true">QPushButton {
+        border: 2px solid rgba(221, 221, 221, 255);
+        border-radius: 5px;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(245,245,245,255), stop:1 rgba(221,221,221,255));
+        font: 600 16pt &quot;JetBrains Mono&quot;;
+        color: rgba(33, 37, 43, 255);
+        padding: 6px 10px;
+    }
+    QPushButton:pressed {
+        /* darker, slightly inset 3D pressed look */
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+            stop:0 rgba(190,190,190,255), stop:1 rgba(150,150,150,255));
+        border: 2px solid rgba(140,140,140,255);
+        padding-top: 8px;    /* push content down to simulate depression */
+        padding-bottom: 4px;
+        color: rgba(20, 24, 28, 255);
+    }
+    QPushButton:focus {
+        outline: none;
+    }</string>
                                  </property>
                                  <property name="text">
                                   <string>CHECK</string>
@@ -2875,7 +2915,7 @@ font: 600 16pt &quot;JetBrains Mono&quot;;color: rgba(33, 37, 43, 255)</string>
                                 <rect>
                                  <x>0</x>
                                  <y>0</y>
-                                 <width>218</width>
+                                 <width>609</width>
                                  <height>218</height>
                                 </rect>
                                </property>
@@ -3904,6 +3944,7 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
   </widget>
  </widget>
  <resources>
+  <include location="resources.qrc"/>
   <include location="resources.qrc"/>
  </resources>
  <connections/>

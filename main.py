@@ -884,7 +884,7 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_tars_input.setText("On an active runway, to enhance visibility: LANDING LIGHTS ON")
                 case "radar_requirement":
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_tars_input.setText("NO SPECIAL WEATHER CONDITIONS AS PER LAST METAR")
+                    self.ui.interaction_panel_tars_input.setText("NO WEATHER RADAR IN THIS AIRCRAFT")
                 case "display_winds_and_ack":
                     self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
@@ -892,7 +892,7 @@ class MainWindow(QMainWindow):
                 case "failure_detected":
                     home_page.displayAlert(f"Failure detected: {self.agent.engine_failed_side} ENGINE FIRE", "red")
                 case "end_emer":
-                    self.ui.alert_container_3.setStyleSheet("QWidget#alert_container_3 {\n    border: 2px solid rgba(255, 174, 0, 255);\n    border-radius: 5px;\n    background-color: rgba(33, 37, 43, 255);\n}")
+                    home_page.clearAlert()
                     self.ui.alert_label_2.setText("")
                 case "prompt_start_checklist":
                     self.ui.interaction_panel_text.setText(f"{current_state_obj.callout}?")
