@@ -956,7 +956,7 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
                 case "yaw_damper_as_desired":
                     self.ui.interaction_panel_tars_input.show()
-                    if self.agent.engine_failed_side is not "None":
+                    if self.agent.engine_failed_side != "None":
                         self.ui.interaction_panel_tars_input.setText("OFF for full rudder authority during single-engine operations")
                     else:
                         self.ui.interaction_panel_tars_input.setText("ON for comfort during normal operations")

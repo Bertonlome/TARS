@@ -13,15 +13,15 @@ LINE-UP AND HOLD,NORM,SOP,Flight Control,Brakes,HOLD,performer,,,0,is_acked,,,,
 TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,supporter,,0,is_acked,,,,
 TAKEOFF,NORM,SOP,Callout,"""Set thrust""",ANNOUNCE,performer,,,0,is_acked,,,,
 TAKEOFF,NORM,SOP,Flight Control,THROTTLES,TO Detent,performer,,display_fadec,0,is_sensed,,continuous,is_thrust_toga,end_of_procedure
-TAKEOFF,NORM,SOP,System Check,FADEC bug,CHECK TO,,performer,display_eng_spool_evenly,1,2,FADEC normal,continuous,is_fadec_bug_to,end_of_procedure
-TAKEOFF,NORM,SOP,System Check,Engine spool,CHECK EVEN,,performer,display_n1_matches_command_bug,1,2,Engine Spool Normal,continuous,is_engine_spool_even,end_of_procedure
-TAKEOFF,NORM,SOP,Callout,"""Thrust set""",ANNOUNCE,,performer,,0,2,,,,
-TAKEOFF,NORM,Checklist,System Check,Engine Instruments,CHECK NORMAL,,performer,,0,3,,continuous,is_n1_percent_above_90,end_of_procedure
+TAKEOFF,NORM,SOP,System Check,FADEC bug,CHECK TO,,performer,display_eng_spool_evenly,1,1,FADEC normal,continuous,is_fadec_bug_to,end_of_procedure
+TAKEOFF,NORM,SOP,System Check,Engine spool,CHECK EVEN,,performer,display_n1_matches_command_bug,1,1,Engine Spool Normal,continuous,is_engine_spool_even,end_of_procedure
+TAKEOFF,NORM,SOP,Callout,"""Thrust set""",ANNOUNCE,,performer,,0,1,,,,
+TAKEOFF,NORM,Checklist,System Check,Engine Instruments,CHECK NORMAL,,performer,,0,1,,continuous,is_n1_percent_above_90,end_of_procedure
 TAKEOFF,NORM,Checklist,Flight Control,Brakes,RELEASE,performer,,,0,is_sensed,,continuous,is_brake_released,end_of_procedure
-TAKEOFF,NORM,SOP,Callout,"""Airspeed's alive""",ANNOUNCE,,performer,,0,2,Airspeed is alive,transition,is_airspeed_alive,next_task
-TAKEOFF,NORM,SOP,Callout,"""70 kts""",ANNOUNCE,,performer,,0,2,Seventy Knots,transition,is_seventy_kts,next_task
-TAKEOFF,NORM,SOP,Callout,"""V1""",ANNOUNCE,,performer,,0,2,V One,transition,is_v_one,next_task
-TAKEOFF,NORM,SOP,Callout,"""Rotate""",ANNOUNCE,,performer,,0,2,Rotate,transition,is_v_rotate,next_task
+TAKEOFF,NORM,SOP,Callout,"""Airspeed's alive""",ANNOUNCE,,performer,,0,1,Airspeed is alive,transition,is_airspeed_alive,next_task
+TAKEOFF,NORM,SOP,Callout,"""70 kts""",ANNOUNCE,,performer,,0,1,Seventy Knots,transition,is_seventy_kts,next_task
+TAKEOFF,NORM,SOP,Callout,"""V1""",ANNOUNCE,,performer,,0,1,V One,transition,is_v_one,next_task
+TAKEOFF,NORM,SOP,Callout,"""Rotate""",ANNOUNCE,,performer,,0,1,Rotate,transition,is_v_rotate,next_task
 TAKEOFF,NORM,Checklist,Flight Control,Elevator Control,ROTATE,performer,,,0,is_sensed,,continuous,is_pitch_maintained,end_of_procedure
 TAKEOFF,NORM,SOP,Flight Control,Pitch,MAINTAIN 10°,performer,,,0,is_sensed,,continuous,is_pitch_maintained,end_of_procedure
 TAKEOFF,NORM,SOP,Parameter Check,Slip/Skid,CHECK,performer,supporter,,0,0,,continuous,is_slip_skid_centered,end_of_procedure

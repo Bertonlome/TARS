@@ -7,7 +7,7 @@ _engine.setProperty('rate', 155)
 _engine.setProperty('volume', 0.9)
 voices = _engine.getProperty('voices')
 if len(voices) > 1:
-    _engine.setProperty('voice', voices[3].id)
+    _engine.setProperty('voice', voices[1].id)
 
 # Warm up the engine with a dummy call to avoid first-call initialization delay
 _engine.say("")

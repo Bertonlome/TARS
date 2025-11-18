@@ -1,6 +1,6 @@
 from doctest import master
 from operator import is_
-from os import wait
+#from os import wait
 import stat
 import time
 import signal
@@ -32,7 +32,7 @@ class TarsAgent(QObject):
     # Define signals
     alertRequested = Signal(str, str)  # (message, color)
     
-    def __init__(self, agent_name="TARS Agent", device="wlp0s20f3", port=5670, verbose=False):
+    def __init__(self, agent_name="TARS Agent", device="Wi-Fi", port=5670, verbose=False):
         super().__init__()  # Initialize QObject
         self.agent_name = agent_name
         self.device = device
@@ -92,7 +92,7 @@ class TarsAgent(QObject):
         self.checklists = self.create_checklists_from_states(self.states)
         idle_key = ("IDLE", "Idle", "WAITING")
         finished_key = ("FINISHED", "Finished", "COMPLETED")
-        self.fsm = FiniteStateMachine(self.states[(idle_key)])
+        self.fsm = FiniteStateMachine(self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")])
 
         # BEFORE TAKEOFF Procedure
         self.fsm.add_transition(Transition(
@@ -173,7 +173,7 @@ class TarsAgent(QObject):
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")], 
             self.states[("TAKEOFF", "\"Set thrust\"", "ANNOUNCE")], 
             self.allow_transition, 
-            self.dummy_action))
+            self.takeoff_throttles_action_dev_mode))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Set thrust\"", "ANNOUNCE")], 
@@ -1599,15 +1599,22 @@ class TarsAgent(QObject):
             return True
         return False
     
+    def takeoff_throttles_action_dev_mode(self):
+        print("will set Throttle to TOGA (1.0) in dev mode.")
+        igs.output_set_double("autopilot_state", 1.0)  # Set throttle to TOGA (1.0)
+        print("Throttle set to TOGA (1.0).")
+    
     def trim_action(self):
         if self.engine_failed_side == "Left":
             while not self.is_slip_skid_centered():
                 current_trim = self.agent.trim_rudder_i if self.agent.trim_rudder_i is not None else 0.0
+                print(f"Current rudder trim: {current_trim}, adjusting...")
                 igs.output_set_double("trim_rudder", current_trim + 0.1)  # Trim right
                 time.sleep(1)  # Small delay to allow for trim adjustment
         elif self.engine_failed_side == "Right":
             while not self.is_slip_skid_centered():
                 current_trim = self.agent.trim_rudder_i if self.agent.trim_rudder_i is not None else 0.0
+                print(f"Current rudder trim: {current_trim}, adjusting...")
                 igs.output_set_double("trim_rudder", current_trim - 0.1)  # Trim left
                 time.sleep(1)  # Small delay to allow for trim adjustment
 
