@@ -877,16 +877,20 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
                 case "anti_ice_systems_as_required":
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_text.setText(f"Anti-ice systems :\nEngine anti-ice - current value = {self.agent.engine_anti_ice_status}\nWindshield anti-ice - current value = {self.agent.windshield_anti_ice_status}")
                     self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
                 case "landing_light_as_required":
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("On an active runway, to enhance visibility: LANDING LIGHTS ON")
+                case "landing_light_as_required_after_takeoff":
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("After takeoff, and under 10 000 ft AGL to enhance visibility: LANDING LIGHTS ON")
                 case "radar_requirement":
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("NO WEATHER RADAR IN THIS AIRCRAFT")
                 case "display_winds_and_ack":
-                    self.ui.interaction_panel_text.setText("Winds: \nWind calm\nWind 026° at 3 knots")
+                    self.ui.interaction_panel_text.setText("WIND REPORT:\n\nMETAR: CYUL 201500Z 06003KT 1SM FG OVC015 05/04 A2992 \nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY\n\nTAF: TAF CYUL 201440Z 2015/2121 \n06004KT 1SM FG OVC015\nTEMPO 2015/2017 3/4SM FG BR OVC010\nBECMG 2017/2018 06006KT P6SM SCT015 BKN025\nBECMG 2020/2021 06008KT P6SM FEW025 SCT100")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("WIND 060° / 03 kt")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_right_button.setText("CROSSCHECK")
                 case "failure_detected":

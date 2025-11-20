@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from modules.ui_main import Ui_MainWindow
     from main import MainWindow
 
+IA_NAME_FILE = "IA_V3.csv"
+
 # ---------------------------- Data ----------------------------
 
 class Task:
@@ -725,7 +727,7 @@ class BriefingPage(BasePage):
         """Setup both normal and contingency interdependence analysis tables"""
         try:
             # Load ALL tasks from CSV in original order
-            csv_file_path = Path(__file__).parent.parent / "IA_updated.csv"
+            csv_file_path = Path(__file__).parent.parent / IA_NAME_FILE 
             self.all_tasks = load_all_tasks_preserve_order(csv_file_path)
             #print(f"Loaded {len(self.all_tasks)} total tasks in original order")
             

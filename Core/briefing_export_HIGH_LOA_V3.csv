@@ -1,0 +1,93 @@
+Procedure,Classification,Type,Category,Task Object,Value,Human Role,Autonomy Role,interaction,Time to Initiate Action,Time after Ending Action,Callout,Condition Type,Condition Function,Monitor Scope
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Takeoff clearance,CONFIRM,performer,supporter,,0,is_acked,Starting NORMAL TAKEOFF procedure,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Pitot-Static Switch,PITOT-STATIC,performer,supporter,pitot_static_switch,0,is_acked,,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ENGINE ANTI-ICE Switches,AS REQUIRED,performer,supporter,engine_anti_ice_requirement,0,is_acked,,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,WINDSHIELD ANTI-ICE Switches,AS REQUIRED,performer,supporter,windshield_anti_ice_requirement,0,is_acked,,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,PAX SAFETY Switch,PAX SAFETY,performer,supporter,pax_safety_switch,0,is_acked,,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,LANDING Light Switch,AS DESIRED,performer,supporter,landing_light_as_required,0,is_acked,,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ANTI-COLL Light Switch,ON,performer,supporter,anti_coll_light_switch,0,is_acked,,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Radar,AS REQUIRED,performer,supporter,radar_requirement,0,is_acked,,,,
+LINE-UP AND HOLD,NORM,SOP,Flight Control,Runway centerline,ALIGN,performer,,,0,is_acked,,,,
+LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,supporter,performer,display_winds_and_ack,5,7,"Wind report from METAR : wind calm, zero six zero degrees at three knots",,,
+LINE-UP AND HOLD,NORM,SOP,Flight Control,Brakes,HOLD,performer,,,0,2,"“Montréal–Trudeau International Airport Information Alpha. One five zero zero Zulu. Wind zero six zero at three. Visibility one statute mile in fog. Ceiling one thousand five hundred overcast. Temperature five, dewpoint four. Altimeter two niner niner two. Runway surfaces dry. Departing and arriving runway in use is zero six left. Advise on initial contact you have Information Alpha.”",,,
+TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,supporter,,0,is_acked,,,,
+TAKEOFF,NORM,SOP,Flight Control,THROTTLES,TO Detent,performer,,display_fadec,0,is_sensed,,continuous,is_thrust_toga,
+TAKEOFF,NORM,SOP,System Check,FADEC bug,CHECK TO,,performer,display_eng_spool_evenly,1,1,FADEC normal,continuous,is_fadec_bug_to,end_of_procedure
+TAKEOFF,NORM,SOP,System Check,Engine spool,CHECK EVEN,,performer,display_n1_matches_command_bug,1,1,Engine Spool Normal,continuous,is_engine_spool_even,end_of_procedure
+TAKEOFF,NORM,Checklist,System Check,Engine Instruments,CHECK NORMAL,,performer,,0,1,,continuous,is_n1_percent_above_90,end_of_procedure
+TAKEOFF,NORM,Checklist,Flight Control,Brakes,RELEASE,performer,,,0,is_sensed,,continuous,is_brakes_released,end_of_procedure
+TAKEOFF,NORM,SOP,Callout,"""Airspeed's alive""",ANNOUNCE,,performer,,0,1,Airspeed is alive,transition,is_airspeed_alive,next_task
+TAKEOFF,NORM,SOP,Callout,"""70 kts""",ANNOUNCE,,performer,,0,1,Seventy Knots,transition,is_seventy_kts,next_task
+TAKEOFF,NORM,SOP,Callout,"""V1""",ANNOUNCE,,performer,,0,1,V One,transition,is_v_one,next_task
+TAKEOFF,NORM,SOP,Callout,"""Rotate""",ANNOUNCE,,performer,,0,0,Rotate,transition,is_v_rotate,next_task
+TAKEOFF,NORM,Checklist,Flight Control,Elevator Control,ROTATE,performer,,,0,is_sensed,,continuous,is_pitch_maintained,end_of_procedure
+TAKEOFF,NORM,SOP,Flight Control,Pitch,MAINTAIN 10°,performer,,,0,is_sensed,,transition,is_pitch_maintained,end_of_procedure
+TAKEOFF,NORM,SOP,Parameter Check,Slip/Skid,CHECK,performer,supporter,,0,0,,continuous,is_slip_skid_centered,end_of_procedure
+TAKEOFF,NORM,SOP,Parameter Check,Climb rate,CHECK POSITIVE,,performer,,0,0,,transition,is_positive_rate,next_task
+TAKEOFF,NORM,SOP,Switch / Lever,LANDING GEAR,UP,performer,,,0,4,"Positive rate, gear up",transition,is_gear_up,end_of_procedure
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Navigation,Climb,TO A SAFE ALTITUDE,performer,supporter,failure_detected,0,is_sensed,,continuous,is_safe_altitude,end_of_procedure
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Flight Control,Rudder,TRIM,supporter,performer,,5,is_acked,,,,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Callout,Alarm,ANNOUNCE,,performer,,0,5,,transition,is_alarm,next_task
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Switch / Lever,Master Warning,RESET,performer,,,0,is_sensed,,,,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Flight Director,SET TO MODE,,performer,,2,2,"Flight director on, takeoff mode",,,
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Flight Control,Pitch,MAINTAIN 10°,performer,,,0,is_sensed,,continuous,is_pitch_maintained,end_of_procedure
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Switch / Lever,LANDING GEAR,UP,performer,supporter,,0,is_sensed,,continuous,is_gear_up,end_of_procedure
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Parameter Check,Airspeed,CHECK V2,,performer,,0,is_sensed,,continuous,is_airspeed_v_two,end_of_procedure
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Check,SAFE ALTITUDE REACHED,,performer,,0,is_sensed,,continuous,is_safe_altitude,end_of_procedure
+ENGINE FIRE,EMER,Memory Item,Switch / Lever,Throttle (affected engine),IDLE,performer,supporter,,0,is_sensed,Throttle affected engine IDLE,continuous,is_throttle_idle,end_of_procedure
+ENGINE FIRE,EMER,SOP,Switch / Lever,Chrono,START,,performer,,5,is_acked,"Three, Two, One, top Chrono",,,
+ENGINE FIRE,EMER,Memory Item,System Check,Engine FIRE LIGHT,CHECK ON AFTER 15s,,performer,,15,is_acked,"If illuminated ENGINE FIRE Light is ON, Engine Fire Switch Lift Cover and Push",,,
+ENGINE FIRE,EMER,Memory Item,Switch / Lever,Illuminated ENGINE FIRE Switch,LIFT COVER AND PUSH,performer,,,0,5,,,,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,SET SPD MODE,,performer,,0,5,"Setting Speed mode, FLC V two",,,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,SET HDG MODE,,performer,,0,5,Setting heading mode,,,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,ENGAGE,supporter,performer,,is_acked,5,Engaging autopilot,continuous,is_ap_altitude,end_of_procedure
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Altitude,CHECK 1500ft AGL,,performer,,0,3,,,,
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Airspeed,CHECK V2+10,,performer,,0,3,,continuous,is_v2_plus_10,end_of_procedure
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Environment Check,Obstacles,CHECK Clear,performer,,,0,5,,,,
+ENG FAILURE DURING TAKEOFF,EMER,Memory item,Switch / Lever,FLAP Handle,UP,performer,supporter,,0,is_sensed,Retract Flaps,,,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,CONTACT,supporter,performer,allow_comm,15,is_acked,,,,
+ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,READBACK,performer,,,5,is_acked,"""Mayday, Mayday, Mayday,  Cessna Papa Oscar Lima Yankee, engine fire, continuing {heading}, two souls on board.""",,,
+ENGINE FIRE,EMER,SOP,Checklist Mgmt,Checklist,ORDER START,,performer,prompt_start_checklist,5,is_acked,Starting ENGINE FIRE Emergency Checklist,,,
+ENGINE FIRE,EMER,Checklist,Other,Immediate Action Item,CHECK DONE,performer,,immediate_action_items,0,is_acked,CHECK Immediate action Items done,,,
+ENGINE FIRE,EMER,Checklist,Switch / Lever,Throttle (affected engine),CUTOFF,performer,supporter,,0,is_sensed,Throttle affected engine cutoff,continuous,is_throttle_cutoff,end_of_procedure
+ENGINE FIRE,EMER,Checklist,Switch / Lever,FUEL BOOST Switch (affected side),OFF,performer,supporter,,0,is_sensed,Affected engine fuel boost confirm OFF,transition,is_fuel_boost_off,next_task
+ENGINE FIRE,EMER,Checklist,Switch / Lever,FUEL BOOST Switch (affected side),NORM,performer,supporter,,0,is_sensed,Affected engine fuel boost confirm NORM,transition,is_fuel_boost_norm,next_task
+ENGINE FIRE,EMER,Checklist,System Check,Engine FIRE LIGHT,CHECK ON AFTER 30s,,performer,,1,10,Thirty seconds light remains on. bottle discharge,,,
+ENGINE FIRE,EMER,Checklist,Switch / Lever,Illuminated BOTTLE ARMED Switch,PUSH,performer,,,0,is_acked,,,,
+ENGINE FIRE,EMER,Checklist,Switch / Lever,Rotary Test,FIRE WARN,performer,,,0,is_sensed,,,,
+ENGINE FIRE,EMER,Checklist,System Check,Engine fire lights,Check both illuminate,performer,,,0,is_acked,,,,
+ENGINE FIRE,EMER,Checklist,Checklist Mgmt,Next Checklist,ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,,performer,prompt_next_checklist,5,is_acked,Next checklist: Engine Failure / Precautionary Shutdown,,,
+ENGINE FIRE,EMER,,Checklist Mgmt,Checklist,ANNOUNCE COMPLETED,performer,,end_emer,0,0,,,,
+DECLARE EMERGENCY,EMER,SOP,ATC Communication,ATC,ANNOUNCE EMERGENCY,supporter,performer,allow_comm,10,is_acked,"Pan-Pan, Pan-Pan, Pan-Pan, Montreal Tower, Cessna Papa Oscar Lima Yankee, single engine operation after engine failure",,,
+DECLARE EMERGENCY,EMER,SOP,ATC Communication,ATC,REQUEST VECTOR,supporter,performer,add_request_vector,5,5," requesting vectors for immediate return, runway {runway_number},  two souls on board",,,
+DECLARE EMERGENCY,EMER,SOP,ATC Communication,ATC,READBACK,performer,,,0,is_acked,,,,
+DECLARE EMERGENCY,EMER,SOP,Navigation,Heading,SET ACCORDINGLY,performer,supporter,,0,is_acked,,,,
+DECLARE EMERGENCY,EMER,SOP,Navigation,FLC,SET ACCORDINGLY,performer,supporter,,0,is_acked,,,,
+AFTER TAKEOFF,NORM,SOP,Checklist Mgmt,Checklist,ORDER START,,performer,prompt_start_checklist,5,is_acked,Starting After Takeoff Normal Checklist,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,LANDING GEAR Handle,UP,performer,supporter,,0,is_sensed,,continuous,is_gear_retracted,end_of_procedure
+AFTER TAKEOFF,NORM,Checklist,Parameter Check,Airspeed,CHECK V2 + 10,,performer,,0,is_sensed,,,,
+AFTER TAKEOFF,NORM,Checklist,Environment Check,Obstacles,CHECK CLEAR,performer,supporter,,5,is_acked,,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,FLAP Handle,UP,performer,supporter,,0,is_sensed,,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,THROTTLES,CLB Detent,performer,supporter,,0,is_sensed,,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,Yaw Damper,AS DESIRED,supporter,performer,yaw_damper_as_desired,5,is_acked,,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,Anti-Ice/Deice Systems,AS REQUIRED,performer,supporter,anti_ice_systems_as_required,0,is_acked,,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,PAX SAFETY Switch,AS REQUIRED,performer,supporter,pax_safety_switch_as_required,0,is_acked,,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,LANDING Light Switch,AS REQUIRED,performer,supporter,landing_light_as_required_after_takeoff,0,is_acked,,,,
+AFTER TAKEOFF,NORM,Checklist,System Check,Pressurization,CHECK,,performer,,2,2,Pressurization Checked,,,
+AFTER TAKEOFF,NORM,Checklist,Switch / Lever,Altimeters (transition altitude),SET STD,,performer,,,5,,,,
+AFTER TAKEOFF,NORM,Checklist,System Check,Altimeters (transition altitude),CROSSCHECK,performer,supporter,,0,is_acked,,,,
+AFTER TAKEOFF,NORM,Checklist,Checklist Mgmt,Checklist,ANNOUNCE COMPLETED,,performer,,0,is_acked,After TAKEOFF checklist completed,,,
+AFTER TAKEOFF,NORM,Checklist,Checklist Mgmt,Next Checklist,ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,,performer,prompt_next_checklist,0,is_acked,,,,
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,SOP,Checklist Mgmt,Checklist,ORDER START,,performer,prompt_start_checklist,5,5,Starting ENGINE FAILURE / PRECAUTIONARY SHUTDOWN CHECKLIST,,,
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,Switch / Lever,Throttle (affected engine),CUTOFF,performer,supporter,,0,is_sensed,,continuous,is_throttle_cutoff,end_of_procedure
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,Other,CAUTION text,READ,,performer,,0,45,"""If possible, the engines should remain at idle for a minimum of two minutes prior to shutdown to allow the engine inter-turbine temperatures to stabilize and avoid turbine blade rub.
+If the engine windmills for more than fifteen minutes without a positive indication of oil pressure, a notation is required in the engine logbook and the engine must be inspected in accordance with the
+pratt and whitney engine maintenance manual.
+If the engine windmills for more than fifteen minutes with the firewall shutoff closed or the boost pump turned off, the engine fuel pump must be inspected in accordance with the Pratt and Whitney Engine
+Maintenance Manual.""",,,
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,Switch / Lever,GEN Switch (affected side),OFF,performer,supporter,,0,is_sensed,GEN Switch {affected side} OFF,transition,is_gen_switch_off,next_task
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,Switch / Lever,IGNITION switch (affected side),NORM,performer,supporter,,0,is_sensed,GEN Switch {affected side} NORM,transition,is_ignition_switch_norm,next_task
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,Switch / Lever,Electrical Load,REDUCE as required (<= 300A),performer,supporter,,0,is_acked,,,,
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,Switch / Lever,Fuel TRANSFER Knob,AS REQUIRED,performer,supporter,,0,is_acked,,,,
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,System Check,Verify ENGINE FIRE Switch (affected side),Is pushed,,performer,,0,is_acked,,,,
+ENGINE FAILURE/PRECAUTIONARY SHUTDOWN,ABNORM,Checklist,Checklist Mgmt,Next checklist,SINGLE-ENGINE APPROACH AND LANDING,,performer,prompt_next_checklist,0,is_acked,"Checklist finished, Next checklist Single-Engine approach and landing",,,
