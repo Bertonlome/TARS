@@ -22,7 +22,9 @@ from PySide6.QtWidgets import QGraphicsOpacityEffect
 from PySide6.QtGui import QFont, QFontDatabase
 import signal
 import threading
-from Core.agent import TarsAgent
+import subprocess
+from pathlib import Path
+from Core.agent import ApprovalStatus, TarsAgent
 from Core.tts import shutdown, register_speak_callback, register_finished_callback
 import time
 
@@ -198,6 +200,20 @@ class FSMWorker(QtCore.QObject):
                         
                         self.current_procedure = t.to_state.procedure
                         
+                        # === Execute transition_action IMMEDIATELY (before state change, no delays) ===
+                        if hasattr(t, 'transition_action') and t.transition_action and not getattr(t, 'action_performed', False):
+                            print(f"⚡ Executing transition_action (immediate)")
+                            trans_action_start = self.start_performance_timer("transition_action")
+                            try:
+                                t.transition_action()
+                            except Exception as e:
+                                print(f"ERROR in transition_action: {e}")
+                                import traceback
+                                traceback.print_exc()
+                            trans_action_time = self.stop_performance_timer("transition_action", trans_action_start)
+                            print(f"  → transition_action took {trans_action_time*1000:.2f}ms")
+                        
+                        # Change state
                         fsm.current_state = t.to_state
                         self.state_changed.emit(fsm.current_state)  # Emit the State object instead of just procedure
                         self.current_state = fsm.current_state
@@ -205,47 +221,57 @@ class FSMWorker(QtCore.QObject):
                         # CONDITION MONITORING: Add new state to monitoring if it has continuous condition
                         self.add_to_monitoring(fsm.current_state)
                         
-                        # wait before action - wait for countdown timer to reach 0
-                        delay = self.get_delay_before_action(fsm.current_state)
-                        if delay > 0:
-                            # Clear the event before waiting
-                            self.agent.main_window.countdown_completion_event.clear()
-                            #print(f"⏳ Waiting for countdown to reach 0...")
-                            # Wait for the countdown timer to signal completion
-                            self.agent.main_window.countdown_completion_event.wait(timeout=delay + 2)  # +2s safety margin
-                        
-                        # Only emit signal if action is not being skipped
-                        if not self.skip_current_action:
-                            # Emit signal right before action fires (after countdown completes)
-                            self.action_about_to_fire.emit(fsm.current_state)
-                        
+                        # === Only handle delays if there's an action ===
                         if t.action:
+                            # wait before action - wait for countdown timer to reach 0
+                            delay = self.get_delay_before_action(fsm.current_state)
+                            if delay > 0:
+                                # Clear the event before waiting
+                                self.agent.main_window.countdown_completion_event.clear()
+                                print(f"⏳ Waiting {delay}s before action (delay_before_action)")
+                                # Wait for the countdown timer to signal completion
+                                self.agent.main_window.countdown_completion_event.wait(timeout=delay + 2)  # +2s safety margin
+                            
+                            # Only emit signal if action is not being skipped
+                            if not self.skip_current_action:
+                                # Emit signal right before action fires (after countdown completes)
+                                self.action_about_to_fire.emit(fsm.current_state)
+                            
                             # Check if action should be skipped (user cancelled)
                             if self.skip_current_action:
                                 print(f"⏭️ Skipping action for {fsm.current_state.task_object} - user reclaimed task")
                                 self.skip_current_action = False  # Reset flag
                                 action_result = False  # No TTS to wait for
                             else:
+                                print(f"🎬 Executing action (with delays)")
                                 action_start = self.start_performance_timer("action_execution")
-                                action_result = t.action()
+                                try:
+                                    action_result = t.action()
+                                except Exception as e:
+                                    print(f"ERROR in action: {e}")
+                                    import traceback
+                                    traceback.print_exc()
+                                    action_result = False
                                 action_time = self.stop_performance_timer("action_execution", action_start)
-                                print(f"Action execution took: {action_time*1000:.2f}ms")
+                                print(f"  → action took {action_time*1000:.2f}ms")
                             
                             # If it was a speech action, wait for TTS to complete
                             if action_result is True and self.agent.tts_completion_event:
-                                # Give TTS worker a moment to pick up the queued text and clear the event
-                                #QtCore.QThread.msleep(50)  # Small delay for queue processing
-                                
-                                #print(f"⏳ Waiting for TTS to complete (event is_set={self.agent.tts_completion_event.is_set()})...")
+                                print(f"⏳ Waiting for TTS to complete...")
                                 wait_start = time.time()
                                 self.agent.tts_completion_event.wait(timeout=30)  # Block until TTS finishes (30s max)
                                 wait_time = time.time() - wait_start
-                                #print(f"✅ TTS completed after {wait_time:.2f}s, continuing FSM")
+                                print(f"✅ TTS completed after {wait_time:.2f}s")
+                            
+                            # wait after action
+                            delay = self.get_delay_after_action(fsm.current_state)
+                            if delay and delay > 0:
+                                print(f"⏳ Waiting {delay}s after action (delay_after_action)")
+                                QtCore.QThread.msleep(int((delay + 0.2) * 1000)) # + 0.2 delay for UI
                         
-                        # wait after action
-                        delay = self.get_delay_after_action(fsm.current_state)
-                        if delay and delay > 0:
-                            QtCore.QThread.msleep(float((delay + 0.2) * 1000)) # + 0.2 delay for UI
+                        # Reset action_performed flag for next use
+                        if hasattr(t, 'action_performed'):
+                            t.action_performed = False
                         
                         transition_found = True
                         break
@@ -344,6 +370,14 @@ class MainWindow(QMainWindow):
         self.agent_thread = AgentThread(self.agent)
         self.agent_thread.start()
         
+        # Start STT (Speech-to-Text) subprocess
+        self.stt_process = None
+        self.stt_monitor_timer = None
+        self.start_stt_subprocess()
+        
+        # Start ATC (Air Traffic Control) subprocess
+        self.atc_process = None
+        self.start_atc_subprocess()
         
         # FSM Worker in a thread
         self.fsm_thread = QtCore.QThread()
@@ -482,8 +516,8 @@ class MainWindow(QMainWindow):
         """
         # This is where MainWindow handles the task completion
         # Update agent state
-        self.agent.task_done_human[0] = True
-        print("Task marked as done\n\n")
+        self.agent.task_acked[0] = True
+        print("Task marked as acked\n\n")
     
     def handle_task_cancel(self):
         """
@@ -499,15 +533,17 @@ class MainWindow(QMainWindow):
         """
         Handle task allowed signal from HomePage  
         """
-        self.agent.is_allowed_to_comm_atc[0] = True
-        self.agent.is_requesting_vectors[0] = True
+        self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.APPROVED
+        self.agent.is_requesting_vectors[0] = ApprovalStatus.APPROVED
+        self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.APPROVED
     
     def handle_task_not_allowed(self):
         """
         Handle task not allowed signal from HomePage  
         """
-        self.agent.is_allowed_to_comm_atc[0] = False
-        self.agent.is_requesting_vectors[0] = False
+        self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.DENIED
+        self.agent.is_requesting_vectors[0] = ApprovalStatus.DENIED
+        self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.DENIED
     
     def handle_countdown_zero(self):
         """
@@ -579,8 +615,6 @@ class MainWindow(QMainWindow):
         # Emit signal to inject in main GUI thread
         self.inject_emergency_signal.emit(procedure_name)
 
-    
-
     def tts_callback(self, text):
         # Clear the event - TTS is starting, not ready yet
         self.tts_completion_event.clear()
@@ -613,18 +647,15 @@ class MainWindow(QMainWindow):
     @QtCore.Slot(object, str)
     def handle_condition_violation(self, state_obj, condition_name):
         """Handle condition violation signal from FSM worker
-        
         Args:
             state_obj: State object with violated condition
             condition_name: Name of the condition function that was violated
         """
         print(f"🚨 CONDITION VIOLATION: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
-        
         # Get home page
         home_page = self.get_home_page()
         if not home_page:
             return
-        
         # Update timeline to show violation
         timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
         if timeline_widget:
@@ -632,20 +663,17 @@ class MainWindow(QMainWindow):
             # TODO: Add method to timeline widget to mark task as violated
             # timeline_widget.mark_task_violated(state_key)
             print(f"  → Would mark task violated in timeline for procedure {state_obj.procedure}")
-        
         # TODO: Show warning banner or notification
         # home_page.show_warning_banner(f"⚠️ {state_obj.task_object} - condition violated!")
     
     @QtCore.Slot(object, str)
     def handle_condition_restoration(self, state_obj, condition_name):
         """Handle condition restoration signal from FSM worker
-        
         Args:
             state_obj: State object with restored condition
             condition_name: Name of the condition function that was restored
         """
         print(f"✅ CONDITION RESTORED: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
-        
         # Get home page
         home_page = self.get_home_page()
         if not home_page:
@@ -888,13 +916,24 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("NO WEATHER RADAR IN THIS AIRCRAFT")
                 case "display_winds_and_ack":
-                    self.ui.interaction_panel_text.setText("WIND REPORT:\n\nMETAR: CYUL 201500Z 06003KT 1SM FG OVC015 05/04 A2992 \nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY\n\nTAF: TAF CYUL 201440Z 2015/2121 \n06004KT 1SM FG OVC015\nTEMPO 2015/2017 3/4SM FG BR OVC010\nBECMG 2017/2018 06006KT P6SM SCT015 BKN025\nBECMG 2020/2021 06008KT P6SM FEW025 SCT100")
+                    self.ui.interaction_panel_text.setText("WIND REPORT:\n\nMETAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 \nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY")
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_tars_input.setText("WIND 060° / 03 kt")
+                    self.ui.interaction_panel_tars_input.setText("WIND 090° / 04 kt\nCrosswind Component: 02 kt from the right < Max Crosswind (25 knots)\nHeadwind Component: 3.5 kt")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_right_button.setText("CROSSCHECK")
-                case "failure_detected":
+                case "alt_preset_as_cleared":
+                    self.ui.interaction_panel_text.setText("Select altitude AS CLEARED BY ATC")
+                case "eng_failure_aft_v1_memo_items":
                     home_page.displayAlert(f"Failure detected: {self.agent.engine_failed_side} ENGINE FIRE", "red")
+                    self.ui.interaction_panel_text.setText("ENGINE FAILURE OR FIRE OR MASTER WARNING \nOR ANY OTHER NON-NORMAL EVENT DURING TAKEOFF SPEED ABOVE V1\n\n1. Maintain directional control\n2. Acceletrate to Vr\n3. Rotate at Vr, climb at V2\n4. LANDING GEAR - UP (after positive rate of climb)\n5. At 1,500 feet AGL, retract flaps at V2+10 and accelerate to Venr")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
+                case "engine_fire_memo_items":
+                    self.ui.interaction_panel_text.setText("ENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n\n1. Throttle (affected side) - IDLE\n\nIF LIGHT REMAINS ON (15 SECONDS)\n\n2. ENGINE FIRE Button (affected engine) LIFT COVER and PUSH")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
+                case "immediate_action_items":
+                    self.ui.interaction_panel_text.setText("IMMEDIATE ACTION ITEMS:\n1. Throttle " + self.agent.engine_failed_side + " engine IDLE\n2. ENGINE FIRE Switch LIFT COVER AND PUSH\n3. Confirm FIRE WARNING LIGHT EXTINGUISHED\n4. If fire warning light remains illuminated after 15 seconds\n5. DISCHARGE FIRE EXTINGUISHER BOTTLE\n\nENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle (affected side) - IDLE\nIF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button (affected engine) LIFT COVER and PUSH")
                 case "end_emer":
                     home_page.clearAlert()
                     self.ui.alert_label_2.setText("")
@@ -909,6 +948,15 @@ class MainWindow(QMainWindow):
                     self.ui.int_panel_right_button.setText("NEXT")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("CANCEL")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                case "allow_trim_rudder":
+                    home_page.connect_int_panel_buttons(default=False)
+                    self.ui.interaction_panel_text.setText("Allow TARS to adjust trim/rudder settings?")
+                    self.ui.interaction_panel_tars_input.setText(current_state_obj.callout)
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.int_panel_right_button.setText("ALLOW")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                 case "allow_comm":
                     home_page.connect_int_panel_buttons(default=False)
@@ -1047,6 +1095,222 @@ class MainWindow(QMainWindow):
         right = str(right)
         dash_count = max(2, total_width - len(left) - len(right))
         return f"{left}{dash_char * dash_count}{right}"
+    
+    def start_stt_subprocess(self):
+        """Start the STT (Speech-to-Text) agent as a subprocess"""
+        try:
+            # Get path to stt.py
+            project_root = Path(__file__).parent
+            stt_script = project_root / "Speech" / "stt.py"
+            
+            if not stt_script.exists():
+                print(f"⚠️  STT script not found at {stt_script}")
+                return
+            
+            # Get Python interpreter from virtual environment
+            if sys.platform == "win32":
+                python_exe = project_root / ".venv" / "Scripts" / "python.exe"
+            else:
+                python_exe = project_root / ".venv" / "bin" / "python"
+            
+            if not python_exe.exists():
+                # Fallback to system Python
+                python_exe = sys.executable
+                print(f"⚠️  Virtual environment Python not found, using system Python: {python_exe}")
+            
+            # Start subprocess with unbuffered output
+            self.stt_process = subprocess.Popen(
+                [str(python_exe), "-u", str(stt_script)],  # -u for unbuffered output
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                text=True,
+                bufsize=1,
+                cwd=str(project_root)
+            )
+            
+            print(f"🎤 STT subprocess started (PID: {self.stt_process.pid})")
+            
+            # Start monitoring thread to read output and check if process crashes
+            self.start_stt_monitor()
+            
+        except Exception as e:
+            print(f"❌ Failed to start STT subprocess: {e}")
+            import traceback
+            traceback.print_exc()
+            self.stt_process = None
+    
+    def start_stt_monitor(self):
+        """Start a background thread to monitor STT subprocess output and health"""
+        def monitor_stt():
+            if not self.stt_process:
+                return
+            
+            print("📊 STT monitor thread started")
+            try:
+                # Read output line by line
+                for line in iter(self.stt_process.stdout.readline, ''):
+                    if line:
+                        print(f"[STT] {line.rstrip()}")
+                    
+                    # Check if process is still running
+                    if self.stt_process.poll() is not None:
+                        break
+                
+                # Process has exited
+                exit_code = self.stt_process.poll()
+                if exit_code != 0:
+                    print(f"⚠️  STT subprocess crashed with exit code {exit_code}")
+                    # Optionally restart
+                    # QtCore.QTimer.singleShot(2000, self.start_stt_subprocess)
+                else:
+                    print("✅ STT subprocess exited normally")
+                    
+            except Exception as e:
+                print(f"❌ Error in STT monitor thread: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Start monitor in background thread
+        monitor_thread = threading.Thread(target=monitor_stt, daemon=True)
+        monitor_thread.start()
+    
+    def start_atc_subprocess(self):
+        """Start the ATC (Air Traffic Control) agent as a subprocess"""
+        try:
+            # Get path to atc.py
+            project_root = Path(__file__).parent
+            atc_script = project_root / "ATC" / "atc.py"
+            
+            if not atc_script.exists():
+                print(f"⚠️  ATC script not found at {atc_script}")
+                return
+            
+            # Get Python interpreter from virtual environment
+            if sys.platform == "win32":
+                python_exe = project_root / ".venv" / "Scripts" / "python.exe"
+            else:
+                python_exe = project_root / ".venv" / "bin" / "python"
+            
+            if not python_exe.exists():
+                # Fallback to system Python
+                python_exe = sys.executable
+                print(f"⚠️  Virtual environment Python not found, using system Python: {python_exe}")
+            
+            # Start subprocess with unbuffered output
+            self.atc_process = subprocess.Popen(
+                [str(python_exe), "-u", str(atc_script)],  # -u for unbuffered output
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                text=True,
+                bufsize=1,
+                cwd=str(project_root)
+            )
+            
+            print(f"📡 ATC subprocess started (PID: {self.atc_process.pid})")
+            
+            # Start monitoring thread to read output and check if process crashes
+            self.start_atc_monitor()
+            
+        except Exception as e:
+            print(f"❌ Failed to start ATC subprocess: {e}")
+            import traceback
+            traceback.print_exc()
+            self.atc_process = None
+    
+    def start_atc_monitor(self):
+        """Start a background thread to monitor ATC subprocess output and health"""
+        def monitor_atc():
+            if not self.atc_process:
+                return
+            
+            print("📊 ATC monitor thread started")
+            try:
+                # Read output line by line
+                for line in iter(self.atc_process.stdout.readline, ''):
+                    if line:
+                        print(f"[ATC] {line.rstrip()}")
+                    
+                    # Check if process is still running
+                    if self.atc_process.poll() is not None:
+                        break
+                
+                # Process has exited
+                exit_code = self.atc_process.poll()
+                if exit_code != 0:
+                    print(f"⚠️  ATC subprocess crashed with exit code {exit_code}")
+                    # Optionally restart
+                    # QtCore.QTimer.singleShot(2000, self.start_atc_subprocess)
+                else:
+                    print("✅ ATC subprocess exited normally")
+                    
+            except Exception as e:
+                print(f"❌ Error in ATC monitor thread: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Start monitor in background thread
+        monitor_thread = threading.Thread(target=monitor_atc, daemon=True)
+        monitor_thread.start()
+    
+    def stop_atc_subprocess(self):
+        """Stop the ATC subprocess gracefully"""
+        if self.atc_process:
+            try:
+                print("🛑 Stopping ATC subprocess...")
+                self.atc_process.terminate()  # Send SIGTERM
+                try:
+                    self.atc_process.wait(timeout=5)  # Wait up to 5 seconds
+                    print("✅ ATC subprocess stopped")
+                except subprocess.TimeoutExpired:
+                    print("⚠️  ATC subprocess didn't stop gracefully, forcing...")
+                    self.atc_process.kill()  # Force kill
+                    self.atc_process.wait()
+                    print("✅ ATC subprocess killed")
+            except Exception as e:
+                print(f"❌ Error stopping ATC subprocess: {e}")
+            finally:
+                self.atc_process = None
+    
+    def stop_stt_subprocess(self):
+        """Stop the STT subprocess gracefully"""
+        if self.stt_process:
+            try:
+                print("🛑 Stopping STT subprocess...")
+                self.stt_process.terminate()  # Send SIGTERM
+                try:
+                    self.stt_process.wait(timeout=5)  # Wait up to 5 seconds
+                    print("✅ STT subprocess stopped")
+                except subprocess.TimeoutExpired:
+                    print("⚠️  STT subprocess didn't stop gracefully, forcing...")
+                    self.stt_process.kill()  # Force kill
+                    self.stt_process.wait()
+                    print("✅ STT subprocess killed")
+            except Exception as e:
+                print(f"❌ Error stopping STT subprocess: {e}")
+            finally:
+                self.stt_process = None
+    
+    def closeEvent(self, event):
+        """Override close event to cleanup subprocess"""
+        print("Closing application...")
+        
+        # Stop STT subprocess
+        self.stop_stt_subprocess()
+        
+        # Stop ATC subprocess
+        self.stop_atc_subprocess()
+        
+        # Stop agent
+        self.agent.is_interrupted = True
+        
+        # Stop FSM thread
+        self.fsm_thread.quit()
+        self.fsm_thread.wait()
+        
+        # Shutdown TTS
+        shutdown()
+        
+        event.accept()
 
 
 if __name__ == "__main__":

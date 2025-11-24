@@ -23,13 +23,14 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplicat
     QSizePolicy, QSlider, QSpacerItem, QStackedWidget,
     QTabWidget, QTableWidget, QTableWidgetItem, QTextEdit,
     QVBoxLayout, QWidget)
-from resources_rc import *
+import resources_rc
+import resources_rc
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1790, 1155)
+        MainWindow.resize(1716, 1271)
         MainWindow.setMinimumSize(QSize(940, 560))
         self.styleSheet = QWidget(MainWindow)
         self.styleSheet.setObjectName(u"styleSheet")
@@ -559,10 +560,8 @@ class Ui_MainWindow(object):
 "}\n"
 "\n"
 "")
-        self.verticalLayout_21 = QVBoxLayout(self.styleSheet)
-        self.verticalLayout_21.setSpacing(0)
-        self.verticalLayout_21.setObjectName(u"verticalLayout_21")
-        self.verticalLayout_21.setContentsMargins(10, 10, 10, 10)
+        self.verticalLayout_26 = QVBoxLayout(self.styleSheet)
+        self.verticalLayout_26.setObjectName(u"verticalLayout_26")
         self.bgApp = QFrame(self.styleSheet)
         self.bgApp.setObjectName(u"bgApp")
         self.bgApp.setStyleSheet(u"")
@@ -1484,12 +1483,12 @@ class Ui_MainWindow(object):
         self.interaction_panel_tars_input = QLabel(self.interaction_container)
         self.interaction_panel_tars_input.setObjectName(u"interaction_panel_tars_input")
         sizePolicy9 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy9.setHorizontalStretch(1)
+        sizePolicy9.setHorizontalStretch(0)
         sizePolicy9.setVerticalStretch(1)
         sizePolicy9.setHeightForWidth(self.interaction_panel_tars_input.sizePolicy().hasHeightForWidth())
         self.interaction_panel_tars_input.setSizePolicy(sizePolicy9)
         self.interaction_panel_tars_input.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\"; color: #3399ff")
-        self.interaction_panel_tars_input.setWordWrap(True)
+        self.interaction_panel_tars_input.setWordWrap(False)
 
         self.verticalLayout_23.addWidget(self.interaction_panel_tars_input, 0, Qt.AlignmentFlag.AlignHCenter)
 
@@ -1709,7 +1708,7 @@ class Ui_MainWindow(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 609, 218))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 218, 218))
         self.scrollAreaWidgetContents.setStyleSheet(u" QScrollBar:vertical {\n"
 "	border: none;\n"
 "    background: rgb(52, 59, 72);\n"
@@ -1922,6 +1921,454 @@ class Ui_MainWindow(object):
         self.tabWidget.setStyleSheet(u"QTabWidget::pane { background-color: #2b2b2b; }\n"
 "QTabBar::tab { background-color: #3c3c3c; }\n"
 "QTabBar::tab:selected { background-color: #0078d4; }")
+        self.flight_recap = QWidget()
+        self.flight_recap.setObjectName(u"flight_recap")
+        self.flight_recap.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);\n"
+"    border-radius: 10px;\n"
+"	background-color: rgba(33, 37, 43, 255)")
+        self.recap_container = QWidget(self.flight_recap)
+        self.recap_container.setObjectName(u"recap_container")
+        self.recap_container.setGeometry(QRect(0, 0, 1192, 886))
+        sizePolicy11 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy11.setHorizontalStretch(1)
+        sizePolicy11.setVerticalStretch(1)
+        sizePolicy11.setHeightForWidth(self.recap_container.sizePolicy().hasHeightForWidth())
+        self.recap_container.setSizePolicy(sizePolicy11)
+        self.verticalLayout_21 = QVBoxLayout(self.recap_container)
+        self.verticalLayout_21.setObjectName(u"verticalLayout_21")
+        self.verticalLayout_21.setSizeConstraint(QLayout.SizeConstraint.SetMaximumSize)
+        self.departure_container = QVBoxLayout()
+        self.departure_container.setObjectName(u"departure_container")
+        self.label = QLabel(self.recap_container)
+        self.label.setObjectName(u"label")
+        sizePolicy12 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy12.setHorizontalStretch(0)
+        sizePolicy12.setVerticalStretch(0)
+        sizePolicy12.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
+        self.label.setSizePolicy(sizePolicy12)
+        self.label.setStyleSheet(u"font-weight:700;")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.departure_container.addWidget(self.label)
+
+        self.horizontalLayout_22 = QHBoxLayout()
+        self.horizontalLayout_22.setObjectName(u"horizontalLayout_22")
+        self.label_10 = QLabel(self.recap_container)
+        self.label_10.setObjectName(u"label_10")
+        sizePolicy13 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        sizePolicy13.setHorizontalStretch(0)
+        sizePolicy13.setVerticalStretch(0)
+        sizePolicy13.setHeightForWidth(self.label_10.sizePolicy().hasHeightForWidth())
+        self.label_10.setSizePolicy(sizePolicy13)
+        self.label_10.setMinimumSize(QSize(250, 0))
+        self.label_10.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_22.addWidget(self.label_10)
+
+        self.label_11 = QLabel(self.recap_container)
+        self.label_11.setObjectName(u"label_11")
+        sizePolicy1.setHeightForWidth(self.label_11.sizePolicy().hasHeightForWidth())
+        self.label_11.setSizePolicy(sizePolicy1)
+        self.label_11.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_22.addWidget(self.label_11)
+
+
+        self.departure_container.addLayout(self.horizontalLayout_22)
+
+        self.horizontalLayout_21 = QHBoxLayout()
+        self.horizontalLayout_21.setObjectName(u"horizontalLayout_21")
+        self.label_13 = QLabel(self.recap_container)
+        self.label_13.setObjectName(u"label_13")
+        sizePolicy13.setHeightForWidth(self.label_13.sizePolicy().hasHeightForWidth())
+        self.label_13.setSizePolicy(sizePolicy13)
+        self.label_13.setMinimumSize(QSize(250, 0))
+        self.label_13.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_21.addWidget(self.label_13)
+
+        self.label_12 = QLabel(self.recap_container)
+        self.label_12.setObjectName(u"label_12")
+        sizePolicy1.setHeightForWidth(self.label_12.sizePolicy().hasHeightForWidth())
+        self.label_12.setSizePolicy(sizePolicy1)
+        self.label_12.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_21.addWidget(self.label_12)
+
+
+        self.departure_container.addLayout(self.horizontalLayout_21)
+
+        self.horizontalLayout_20 = QHBoxLayout()
+        self.horizontalLayout_20.setObjectName(u"horizontalLayout_20")
+        self.label_15 = QLabel(self.recap_container)
+        self.label_15.setObjectName(u"label_15")
+        sizePolicy13.setHeightForWidth(self.label_15.sizePolicy().hasHeightForWidth())
+        self.label_15.setSizePolicy(sizePolicy13)
+        self.label_15.setMinimumSize(QSize(250, 0))
+        self.label_15.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_20.addWidget(self.label_15)
+
+        self.label_14 = QLabel(self.recap_container)
+        self.label_14.setObjectName(u"label_14")
+        sizePolicy1.setHeightForWidth(self.label_14.sizePolicy().hasHeightForWidth())
+        self.label_14.setSizePolicy(sizePolicy1)
+        self.label_14.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_20.addWidget(self.label_14)
+
+
+        self.departure_container.addLayout(self.horizontalLayout_20)
+
+        self.horizontalLayout_19 = QHBoxLayout()
+        self.horizontalLayout_19.setObjectName(u"horizontalLayout_19")
+        self.label_17 = QLabel(self.recap_container)
+        self.label_17.setObjectName(u"label_17")
+        sizePolicy13.setHeightForWidth(self.label_17.sizePolicy().hasHeightForWidth())
+        self.label_17.setSizePolicy(sizePolicy13)
+        self.label_17.setMinimumSize(QSize(250, 0))
+        self.label_17.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_19.addWidget(self.label_17)
+
+        self.label_16 = QLabel(self.recap_container)
+        self.label_16.setObjectName(u"label_16")
+        sizePolicy1.setHeightForWidth(self.label_16.sizePolicy().hasHeightForWidth())
+        self.label_16.setSizePolicy(sizePolicy1)
+        self.label_16.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_19.addWidget(self.label_16)
+
+
+        self.departure_container.addLayout(self.horizontalLayout_19)
+
+        self.horizontalLayout_16 = QHBoxLayout()
+        self.horizontalLayout_16.setObjectName(u"horizontalLayout_16")
+        self.label_2 = QLabel(self.recap_container)
+        self.label_2.setObjectName(u"label_2")
+        sizePolicy13.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
+        self.label_2.setSizePolicy(sizePolicy13)
+        self.label_2.setMinimumSize(QSize(250, 0))
+        self.label_2.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_16.addWidget(self.label_2)
+
+        self.label_3 = QLabel(self.recap_container)
+        self.label_3.setObjectName(u"label_3")
+        sizePolicy1.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
+        self.label_3.setSizePolicy(sizePolicy1)
+        self.label_3.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_16.addWidget(self.label_3)
+
+
+        self.departure_container.addLayout(self.horizontalLayout_16)
+
+
+        self.verticalLayout_21.addLayout(self.departure_container)
+
+        self.arrival_container = QVBoxLayout()
+        self.arrival_container.setObjectName(u"arrival_container")
+        self.label_29 = QLabel(self.recap_container)
+        self.label_29.setObjectName(u"label_29")
+        self.label_29.setStyleSheet(u"font-weight:700;")
+        self.label_29.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.arrival_container.addWidget(self.label_29)
+
+        self.horizontalLayout_31 = QHBoxLayout()
+        self.horizontalLayout_31.setObjectName(u"horizontalLayout_31")
+        self.label_34 = QLabel(self.recap_container)
+        self.label_34.setObjectName(u"label_34")
+        sizePolicy13.setHeightForWidth(self.label_34.sizePolicy().hasHeightForWidth())
+        self.label_34.setSizePolicy(sizePolicy13)
+        self.label_34.setMinimumSize(QSize(250, 0))
+        self.label_34.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_31.addWidget(self.label_34)
+
+        self.label_30 = QLabel(self.recap_container)
+        self.label_30.setObjectName(u"label_30")
+        sizePolicy1.setHeightForWidth(self.label_30.sizePolicy().hasHeightForWidth())
+        self.label_30.setSizePolicy(sizePolicy1)
+        self.label_30.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_31.addWidget(self.label_30)
+
+
+        self.arrival_container.addLayout(self.horizontalLayout_31)
+
+        self.horizontalLayout_30 = QHBoxLayout()
+        self.horizontalLayout_30.setObjectName(u"horizontalLayout_30")
+        self.label_35 = QLabel(self.recap_container)
+        self.label_35.setObjectName(u"label_35")
+        sizePolicy13.setHeightForWidth(self.label_35.sizePolicy().hasHeightForWidth())
+        self.label_35.setSizePolicy(sizePolicy13)
+        self.label_35.setMinimumSize(QSize(250, 0))
+        self.label_35.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_30.addWidget(self.label_35)
+
+        self.label_31 = QLabel(self.recap_container)
+        self.label_31.setObjectName(u"label_31")
+        sizePolicy1.setHeightForWidth(self.label_31.sizePolicy().hasHeightForWidth())
+        self.label_31.setSizePolicy(sizePolicy1)
+        self.label_31.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_30.addWidget(self.label_31)
+
+
+        self.arrival_container.addLayout(self.horizontalLayout_30)
+
+        self.horizontalLayout_29 = QHBoxLayout()
+        self.horizontalLayout_29.setObjectName(u"horizontalLayout_29")
+        self.label_32 = QLabel(self.recap_container)
+        self.label_32.setObjectName(u"label_32")
+        sizePolicy13.setHeightForWidth(self.label_32.sizePolicy().hasHeightForWidth())
+        self.label_32.setSizePolicy(sizePolicy13)
+        self.label_32.setMinimumSize(QSize(250, 0))
+        self.label_32.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_29.addWidget(self.label_32)
+
+        self.label_36 = QLabel(self.recap_container)
+        self.label_36.setObjectName(u"label_36")
+        sizePolicy1.setHeightForWidth(self.label_36.sizePolicy().hasHeightForWidth())
+        self.label_36.setSizePolicy(sizePolicy1)
+        self.label_36.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_29.addWidget(self.label_36)
+
+
+        self.arrival_container.addLayout(self.horizontalLayout_29)
+
+        self.horizontalLayout_28 = QHBoxLayout()
+        self.horizontalLayout_28.setObjectName(u"horizontalLayout_28")
+        self.label_37 = QLabel(self.recap_container)
+        self.label_37.setObjectName(u"label_37")
+        sizePolicy13.setHeightForWidth(self.label_37.sizePolicy().hasHeightForWidth())
+        self.label_37.setSizePolicy(sizePolicy13)
+        self.label_37.setMinimumSize(QSize(250, 0))
+        self.label_37.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_28.addWidget(self.label_37)
+
+        self.label_33 = QLabel(self.recap_container)
+        self.label_33.setObjectName(u"label_33")
+        sizePolicy1.setHeightForWidth(self.label_33.sizePolicy().hasHeightForWidth())
+        self.label_33.setSizePolicy(sizePolicy1)
+        self.label_33.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_28.addWidget(self.label_33)
+
+
+        self.arrival_container.addLayout(self.horizontalLayout_28)
+
+
+        self.verticalLayout_21.addLayout(self.arrival_container)
+
+        self.payload_container = QVBoxLayout()
+        self.payload_container.setObjectName(u"payload_container")
+        self.label_38 = QLabel(self.recap_container)
+        self.label_38.setObjectName(u"label_38")
+        self.label_38.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.payload_container.addWidget(self.label_38)
+
+        self.horizontalLayout_35 = QHBoxLayout()
+        self.horizontalLayout_35.setObjectName(u"horizontalLayout_35")
+        self.label_40 = QLabel(self.recap_container)
+        self.label_40.setObjectName(u"label_40")
+        sizePolicy13.setHeightForWidth(self.label_40.sizePolicy().hasHeightForWidth())
+        self.label_40.setSizePolicy(sizePolicy13)
+        self.label_40.setMinimumSize(QSize(250, 0))
+        self.label_40.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_35.addWidget(self.label_40)
+
+        self.label_39 = QLabel(self.recap_container)
+        self.label_39.setObjectName(u"label_39")
+        sizePolicy1.setHeightForWidth(self.label_39.sizePolicy().hasHeightForWidth())
+        self.label_39.setSizePolicy(sizePolicy1)
+        self.label_39.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_35.addWidget(self.label_39)
+
+
+        self.payload_container.addLayout(self.horizontalLayout_35)
+
+        self.horizontalLayout_34 = QHBoxLayout()
+        self.horizontalLayout_34.setObjectName(u"horizontalLayout_34")
+        self.label_42 = QLabel(self.recap_container)
+        self.label_42.setObjectName(u"label_42")
+        sizePolicy13.setHeightForWidth(self.label_42.sizePolicy().hasHeightForWidth())
+        self.label_42.setSizePolicy(sizePolicy13)
+        self.label_42.setMinimumSize(QSize(250, 0))
+        self.label_42.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_34.addWidget(self.label_42)
+
+        self.label_41 = QLabel(self.recap_container)
+        self.label_41.setObjectName(u"label_41")
+        sizePolicy1.setHeightForWidth(self.label_41.sizePolicy().hasHeightForWidth())
+        self.label_41.setSizePolicy(sizePolicy1)
+        self.label_41.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_34.addWidget(self.label_41)
+
+
+        self.payload_container.addLayout(self.horizontalLayout_34)
+
+        self.horizontalLayout_33 = QHBoxLayout()
+        self.horizontalLayout_33.setObjectName(u"horizontalLayout_33")
+        self.label_44 = QLabel(self.recap_container)
+        self.label_44.setObjectName(u"label_44")
+        sizePolicy13.setHeightForWidth(self.label_44.sizePolicy().hasHeightForWidth())
+        self.label_44.setSizePolicy(sizePolicy13)
+        self.label_44.setMinimumSize(QSize(250, 0))
+        self.label_44.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_33.addWidget(self.label_44)
+
+        self.label_43 = QLabel(self.recap_container)
+        self.label_43.setObjectName(u"label_43")
+        sizePolicy1.setHeightForWidth(self.label_43.sizePolicy().hasHeightForWidth())
+        self.label_43.setSizePolicy(sizePolicy1)
+        self.label_43.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_33.addWidget(self.label_43)
+
+
+        self.payload_container.addLayout(self.horizontalLayout_33)
+
+        self.horizontalLayout_32 = QHBoxLayout()
+        self.horizontalLayout_32.setObjectName(u"horizontalLayout_32")
+        self.label_46 = QLabel(self.recap_container)
+        self.label_46.setObjectName(u"label_46")
+        sizePolicy13.setHeightForWidth(self.label_46.sizePolicy().hasHeightForWidth())
+        self.label_46.setSizePolicy(sizePolicy13)
+        self.label_46.setMinimumSize(QSize(250, 0))
+        self.label_46.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.horizontalLayout_32.addWidget(self.label_46)
+
+        self.label_45 = QLabel(self.recap_container)
+        self.label_45.setObjectName(u"label_45")
+        sizePolicy1.setHeightForWidth(self.label_45.sizePolicy().hasHeightForWidth())
+        self.label_45.setSizePolicy(sizePolicy1)
+        self.label_45.setStyleSheet(u"font-size:16px; font-weight:500")
+
+        self.horizontalLayout_32.addWidget(self.label_45)
+
+
+        self.payload_container.addLayout(self.horizontalLayout_32)
+
+
+        self.verticalLayout_21.addLayout(self.payload_container)
+
+        self.takeoff_perf_container = QVBoxLayout()
+        self.takeoff_perf_container.setObjectName(u"takeoff_perf_container")
+        self.label_47 = QLabel(self.recap_container)
+        self.label_47.setObjectName(u"label_47")
+        self.label_47.setStyleSheet(u"font-weight:700;")
+        self.label_47.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.takeoff_perf_container.addWidget(self.label_47)
+
+        self.horizontalLayout_36 = QHBoxLayout()
+        self.horizontalLayout_36.setObjectName(u"horizontalLayout_36")
+        self.verticalLayout_37 = QVBoxLayout()
+        self.verticalLayout_37.setObjectName(u"verticalLayout_37")
+        self.label_49 = QLabel(self.recap_container)
+        self.label_49.setObjectName(u"label_49")
+        self.label_49.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.verticalLayout_37.addWidget(self.label_49)
+
+        self.label_50 = QLabel(self.recap_container)
+        self.label_50.setObjectName(u"label_50")
+        self.label_50.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_37.addWidget(self.label_50)
+
+        self.label_51 = QLabel(self.recap_container)
+        self.label_51.setObjectName(u"label_51")
+        self.label_51.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_37.addWidget(self.label_51)
+
+        self.label_52 = QLabel(self.recap_container)
+        self.label_52.setObjectName(u"label_52")
+        self.label_52.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_37.addWidget(self.label_52)
+
+        self.label_53 = QLabel(self.recap_container)
+        self.label_53.setObjectName(u"label_53")
+        self.label_53.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_37.addWidget(self.label_53)
+
+
+        self.horizontalLayout_36.addLayout(self.verticalLayout_37)
+
+        self.verticalLayout_36 = QVBoxLayout()
+        self.verticalLayout_36.setObjectName(u"verticalLayout_36")
+        self.label_48 = QLabel(self.recap_container)
+        self.label_48.setObjectName(u"label_48")
+        self.label_48.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.verticalLayout_36.addWidget(self.label_48)
+
+        self.label_54 = QLabel(self.recap_container)
+        self.label_54.setObjectName(u"label_54")
+        self.label_54.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_36.addWidget(self.label_54)
+
+        self.label_55 = QLabel(self.recap_container)
+        self.label_55.setObjectName(u"label_55")
+        self.label_55.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_36.addWidget(self.label_55)
+
+        self.label_56 = QLabel(self.recap_container)
+        self.label_56.setObjectName(u"label_56")
+        self.label_56.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_36.addWidget(self.label_56)
+
+        self.label_57 = QLabel(self.recap_container)
+        self.label_57.setObjectName(u"label_57")
+        self.label_57.setStyleSheet(u"font-size:20px; font-weight:500")
+
+        self.verticalLayout_36.addWidget(self.label_57)
+
+
+        self.horizontalLayout_36.addLayout(self.verticalLayout_36)
+
+
+        self.takeoff_perf_container.addLayout(self.horizontalLayout_36)
+
+
+        self.verticalLayout_21.addLayout(self.takeoff_perf_container)
+
+        self.label_4 = QLabel(self.flight_recap)
+        self.label_4.setObjectName(u"label_4")
+        self.label_4.setGeometry(QRect(10, 890, 1591, 201))
+        self.label_4.setPixmap(QPixmap(u":/images/images/images/flight_profile.PNG"))
+        self.label_4.setScaledContents(True)
+        self.label_5 = QLabel(self.flight_recap)
+        self.label_5.setObjectName(u"label_5")
+        self.label_5.setGeometry(QRect(1190, 460, 411, 421))
+        self.label_5.setPixmap(QPixmap(u":/images/images/images/mustang_weight.PNG"))
+        self.label_5.setScaledContents(True)
+        self.label_6 = QLabel(self.flight_recap)
+        self.label_6.setObjectName(u"label_6")
+        self.label_6.setGeometry(QRect(1190, 10, 411, 451))
+        self.label_6.setPixmap(QPixmap(u":/images/images/images/flight_plan.PNG"))
+        self.label_6.setScaledContents(True)
+        self.tabWidget.addTab(self.flight_recap, "")
         self.normal_operation_IA_page = QWidget()
         self.normal_operation_IA_page.setObjectName(u"normal_operation_IA_page")
         self.normal_operation_IA_page.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);\n"
@@ -2163,13 +2610,13 @@ class Ui_MainWindow(object):
         self.appLayout.addWidget(self.contentBox)
 
 
-        self.verticalLayout_21.addWidget(self.bgApp)
+        self.verticalLayout_26.addWidget(self.bgApp)
 
         MainWindow.setCentralWidget(self.styleSheet)
 
         self.retranslateUi(MainWindow)
 
-        self.stackedWidget.setCurrentIndex(1)
+        self.stackedWidget.setCurrentIndex(2)
         self.stack_tab_container.setCurrentIndex(1)
         self.tabWidget.setCurrentIndex(0)
 
@@ -2254,7 +2701,7 @@ class Ui_MainWindow(object):
         self.ecl_tab_container.setTabText(self.ecl_tab_container.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
-        self.interaction_panel_tars_input.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.interaction_panel_tars_input.setText(QCoreApplication.translate("MainWindow", u"This is a test for TARS input", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
         self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))
@@ -2323,6 +2770,51 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem23.setText(QCoreApplication.translate("MainWindow", u"Line", None));
         self.tableWidget.setSortingEnabled(__sortingEnabled)
 
+        self.label.setText(QCoreApplication.translate("MainWindow", u"DEPARTURE", None))
+        self.label_10.setText(QCoreApplication.translate("MainWindow", u"AIRPORT", None))
+        self.label_11.setText(QCoreApplication.translate("MainWindow", u"CYUL", None))
+        self.label_13.setText(QCoreApplication.translate("MainWindow", u"RUNWAY", None))
+        self.label_12.setText(QCoreApplication.translate("MainWindow", u"06L", None))
+        self.label_15.setText(QCoreApplication.translate("MainWindow", u"SID", None))
+        self.label_14.setText(QCoreApplication.translate("MainWindow", u"AGMEB --> OMEKI", None))
+        self.label_17.setText(QCoreApplication.translate("MainWindow", u"Departure Profile", None))
+        self.label_16.setText(QCoreApplication.translate("MainWindow", u"Straight ahead, then left turn direct OMEKI --> CYOW", None))
+        self.label_2.setText(QCoreApplication.translate("MainWindow", u"Weather", None))
+        self.label_3.setText(QCoreApplication.translate("MainWindow", u"METAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 \n"
+"RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY", None))
+        self.label_29.setText(QCoreApplication.translate("MainWindow", u"ARRIVAL", None))
+        self.label_34.setText(QCoreApplication.translate("MainWindow", u"AIRPORT", None))
+        self.label_30.setText(QCoreApplication.translate("MainWindow", u"CYOW", None))
+        self.label_35.setText(QCoreApplication.translate("MainWindow", u"RUNWAY", None))
+        self.label_31.setText(QCoreApplication.translate("MainWindow", u"07", None))
+        self.label_32.setText(QCoreApplication.translate("MainWindow", u"APPROACH", None))
+        self.label_36.setText(QCoreApplication.translate("MainWindow", u"ILS RWY 07", None))
+        self.label_37.setText(QCoreApplication.translate("MainWindow", u"Transition", None))
+        self.label_33.setText(QCoreApplication.translate("MainWindow", u"From OMEKI direct CYOW", None))
+        self.label_38.setText(QCoreApplication.translate("MainWindow", u"PAYLOAD & WEIGHT", None))
+        self.label_40.setText(QCoreApplication.translate("MainWindow", u"Fuel", None))
+        self.label_39.setText(QCoreApplication.translate("MainWindow", u"674kg (=1486lbs)", None))
+        self.label_42.setText(QCoreApplication.translate("MainWindow", u"Payload", None))
+        self.label_41.setText(QCoreApplication.translate("MainWindow", u"1 pax (=80kg)", None))
+        self.label_44.setText(QCoreApplication.translate("MainWindow", u"Total weight shown", None))
+        self.label_43.setText(QCoreApplication.translate("MainWindow", u"3502 kg (=7724lbs)", None))
+        self.label_46.setText(QCoreApplication.translate("MainWindow", u"CG / MAC", None))
+        self.label_45.setText(QCoreApplication.translate("MainWindow", u"25% (within limits)", None))
+        self.label_47.setText(QCoreApplication.translate("MainWindow", u"TAKEOFF PERFORMANCE (Simplified Criteria Used)", None))
+        self.label_49.setText(QCoreApplication.translate("MainWindow", u"Takeoff Speeds", None))
+        self.label_50.setText(QCoreApplication.translate("MainWindow", u"V1: 90 KIAS", None))
+        self.label_51.setText(QCoreApplication.translate("MainWindow", u"V_R: 90 KIAS", None))
+        self.label_52.setText(QCoreApplication.translate("MainWindow", u"V2: 97 KIAS", None))
+        self.label_53.setText(QCoreApplication.translate("MainWindow", u"Single-Engine Climb Speed: 118 KIAS", None))
+        self.label_48.setText(QCoreApplication.translate("MainWindow", u"Configuration", None))
+        self.label_54.setText(QCoreApplication.translate("MainWindow", u"Throttles: TO detent", None))
+        self.label_55.setText(QCoreApplication.translate("MainWindow", u"Flaps: TO/Approach (15\u00b0)", None))
+        self.label_56.setText(QCoreApplication.translate("MainWindow", u"Anti-ice: As required (temp 5\u00b0C --> ON if visible moisture)", None))
+        self.label_57.setText(QCoreApplication.translate("MainWindow", u"Runway condition: Dry", None))
+        self.label_4.setText("")
+        self.label_5.setText("")
+        self.label_6.setText("")
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.flight_recap), QCoreApplication.translate("MainWindow", u"Flight Recap", None))
         self.load_allocation_button.setText(QCoreApplication.translate("MainWindow", u"Upload Briefing Package", None))
         self.validate_briefing_button.setText(QCoreApplication.translate("MainWindow", u"Validate Briefing Plan", None))
         self.send_briefing_button.setText(QCoreApplication.translate("MainWindow", u"Send briefing to TARS", None))

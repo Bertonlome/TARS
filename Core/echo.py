@@ -68,6 +68,10 @@ class Echo(metaclass=Singleton):
         self.cabin_altitude_i = None
         self.l_gen_load_i = None
         self.r_gen_load_i = None
+        self.l_bottle_arm_i = None
+        self.r_bottle_arm_i = None
+        self.speech_input_i = None  # For speech recognition input
+        self.pitot_heat_i = None  # Pitot heat on/off
 
         # outputs
         self.pax_safety_o = None
@@ -79,6 +83,10 @@ class Echo(metaclass=Singleton):
         self.autopilot_state_o = None
         self.yaw_damper_o = None
         self.trim_rudder_o = None
+        self.request_takeoff_clearance_o = None
+        self.declare_mayday_o = None
+        self.declare_pan_o = None
+        self.request_vectors_o = None
         
     # outputs
     @staticmethod
@@ -167,6 +175,41 @@ class Echo(metaclass=Singleton):
         if self._trim_rudderO is not None:
             igs.output_set_double("trim_rudder", self._trim_rudderO)
     
+    @property
+    def request_takeoff_clearanceO(self):
+        return self._request_takeoff_clearanceO
+    @request_takeoff_clearanceO.setter
+    def request_takeoff_clearanceO(self, value):
+        self._request_takeoff_clearanceO = value
+        if self._request_takeoff_clearanceO is not None:
+            igs.output_set_impulsion("request_takeoff_clearance", self._request_takeoff_clearanceO)
+    
+    @property
+    def declare_maydayO(self):
+        return self._declare_maydayO
+    @declare_maydayO.setter
+    def declare_maydayO(self, value):
+        self._declare_maydayO = value
+        if self._declare_maydayO is not None:
+            igs.output_set_impulsion("declare_mayday", self._declare_maydayO)
+            
+    @property
+    def declare_panO(self):
+        return self._declare_panO
+    @declare_panO.setter
+    def declare_panO(self, value):
+        self._declare_panO = value
+        if self._declare_panO is not None:
+            igs.output_set_impulsion("declare_pan", self._declare_panO)
+            
+    @property
+    def request_vectorsO(self):
+        return self._request_vectorsO
+    @request_vectorsO.setter
+    def request_vectorsO(self, value):
+        self._request_vectorsO = value
+        if self._request_vectorsO is not None:
+            igs.output_set_impulsion("request_vectors", self._request_vectorsO)
 
     # services
     def receive_values(self, sender_agent_name, sender_agent_uuid, boolV, integer, double, string, data, token, my_data):

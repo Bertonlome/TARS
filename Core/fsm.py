@@ -27,17 +27,91 @@ class State:
         return f"State({self.procedure}, {self.classification}, {self.task_object}, {self.value}, condition={self.condition})"
 
 class Transition:
-    def __init__(self, from_state, to_state, condition, action=None):
+    def __init__(self, from_state, to_state, condition, action=None, transition_action=None):
         self.from_state = from_state
         self.to_state = to_state
         self.condition = condition  # function returning True/False
-        self.action = action        # function to call on transition
+        self.action = action        # function to call in next State (delay before/after handled in to_state)
+        self.transition_action = transition_action  # function to call during transition (i.e. on entering to_state)
         self.action_performed = False  # track if action has been performed
 
 class FiniteStateMachine:
     def __init__(self, initial_state):
         self.current_state = initial_state
         self.transitions = []
+        self.dev_mode = False  # Flag to enable dev mode
+        self.state_history = []  # Track state history for going back
 
     def add_transition(self, transition):
         self.transitions.append(transition)
+    
+    def force_next_state(self):
+        """
+        DEV MODE: Force transition to the next state without checking conditions.
+        Used for testing/debugging FSM flow.
+        Returns True if transition occurred, False if no valid next state found.
+        """
+        # Find first transition from current state (regardless of condition)
+        for transition in self.transitions:
+            if transition.from_state == self.current_state:
+                print(f"🔧 DEV MODE: Forcing transition from {self.current_state.procedure} {self.current_state.task_object} {self.current_state.value} to {transition.to_state.procedure} {transition.to_state.task_object} {transition.to_state.value}")
+                
+                # Save current state to history before changing
+                self.state_history.append(self.current_state)
+                
+                # Execute transition_action if present (immediate)
+                if hasattr(transition, 'transition_action') and transition.transition_action:
+                    try:
+                        print(f"  → Executing transition_action")
+                        transition.transition_action()
+                    except Exception as e:
+                        print(f"ERROR in transition_action during force: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                # Change state
+                old_state = self.current_state
+                self.current_state = transition.to_state
+                
+                # Execute action if present (no delays in dev mode)
+                if transition.action:
+                    try:
+                        print(f"  → Executing action")
+                        transition.action()
+                    except Exception as e:
+                        print(f"ERROR in action during force: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                print(f"✅ DEV MODE: Successfully forced to {self.current_state.procedure} {self.current_state.task_object} {self.current_state.value}")
+                return True  # Successfully forced transition
+        
+        print(f"⚠️  DEV MODE: No transition found from {self.current_state.procedure} {self.current_state.task_object} {self.current_state.value}")
+        return False  # No transition available
+    
+    def force_previous_state(self):
+        """
+        DEV MODE: Go back to the previous state in history.
+        Does NOT execute any actions, just restores the state.
+        Returns True if went back, False if no history available.
+        """
+        if not self.state_history:
+            print(f"⚠️  DEV MODE: No previous state available (at beginning)")
+            return False
+        
+        previous_state = self.state_history.pop()
+        print(f"🔙 DEV MODE: Going back from {self.current_state.procedure} {self.current_state.task_object} {self.current_state.value} to {previous_state.procedure} {previous_state.task_object} {previous_state.value}")
+        
+        self.current_state = previous_state
+        print(f"✅ DEV MODE: Successfully returned to {self.current_state.procedure} {self.current_state.task_object} {self.current_state.value}")
+        return True
+    
+    def get_next_state_preview(self):
+        """
+        Get the next state that would be transitioned to (for UI preview).
+        Returns the next state object or None.
+        """
+        for transition in self.transitions:
+            if transition.from_state == self.current_state:
+                return transition.to_state
+        return None

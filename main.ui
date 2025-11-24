@@ -7,8 +7,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1790</width>
-    <height>1155</height>
+    <width>1716</width>
+    <height>1271</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -537,22 +537,7 @@ Button */
 
 </string>
    </property>
-   <layout class="QVBoxLayout" name="verticalLayout_21">
-    <property name="spacing">
-     <number>0</number>
-    </property>
-    <property name="leftMargin">
-     <number>10</number>
-    </property>
-    <property name="topMargin">
-     <number>10</number>
-    </property>
-    <property name="rightMargin">
-     <number>10</number>
-    </property>
-    <property name="bottomMargin">
-     <number>10</number>
-    </property>
+   <layout class="QVBoxLayout" name="verticalLayout_26">
     <item>
      <widget class="QFrame" name="bgApp">
       <property name="styleSheet">
@@ -1740,7 +1725,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                       <string notr="true">background: transparent;</string>
                      </property>
                      <property name="currentIndex">
-                      <number>1</number>
+                      <number>2</number>
                      </property>
                      <widget class="QWidget" name="home">
                       <layout class="QVBoxLayout" name="verticalLayout_22">
@@ -2501,7 +2486,7 @@ background-color: rgb(52, 59, 72);
                              <widget class="QLabel" name="interaction_panel_tars_input">
                               <property name="sizePolicy">
                                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                                <horstretch>1</horstretch>
+                                <horstretch>0</horstretch>
                                 <verstretch>1</verstretch>
                                </sizepolicy>
                               </property>
@@ -2509,10 +2494,10 @@ background-color: rgb(52, 59, 72);
                                <string notr="true">font: 300 14pt &quot;JetBrains Mono&quot;; color: #3399ff</string>
                               </property>
                               <property name="text">
-                               <string>TextLabel</string>
+                               <string>This is a test for TARS input</string>
                               </property>
                               <property name="wordWrap">
-                               <bool>true</bool>
+                               <bool>false</bool>
                               </property>
                              </widget>
                             </item>
@@ -2915,7 +2900,7 @@ background-color: rgb(52, 59, 72);
                                 <rect>
                                  <x>0</x>
                                  <y>0</y>
-                                 <width>609</width>
+                                 <width>218</width>
                                  <height>218</height>
                                 </rect>
                                </property>
@@ -3475,6 +3460,824 @@ QTabBar::tab:selected { background-color: #0078d4; }</string>
                          <property name="currentIndex">
                           <number>0</number>
                          </property>
+                         <widget class="QWidget" name="flight_recap">
+                          <property name="styleSheet">
+                           <string notr="true">border: 2px solid rgba(40, 44, 52, 255);
+    border-radius: 10px;
+	background-color: rgba(33, 37, 43, 255)</string>
+                          </property>
+                          <attribute name="title">
+                           <string>Flight Recap</string>
+                          </attribute>
+                          <widget class="QWidget" name="recap_container" native="true">
+                           <property name="geometry">
+                            <rect>
+                             <x>0</x>
+                             <y>0</y>
+                             <width>1192</width>
+                             <height>886</height>
+                            </rect>
+                           </property>
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                             <horstretch>1</horstretch>
+                             <verstretch>1</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <layout class="QVBoxLayout" name="verticalLayout_21" stretch="0,0,0,0">
+                            <property name="sizeConstraint">
+                             <enum>QLayout::SizeConstraint::SetMaximumSize</enum>
+                            </property>
+                            <item>
+                             <layout class="QVBoxLayout" name="departure_container">
+                              <item>
+                               <widget class="QLabel" name="label">
+                                <property name="sizePolicy">
+                                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                  <horstretch>0</horstretch>
+                                  <verstretch>0</verstretch>
+                                 </sizepolicy>
+                                </property>
+                                <property name="styleSheet">
+                                 <string notr="true">font-weight:700;</string>
+                                </property>
+                                <property name="text">
+                                 <string>DEPARTURE</string>
+                                </property>
+                                <property name="alignment">
+                                 <set>Qt::AlignmentFlag::AlignCenter</set>
+                                </property>
+                               </widget>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_22">
+                                <item>
+                                 <widget class="QLabel" name="label_10">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>AIRPORT</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_11">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>CYUL</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_21">
+                                <item>
+                                 <widget class="QLabel" name="label_13">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>RUNWAY</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_12">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>06L</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_20">
+                                <item>
+                                 <widget class="QLabel" name="label_15">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>SID</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_14">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>AGMEB --&gt; OMEKI</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_19">
+                                <item>
+                                 <widget class="QLabel" name="label_17">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>Departure Profile</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_16">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>Straight ahead, then left turn direct OMEKI --&gt; CYOW</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_16">
+                                <item>
+                                 <widget class="QLabel" name="label_2">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>Weather</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_3">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>METAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 
+RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                             </layout>
+                            </item>
+                            <item>
+                             <layout class="QVBoxLayout" name="arrival_container">
+                              <item>
+                               <widget class="QLabel" name="label_29">
+                                <property name="styleSheet">
+                                 <string notr="true">font-weight:700;</string>
+                                </property>
+                                <property name="text">
+                                 <string>ARRIVAL</string>
+                                </property>
+                                <property name="alignment">
+                                 <set>Qt::AlignmentFlag::AlignCenter</set>
+                                </property>
+                               </widget>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_31">
+                                <item>
+                                 <widget class="QLabel" name="label_34">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>AIRPORT</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_30">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>CYOW</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_30">
+                                <item>
+                                 <widget class="QLabel" name="label_35">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>RUNWAY</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_31">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>07</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_29">
+                                <item>
+                                 <widget class="QLabel" name="label_32">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>APPROACH</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_36">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>ILS RWY 07</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_28">
+                                <item>
+                                 <widget class="QLabel" name="label_37">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>Transition</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_33">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>From OMEKI direct CYOW</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                             </layout>
+                            </item>
+                            <item>
+                             <layout class="QVBoxLayout" name="payload_container">
+                              <item>
+                               <widget class="QLabel" name="label_38">
+                                <property name="text">
+                                 <string>PAYLOAD &amp; WEIGHT</string>
+                                </property>
+                                <property name="alignment">
+                                 <set>Qt::AlignmentFlag::AlignCenter</set>
+                                </property>
+                               </widget>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_35">
+                                <item>
+                                 <widget class="QLabel" name="label_40">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>Fuel</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_39">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>674kg (=1486lbs)</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_34">
+                                <item>
+                                 <widget class="QLabel" name="label_42">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>Payload</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_41">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>1 pax (=80kg)</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_33">
+                                <item>
+                                 <widget class="QLabel" name="label_44">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>Total weight shown</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_43">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>3502 kg (=7724lbs)</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_32">
+                                <item>
+                                 <widget class="QLabel" name="label_46">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>250</width>
+                                    <height>0</height>
+                                   </size>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:20px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>CG / MAC</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                                <item>
+                                 <widget class="QLabel" name="label_45">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="styleSheet">
+                                   <string notr="true">font-size:16px; font-weight:500</string>
+                                  </property>
+                                  <property name="text">
+                                   <string>25% (within limits)</string>
+                                  </property>
+                                 </widget>
+                                </item>
+                               </layout>
+                              </item>
+                             </layout>
+                            </item>
+                            <item>
+                             <layout class="QVBoxLayout" name="takeoff_perf_container">
+                              <item>
+                               <widget class="QLabel" name="label_47">
+                                <property name="styleSheet">
+                                 <string notr="true">font-weight:700;</string>
+                                </property>
+                                <property name="text">
+                                 <string>TAKEOFF PERFORMANCE (Simplified Criteria Used)</string>
+                                </property>
+                                <property name="alignment">
+                                 <set>Qt::AlignmentFlag::AlignCenter</set>
+                                </property>
+                               </widget>
+                              </item>
+                              <item>
+                               <layout class="QHBoxLayout" name="horizontalLayout_36">
+                                <item>
+                                 <layout class="QVBoxLayout" name="verticalLayout_37">
+                                  <item>
+                                   <widget class="QLabel" name="label_49">
+                                    <property name="text">
+                                     <string>Takeoff Speeds</string>
+                                    </property>
+                                    <property name="alignment">
+                                     <set>Qt::AlignmentFlag::AlignCenter</set>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_50">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>V1: 90 KIAS</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_51">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>V_R: 90 KIAS</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_52">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>V2: 97 KIAS</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_53">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>Single-Engine Climb Speed: 118 KIAS</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                 </layout>
+                                </item>
+                                <item>
+                                 <layout class="QVBoxLayout" name="verticalLayout_36">
+                                  <item>
+                                   <widget class="QLabel" name="label_48">
+                                    <property name="text">
+                                     <string>Configuration</string>
+                                    </property>
+                                    <property name="alignment">
+                                     <set>Qt::AlignmentFlag::AlignCenter</set>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_54">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>Throttles: TO detent</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_55">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>Flaps: TO/Approach (15°)</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_56">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>Anti-ice: As required (temp 5°C --&gt; ON if visible moisture)</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QLabel" name="label_57">
+                                    <property name="styleSheet">
+                                     <string notr="true">font-size:20px; font-weight:500</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>Runway condition: Dry</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                 </layout>
+                                </item>
+                               </layout>
+                              </item>
+                             </layout>
+                            </item>
+                           </layout>
+                          </widget>
+                          <widget class="QLabel" name="label_4">
+                           <property name="geometry">
+                            <rect>
+                             <x>10</x>
+                             <y>890</y>
+                             <width>1591</width>
+                             <height>201</height>
+                            </rect>
+                           </property>
+                           <property name="text">
+                            <string/>
+                           </property>
+                           <property name="pixmap">
+                            <pixmap resource="resources.qrc">:/images/images/images/flight_profile.PNG</pixmap>
+                           </property>
+                           <property name="scaledContents">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                          <widget class="QLabel" name="label_5">
+                           <property name="geometry">
+                            <rect>
+                             <x>1190</x>
+                             <y>460</y>
+                             <width>411</width>
+                             <height>421</height>
+                            </rect>
+                           </property>
+                           <property name="text">
+                            <string/>
+                           </property>
+                           <property name="pixmap">
+                            <pixmap resource="resources.qrc">:/images/images/images/mustang_weight.PNG</pixmap>
+                           </property>
+                           <property name="scaledContents">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                          <widget class="QLabel" name="label_6">
+                           <property name="geometry">
+                            <rect>
+                             <x>1190</x>
+                             <y>10</y>
+                             <width>411</width>
+                             <height>451</height>
+                            </rect>
+                           </property>
+                           <property name="text">
+                            <string/>
+                           </property>
+                           <property name="pixmap">
+                            <pixmap resource="resources.qrc">:/images/images/images/flight_plan.PNG</pixmap>
+                           </property>
+                           <property name="scaledContents">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                         </widget>
                          <widget class="QWidget" name="normal_operation_IA_page">
                           <property name="styleSheet">
                            <string notr="true">border: 2px solid rgba(40, 44, 52, 255);

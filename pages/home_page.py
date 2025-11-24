@@ -8,6 +8,7 @@ from tabnanny import check
 from pages.base_page import BasePage
 from PySide6 import QtCore
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QWidget, QVBoxLayout
+import warnings
 from widgets.circular_countdown import CircularCountdown
 from widgets.task_timeline import TaskTimelineWidget
 from pathlib import Path
@@ -179,22 +180,25 @@ class HomePage(BasePage):
     
     def disconnect_int_panel_buttons(self):
         """Disconnect the interaction panel buttons from their signals"""
-        try:
-            self.widgets.int_panel_right_button.clicked.disconnect(self.task_done_clicked)
-        except Exception:
-            pass
-        try:
-            self.widgets.int_panel_left_button.clicked.disconnect(self.task_cancel_clicked)
-        except Exception:
-            pass
-        try:
-            self.widgets.int_panel_right_button.clicked.disconnect(self.task_allowed_clicked)
-        except Exception:
-            pass
-        try:
-            self.widgets.int_panel_left_button.clicked.disconnect(self.task_not_allowed_clicked)
-        except Exception:
-            pass
+        # Suppress RuntimeWarning for failed disconnects
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            try:
+                self.widgets.int_panel_right_button.clicked.disconnect(self.task_done_clicked)
+            except Exception:
+                pass
+            try:
+                self.widgets.int_panel_left_button.clicked.disconnect(self.task_cancel_clicked)
+            except Exception:
+                pass
+            try:
+                self.widgets.int_panel_right_button.clicked.disconnect(self.task_allowed_clicked)
+            except Exception:
+                pass
+            try:
+                self.widgets.int_panel_left_button.clicked.disconnect(self.task_not_allowed_clicked)
+            except Exception:
+                pass
 
     def connect_int_panel_buttons(self, default=True):
         """Reconnect the internal panel buttons to their signals"""
