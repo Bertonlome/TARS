@@ -17,7 +17,7 @@ is_interrupted = False
 
 # Load offline model - use absolute path
 script_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(script_dir, "model", "vosk-model-small-en-us-0.15")
+model_path = os.path.join(script_dir, "model", "vosk-model-en-us-0.22")
 model = Model(model_path)
 
 # Global state for push-to-talk
@@ -27,6 +27,8 @@ has_audio_data = False  # Track if any audio was processed
 audio_frame_count = 0  # Track number of frames processed
 current_recognizer = None  # Current active recognizer instance
 recognizer_lock = threading.Lock()  # Thread safety for recognizer access
+ptt_start_time = None  # Track when PTT was pressed
+MIN_PTT_DURATION = 1.0  # Minimum 1 second PTT press
 
 def signal_handler(signal_received, frame):
     global is_interrupted
@@ -44,7 +46,7 @@ def on_freeze_callback(is_frozen, my_data):
     # add code here if needed
 
 def bool_input_callback(io_type, name, value_type, value, my_data):
-    global is_recording, stream, current_recognizer, has_audio_data, audio_frame_count, recognizer_lock
+    global is_recording, stream, current_recognizer, has_audio_data, audio_frame_count, recognizer_lock, ptt_start_time
     agent_object = my_data
     assert isinstance(agent_object, Echo)
     
@@ -55,6 +57,7 @@ def bool_input_callback(io_type, name, value_type, value, my_data):
             if value and not is_recording:
                 # Start recording - create NEW recognizer for this session
                 print("🎤 Recording started...")
+                ptt_start_time = time.time()  # Record start time
                 
                 with recognizer_lock:
                     # Create fresh recognizer instance
@@ -64,9 +67,17 @@ def bool_input_callback(io_type, name, value_type, value, my_data):
                     audio_frame_count = 0
                 
             elif not value and is_recording:
+                # Check minimum duration
+                elapsed_time = time.time() - ptt_start_time if ptt_start_time else 0
+                
+                if elapsed_time < MIN_PTT_DURATION:
+                    wait_time = MIN_PTT_DURATION - elapsed_time
+                    time.sleep(wait_time)
+                    elapsed_time = MIN_PTT_DURATION
+                
                 # Stop recording and get final result
-                print(f"🛑 Recording stopped (processed {audio_frame_count} frames)")
                 is_recording = False
+                ptt_start_time = None
                 
                 with recognizer_lock:
                     if current_recognizer is None:

@@ -114,7 +114,7 @@ class TarsAgent(QObject):
         self.checklists = self.create_checklists_from_states(self.states)
         idle_key = ("IDLE", "Idle", "WAITING")
         finished_key = ("FINISHED", "Finished", "COMPLETED")
-        self.fsm = FiniteStateMachine(self.states[("ENG FAILURE DURING TAKEOFF", "Obstacles", "CHECK Clear")])
+        self.fsm = FiniteStateMachine(self.states[(idle_key)])
 
         # BEFORE TAKEOFF Procedure
         self.fsm.add_transition(Transition(
