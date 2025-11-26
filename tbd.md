@@ -13,6 +13,7 @@
 [ ] Add a reclaim vs offload button
 [ ] Add tars input composante de vent de travers sur checkwind
 [ ] How to set/ensure the frequencies for panpan/mayday call?
+[ ] The tars input should be boxed to look more like an output
 
 
 this is the behaviour of the FSM for one example 

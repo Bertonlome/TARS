@@ -5,6 +5,8 @@ import os
 import threading
 import soundfile as sf
 import sounddevice as sd
+import pyttsx3
+import numpy as np
 from echo_atc import *
 
 port = 5670
@@ -12,6 +14,82 @@ agent_name = "ATC_Agent"
 device = "wlp0s20f3" 
 verbose = False
 is_interrupted = False
+
+# Initialize TTS engine
+tts_engine = pyttsx3.init()
+tts_engine.setProperty('rate', 150)  # Slightly slower for ATC clarity
+tts_engine.setProperty('volume', 0.9)
+
+# Try to set a more professional voice if available
+voices = tts_engine.getProperty('voices')
+for voice in voices:
+    # Prefer male voices for ATC realism
+    if 'male' in voice.name.lower() or 'david' in voice.name.lower():
+        tts_engine.setProperty('voice', voice.id)
+        break
+
+def apply_radio_effect(audio_data, samplerate):
+    """Apply radio-static effect to simulate ATC communication"""
+    try:
+        # Add slight high-pass filter effect (remove low frequencies)
+        # Simple approximation: reduce amplitude at low frequencies
+        filtered = audio_data.copy()
+        
+        # Add subtle white noise (radio static)
+        noise_level = 0.01  # Very subtle static
+        noise = np.random.normal(0, noise_level, filtered.shape)
+        filtered = filtered + noise
+        
+        # Slight compression (reduce dynamic range for radio effect)
+        filtered = np.tanh(filtered * 1.2) * 0.9
+        
+        # Band-pass filter simulation: attenuate very low and very high frequencies
+        # This gives it that "compressed" radio sound
+        filtered = filtered * 0.95  # Slight overall reduction
+        
+        return filtered
+    except Exception as e:
+        print(f"⚠️  Could not apply radio effect: {e}")
+        return audio_data
+
+def speak_with_radio_effect(text):
+    """Speak text using TTS with radio-static effect"""
+    try:
+        print(f"📻 ATC (TTS): {text}")
+        
+        # Generate TTS to temporary file
+        temp_file = "/tmp/atc_tts_temp.wav"
+        tts_engine.save_to_file(text, temp_file)
+        tts_engine.runAndWait()
+        
+        # Wait a bit for file to be written
+        time.sleep(0.2)
+        
+        # Load the audio file
+        if os.path.exists(temp_file):
+            data, samplerate = sf.read(temp_file)
+            
+            # Apply radio effect
+            data = apply_radio_effect(data, samplerate)
+            
+            # Play the processed audio
+            sd.play(data, samplerate)
+            sd.wait()
+            
+            # Cleanup
+            try:
+                os.remove(temp_file)
+            except:
+                pass
+            
+            print(f"✅ TTS playback finished")
+        else:
+            print(f"⚠️  TTS file not generated")
+            
+    except Exception as e:
+        print(f"❌ Error in TTS with radio effect: {e}")
+        import traceback
+        traceback.print_exc()
 
 def signal_handler(signal_received, frame):
     global is_interrupted
@@ -73,6 +151,17 @@ def play_audio_async(file_path):
     
     thread = threading.Thread(target=_play, daemon=True)
     thread.start()
+
+def string_input_callback(io_type, name, value_type, value, my_data):
+    agent_object = my_data
+    assert isinstance(agent_object, Echo)
+    
+    if name == "custom_speech":
+        agent_object.custom_speech_i = value
+        print(f"📻 Custom speech request: {value}")
+        # Speak the custom text with radio effect in background thread
+        thread = threading.Thread(target=speak_with_radio_effect, args=(value,), daemon=True)
+        thread.start()
 
 def impulsion_input_callback(io_type, name, value_type, value, my_data):
     agent_object = my_data
@@ -149,12 +238,14 @@ if __name__ == "__main__":
     igs.input_create("declare_mayday", igs.IMPULSION_T, None)
     igs.input_create("declare_panpan", igs.IMPULSION_T, None)
     igs.input_create("request_vectors", igs.IMPULSION_T, None)
+    igs.input_create("custom_speech", igs.STRING_T, None)
     igs.output_create("speech_output", igs.STRING_T, None)
     igs.observe_input("request_takeoff_clearance", impulsion_input_callback, agent)
     igs.observe_input("declare_mayday", impulsion_input_callback, agent)
     igs.observe_input("declare_panpan", impulsion_input_callback, agent)
     igs.observe_input("request_vectors", impulsion_input_callback, agent)
     igs.observe_input("request_ATIS", impulsion_input_callback, agent)
+    igs.observe_input("custom_speech", string_input_callback, agent)
     igs.log_set_console(True)
     igs.log_set_console_level(igs.LOG_INFO)
 

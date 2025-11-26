@@ -291,9 +291,9 @@ class FSMWorker(QtCore.QObject):
         if delay is None:
             delay = 0
         elif isinstance(delay, str):
-            if delay.lower() == 'is_acked':
-                # Acknowledgment-based waiting - return 0, will be handled by UI
-                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment before action")
+            if delay.lower() in ['is_acked', 'is_sensed']:
+                # Acknowledgment-based or condition-based waiting - return 0, will be handled by UI/conditions
+                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment/sensing before action")
                 delay = 0
             else:
                 try:
@@ -309,9 +309,9 @@ class FSMWorker(QtCore.QObject):
         if delay is None:
             delay = 0
         elif isinstance(delay, str):
-            if delay.lower() == 'is_acked':
-                # Acknowledgment-based waiting - return 0, will be handled by UI
-                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment after action")
+            if delay.lower() in ['is_acked', 'is_sensed']:
+                # Acknowledgment-based or condition-based waiting - return 0, will be handled by UI/conditions
+                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment/sensing after action")
                 delay = 0
             else:
                 try:
@@ -509,6 +509,13 @@ class MainWindow(QMainWindow):
             # Connect agent alert signals to home page
             if hasattr(self, 'agent') and self.agent:
                 self.agent.alertRequested.connect(home_page.displayAlert)
+                self.agent.interactionPanelMessage.connect(self.display_interaction_panel_message)
+    
+    def display_interaction_panel_message(self, message: str, tars_input: str = ""):
+        """Display message in interaction panel TARS input area"""
+        self.ui.interaction_panel_text.setText(message)
+        self.ui.interaction_panel_tars_input.show()
+        self.ui.interaction_panel_tars_input.setText(tars_input)
     
     def handle_task_done(self):
         """
@@ -536,6 +543,8 @@ class MainWindow(QMainWindow):
         self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.APPROVED
         self.agent.is_requesting_vectors[0] = ApprovalStatus.APPROVED
         self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.APPROVED
+        self.agent.is_allowed_engage_autopilot[0] = ApprovalStatus.APPROVED
+        self.countdown_completion_event.set()
     
     def handle_task_not_allowed(self):
         """
@@ -544,6 +553,8 @@ class MainWindow(QMainWindow):
         self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.DENIED
         self.agent.is_requesting_vectors[0] = ApprovalStatus.DENIED
         self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.DENIED
+        self.agent.is_allowed_engage_autopilot[0] = ApprovalStatus.DENIED
+        self.countdown_completion_event.set()
     
     def handle_countdown_zero(self):
         """
@@ -883,7 +894,7 @@ class MainWindow(QMainWindow):
             #if not self.ui.int_panel_right_button.isVisible() :
             self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
             if current_state_obj.autonomy_role == "performer":
-                self.ui.int_panel_right_button.setText("CROSSCHECK")
+                self.ui.int_panel_right_button.setText("CHECK")
             else:
                 self.ui.int_panel_right_button.setText("CHECK")
             self.ui.int_panel_left_button.hide()
@@ -899,13 +910,13 @@ class MainWindow(QMainWindow):
             match current_state_obj.interaction:
                 case "engine_anti_ice_requirement":
                     self.ui.interaction_panel_tars_input.show()            
-                    self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
+                    self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, ENGINE ANTI-ICE ON")
                 case "windshield_anti_ice_requirement":
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
+                    self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, ENGINE ANTI-ICE ON")
                 case "anti_ice_systems_as_required":
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_tars_input.setText("NO ICE CONDITIONS DETECTED")
+                    self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, ANTI-ICE SYSTEMS ON")
                 case "landing_light_as_required":
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("On an active runway, to enhance visibility: LANDING LIGHTS ON")
@@ -920,20 +931,22 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("WIND 090° / 04 kt\nCrosswind Component: 02 kt from the right < Max Crosswind (25 knots)\nHeadwind Component: 3.5 kt")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("CROSSCHECK")
+                    self.ui.int_panel_right_button.setText("CHECK")
                 case "alt_preset_as_cleared":
                     self.ui.interaction_panel_text.setText("Select altitude AS CLEARED BY ATC")
                 case "eng_failure_aft_v1_memo_items":
                     home_page.displayAlert(f"Failure detected: {self.agent.engine_failed_side} ENGINE FIRE", "red")
-                    self.ui.interaction_panel_text.setText("ENGINE FAILURE OR FIRE OR MASTER WARNING \nOR ANY OTHER NON-NORMAL EVENT DURING TAKEOFF SPEED ABOVE V1\n\n1. Maintain directional control\n2. Acceletrate to Vr\n3. Rotate at Vr, climb at V2\n4. LANDING GEAR - UP (after positive rate of climb)\n5. At 1,500 feet AGL, retract flaps at V2+10 and accelerate to Venr")
+                    self.ui.interaction_panel_text.setText(f"ENGINE FAILURE OR FIRE OR MASTER WARNING \nOR ANY OTHER NON-NORMAL EVENT DURING TAKEOFF SPEED ABOVE V1\n\n1. Maintain directional control\n2. Accelerate to Vr = {self.agent.V_ROTATE}\n3. Rotate at Vr = {self.agent.V_ROTATE}, climb at V2 = {self.agent.V_TWO}\n4. LANDING GEAR - UP (after positive rate of climb)\n5. At 1,500 feet AGL, retract flaps at V2+10  and accelerate to Venr = {self.agent.V_ENR}")
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
                 case "engine_fire_memo_items":
-                    self.ui.interaction_panel_text.setText("ENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n\n1. Throttle (affected side) - IDLE\n\nIF LIGHT REMAINS ON (15 SECONDS)\n\n2. ENGINE FIRE Button (affected engine) LIFT COVER and PUSH")
+                    self.ui.interaction_panel_text.setText(f"ENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n\n1. Throttle ({self.agent.engine_failed_side}) - IDLE\n\nIF LIGHT REMAINS ON (15 SECONDS)\n\n2. ENGINE FIRE Button ({self.agent.engine_failed_side}) LIFT COVER and PUSH")
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
                 case "immediate_action_items":
-                    self.ui.interaction_panel_text.setText("IMMEDIATE ACTION ITEMS:\n1. Throttle " + self.agent.engine_failed_side + " engine IDLE\n2. ENGINE FIRE Switch LIFT COVER AND PUSH\n3. Confirm FIRE WARNING LIGHT EXTINGUISHED\n4. If fire warning light remains illuminated after 15 seconds\n5. DISCHARGE FIRE EXTINGUISHER BOTTLE\n\nENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle (affected side) - IDLE\nIF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button (affected engine) LIFT COVER and PUSH")
+                    self.ui.interaction_panel_text.setText(f"IMMEDIATE ACTION ITEMS:\n\nNON-NORMAL EVENT DURING TAKEOFF\n1. Climb to a safe altitude (1500ft AGL)\n\nENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle ({self.agent.engine_failed_side}) - IDLE\nIF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button ({self.agent.engine_failed_side}) LIFT COVER and PUSH")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
                 case "end_emer":
                     home_page.clearAlert()
                     self.ui.alert_label_2.setText("")
@@ -954,22 +967,24 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText("Allow TARS to adjust trim/rudder settings?")
                     self.ui.interaction_panel_tars_input.setText(current_state_obj.callout)
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.int_panel_right_button.setText("ALLOW")
+                    self.ui.int_panel_right_button.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                case "show_v_enr":
+                    self.ui.interaction_panel_text.setText(f"Set speed to VEnr = {self.agent.V_ENR} knots")
                 case "allow_comm":
                     home_page.connect_int_panel_buttons(default=False)
                     self.ui.interaction_panel_text.setText("Allow TARS to communicate with ATC?")
                     self.ui.interaction_panel_tars_input.setText(current_state_obj.callout)
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.int_panel_right_button.setText("ALLOW")
+                    self.ui.int_panel_right_button.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                 case "add_request_vectors":
-                    self.ui.interaction_panel_text.setText(f"Add request for vectors to return runway {self.agent.runway if self.agent.runway else 'unknown'}?")
-                    self.ui.int_panel_right_button.setText("ALLOW")
+                    self.ui.interaction_panel_text.setText(f"Add request for vectors to return runway {self.agent.RUNWAY_NUMBER if self.agent.RUNWAY_NUMBER else 'unknown'}?")
+                    self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.interaction_panel_tars_input.setText(previous_state_obj.callout + " " + current_state_obj.callout)
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("DENY")
@@ -978,32 +993,22 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_text.setText(f"Current trim : {self.agent.trim_rudder} %")
                 case "display_alarm":
                     self.ui.interaction_panel_text.setText("Alarm: Engine Fire")
-                case "display_ATC_msg_and_buttons_mayday":
-                    self.ui.interaction_panel_text.setText("ATC Message: Mayday, Mayday, Mayday, Montreal Tower, from Papa Oscar Lima Yankee, engine fire after takeoff due to bird strike")
-                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_left_button.hide()
-                    self.ui.int_panel_right_button.setText("Allow TARS to send Mayday message to ATC")
                 case "display_engage_autopilot":
                     self.ui.interaction_panel_text.setText("Engage Autopilot: ")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    self.ui.int_panel_right_button.setText("Engage")
-                    self.ui.int_panel_left_button.setText("CANCEL")
+                    self.ui.int_panel_right_button.setText("APPROVE")
+                    self.ui.int_panel_left_button.setText("DENY")
                 case "immediate_action_item":
                     self.ui.interaction_panel_text.setText(f"Immediate action item : \n1. Throttle {self.agent.engine_failed_side} engine throttle IDLE\n- IF LIGHT REMAINS ON (15 SECONDS)\nIlluminated ENGINE FIRE Switch LIFT COVER AND PUSH")
                 case "display_checklist_emer_eng_fire_continue":
                     self.ui.interaction_panel_text.setText("Emergency Fire Checklist: ")
                     if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("Continue")
-                case "display_ATC_msg_and_buttons_panpan":
-                    self.ui.interaction_panel_text.setText("ATC Message: PanpanPan-Pan, Pan-Pan, Pan-Pan, Montreal Tower, from Papa Oscar Lima Yankee, request vectors to return for landing with one engine.")
-                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_left_button.hide()
-                    self.ui.int_panel_right_button.setText("Allow TARS to send Panpan message to ATC")
+                    self.ui.int_panel_right_button.setText("START CHECKLIST")
                 case "display_checklist_aft_takeoff_continue":
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
                     if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("Continue")
+                    self.ui.int_panel_right_button.setText("START CHECKLIST")
                 case "display_checklist_aft_takeoff":
                     self.ui.interaction_panel_text.setText("After takeoff Checklist: ")
                 case "yaw_damper_as_desired":
@@ -1020,13 +1025,17 @@ class MainWindow(QMainWindow):
                 case "display_checklist_eng_fail_proc_continue":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
                     if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    self.ui.int_panel_right_button.setText("Continue")
+                    self.ui.int_panel_right_button.setText("START CHECKLIST")
                 case "display_checklist_eng_fail_proc":
                     self.ui.interaction_panel_text.setText("Engine Failure Procedure")
                 case "caution_text_readout":
                     self.ui.interaction_panel_text.setText("Caution: \nIf possible, the engines should remain at idle for a minimum of two minutes prior to shutdown to allow the engine inter-turbine temperature to stabilize and avoid turbine blade rub.\nIf the engine windmills for more than 15 minutes without a positive indication of oil pressure, a notation is required in the engine logbook and the engine must be inspected in accordance with the Pratt & Whitney engine maintenance manual.\nIf the engine windmills for more than 30 minutes with the firewall shutoff closed or the boost pump turned off, the engine fuel pump must be inspected in accordance with the Pratt & Whitney engine maintenance manual.")
                 case "display_checklist_sing_eng_app":
                     self.ui.interaction_panel_text.setText("Single Engine Approach and Landing Checklist")
+                case "pressurization_check":
+                    self.ui.interaction_panel_text.setText("Pressurization Check: ")
+                    self.ui.interaction_panel_tars_input.show()
+                    self.ui.interaction_panel_tars_input.setText("CABIN ALTITUDE: NORMAL\nDIFFERENTIAL PRESSURE: NORMAL")
     
         # Update task timeline widget
         home_page.update_task_timeline(current_state_obj)
@@ -1093,6 +1102,14 @@ class MainWindow(QMainWindow):
         """Return a string with left and right text separated by dashes, aligned to total_width."""
         left = str(left)
         right = str(right)
+        
+        # Replace dynamic text with actual engine side
+        if "affected engine" in left.lower() or "affected side" in left.lower():
+            left = left.replace("affected engine", self.agent.engine_failed_side)
+            left = left.replace("Affected engine", self.agent.engine_failed_side)
+            left = left.replace("affected side", self.agent.engine_failed_side)
+            left = left.replace("Affected side", self.agent.engine_failed_side)
+        
         dash_count = max(2, total_width - len(left) - len(right))
         return f"{left}{dash_char * dash_count}{right}"
     

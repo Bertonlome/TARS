@@ -29,6 +29,7 @@ class Echo(metaclass=Singleton):
         self.declare_mayday_i = None
         self.declare_panpan_i = None
         self.request_vectors_i = None
+        self.custom_speech_i = None
 
         # outputs
         self._speech_output_o = None
