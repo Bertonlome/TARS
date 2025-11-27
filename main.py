@@ -954,6 +954,8 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("WIND 090° / 04 kt\nCrosswind Component: 02 kt from the right < Max Crosswind (25 knots)\nHeadwind Component: 3.5 kt")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "grey")
+                    self.ui.int_panel_left_button.setText("EDIT")
                     self.ui.int_panel_right_button.setText("CHECK")
                 case "alt_preset_as_cleared":
                     self.ui.interaction_panel_text.setText("Select altitude AS CLEARED BY ATC")

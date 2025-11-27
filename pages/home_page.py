@@ -6,7 +6,7 @@ Main landing page for the TARS GUI application
 from operator import index
 from tabnanny import check
 from pages.base_page import BasePage
-from PySide6 import QtCore
+from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QWidget, QVBoxLayout
 import warnings
 from widgets.circular_countdown import CircularCountdown
@@ -912,16 +912,29 @@ class HomePage(BasePage):
 
     def show_button(self, button, color):
         """Show button with specified color styling"""
-        #if color == "red":
+        #if color == "grey":
             #button.setStyleSheet("""
-                #QPushButton {
-                    #padding: 5px,5px; border: 2px solid rgba(235, 0, 20, 255);
-                    #border-radius: 5px;
-                    #background-color: rgba(33, 37, 43, 255);
-                    #font: 600 16pt "JetBrains Mono";
-                #}
+            #QPushButton {
+                #border: 2px solid rgba(52, 59, 72, 255);
+                #border-radius: 5px;
+                #background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    #stop:0 rgba(33, 37, 43, 255), stop:1 rgba(40,40,50,255));
+                #font: 600 16pt "JetBrains Mono";
+                #padding: 6px 10px;
+            #}
+            #QPushButton:pressed {
+                #/* darker, slightly inset 3D pressed look */
+                #background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    #stop:0 rgba(52, 59, 72, 255), stop:1 rgba(60,60,70,255));
+                #border: 2px solid rgba(52, 59, 72, 255);
+                #padding-top: 8px;    /* push content down to simulate depression */
+                #padding-bottom: 4px;
+            #}
+            #QPushButton:focus {
+                #outline: none;
+            #}
             #""")
-        # Actually show the button
+            #button.setIcon(QtGui.QIcon())
         button.show()
 
     @QtCore.Slot(str, str)
