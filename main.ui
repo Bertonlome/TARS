@@ -2474,11 +2474,26 @@ background-color: rgb(52, 59, 72);
                                 <verstretch>1</verstretch>
                                </sizepolicy>
                               </property>
+                              <property name="minimumSize">
+                               <size>
+                                <width>750</width>
+                                <height>0</height>
+                               </size>
+                              </property>
+                              <property name="maximumSize">
+                               <size>
+                                <width>750</width>
+                                <height>16777215</height>
+                               </size>
+                              </property>
                               <property name="styleSheet">
                                <string notr="true">font: 300 14pt &quot;JetBrains Mono&quot;;</string>
                               </property>
                               <property name="text">
                                <string>There is no interaction available for the ongoing task</string>
+                              </property>
+                              <property name="wordWrap">
+                               <bool>true</bool>
                               </property>
                              </widget>
                             </item>

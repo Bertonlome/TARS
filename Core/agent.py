@@ -131,7 +131,7 @@ class TarsAgent(QObject):
         self.checklists = self.create_checklists_from_states(self.states)
         idle_key = ("IDLE", "Idle", "WAITING")
         finished_key = ("FINISHED", "Finished", "COMPLETED")
-        self.fsm = FiniteStateMachine(self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")])
+        self.fsm = FiniteStateMachine(self.states[(idle_key)])
 
         # BEFORE TAKEOFF Procedure
         self.fsm.add_transition(Transition(
@@ -144,12 +144,12 @@ class TarsAgent(QObject):
             self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
             self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
             self.is_acked, 
-            self.dummy_action))
+            lambda: self.check_pitot_heat_send_signals()))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
             self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
-            self.is_pitot_heat_on, 
+            self.is_acked, 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
@@ -1167,6 +1167,15 @@ class TarsAgent(QObject):
                     self.alertRequested.emit("Engine N1 mismatch detected!", "red")
                     self.engine_spool_alert_sent = True
         return False
+    
+    def check_pitot_heat_send_signals(self):
+        print(f"🔧 check_pitot_heat_send_signals() CALLED at {time.time()}")
+        if self.agent.pitot_heat_i is not None:
+            if self.agent.pitot_heat_i:
+                self.interactionPanelMessage.emit("CAUTION LIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
+            else:
+                self.interactionPanelMessage.emit("CAUTION LIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
+        print(f"✅ check_pitot_heat_send_signals() FINISHED at {time.time()}")
     
     def check_engine_spool_send_signal(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:

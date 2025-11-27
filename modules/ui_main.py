@@ -1476,7 +1476,10 @@ class Ui_MainWindow(object):
         sizePolicy8.setVerticalStretch(1)
         sizePolicy8.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
         self.interaction_panel_text.setSizePolicy(sizePolicy8)
+        self.interaction_panel_text.setMinimumSize(QSize(750, 0))
+        self.interaction_panel_text.setMaximumSize(QSize(750, 16777215))
         self.interaction_panel_text.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\";")
+        self.interaction_panel_text.setWordWrap(True)
 
         self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter)
 

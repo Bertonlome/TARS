@@ -752,52 +752,62 @@ class MainWindow(QMainWindow):
         self.ui.interaction_panel_tars_input.hide()
         
         # For current task counter (uses delay_before_action)
-        if current_state_obj.autonomy_role != "performer":
-            # Human task - hide the circular countdown but keep timeline animations
-            if home_page.current_circular_countdown:
-                home_page.current_circular_countdown.hide()
-            # Handle human task (immediate completion of animations, no countdown)
-            home_page.handle_human_task()
-            # Update UI text for human tasks
-            self.ui.c_t_s_value_2.setText("Human")
-        else:
-            # TARS task - show the circular countdown and start countdown
+        # Check if this task has numeric delays that need countdown
+        has_numeric_delay = False
+        try:
+            delay_val = current_state_obj.delay_before_action
+            if delay_val and str(delay_val).replace('.','',1).isdigit():
+                has_numeric_delay = float(delay_val) > 0
+        except (ValueError, TypeError, AttributeError):
+            has_numeric_delay = False
+        
+        if has_numeric_delay:
+            # Task with countdown delay - show the circular countdown and start timer
+            # This applies to ANY task (human performer, TARS performer, supporter) with delays
             if home_page.current_circular_countdown:
                 home_page.current_circular_countdown.show()
             try:
-                seconds = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
-                print(f"\nDelay_before_action for task {current_state_obj.task_object}: {seconds} seconds")
+                seconds = int(current_state_obj.delay_before_action)
+                print(f"\n⏰ Starting {seconds}s countdown for task {current_state_obj.task_object} (autonomy_role: {current_state_obj.autonomy_role})")
                 self.ui.c_t_s_value_2.setText(str(seconds))
-                if seconds > 0:
-                    home_page.start_current_countdown(seconds)  # Use the proper method
-                else:
-                    # For 0-second TARS tasks, initialize and immediately complete the animation
-                    home_page.current_countdown_value = 0
-                    home_page.current_countdown_max = 1  # Set a default for progress calculation
-                    if home_page.current_circular_countdown:
-                        home_page.current_circular_countdown.set_value(0, 0)
-                    
-                    # Initialize task border animation and immediately complete it
-                    timeline_widget = home_page.get_current_timeline_widget()
-                    if timeline_widget:
-                        # Directly set both target and current progress to 1.0 (no animation)
-                        timeline_widget._target_task_progress = 1.0
-                        timeline_widget._current_task_progress = 1.0
-                        # Force a repaint to show the blue border immediately
-                        timeline_widget.update()
-                        # Mark task as complete and prepare connection animation
-                        timeline_widget.complete_current_task()
-                        # The connection animation progress will be driven by next_countdown timer
-                        # Calculate current connection progress based on how much next_countdown has elapsed
-                        if home_page.next_countdown_max > 0 and home_page.next_countdown_value < home_page.next_countdown_max:
-                            elapsed_progress = 1.0 - (home_page.next_countdown_value / home_page.next_countdown_max)
-                            timeline_widget.set_connection_progress(elapsed_progress)
-                        else:
-                            # Next countdown hasn't started yet or just started
-                            timeline_widget.set_connection_progress(0.0)
-                    
-                    # Emit completion signal for FSM
-                    home_page.countdown_zero_signal.emit()
+                home_page.start_current_countdown(seconds)
+            except (ValueError, TypeError, AttributeError):
+                self.ui.c_t_s_value_2.setText("0")
+        elif current_state_obj.autonomy_role != "performer":
+            # Human task with no numeric delay - hide countdown, immediate completion
+            if home_page.current_circular_countdown:
+                home_page.current_circular_countdown.hide()
+            home_page.handle_human_task()
+            self.ui.c_t_s_value_2.setText("Human")
+        else:
+            # TARS task with 0 or no delay - immediate completion with animations
+            if home_page.current_circular_countdown:
+                home_page.current_circular_countdown.show()
+            try:
+                seconds = 0
+                print(f"\n⚡ 0-second task {current_state_obj.task_object} (autonomy_role: {current_state_obj.autonomy_role})")
+                self.ui.c_t_s_value_2.setText("0")
+                # For 0-second TARS tasks, initialize and immediately complete the animation
+                home_page.current_countdown_value = 0
+                home_page.current_countdown_max = 1
+                if home_page.current_circular_countdown:
+                    home_page.current_circular_countdown.set_value(0, 0)
+                
+                # Initialize task border animation and immediately complete it
+                timeline_widget = home_page.get_current_timeline_widget()
+                if timeline_widget:
+                    timeline_widget._target_task_progress = 1.0
+                    timeline_widget._current_task_progress = 1.0
+                    timeline_widget.update()
+                    timeline_widget.complete_current_task()
+                    if home_page.next_countdown_max > 0 and home_page.next_countdown_value < home_page.next_countdown_max:
+                        elapsed_progress = 1.0 - (home_page.next_countdown_value / home_page.next_countdown_max)
+                        timeline_widget.set_connection_progress(elapsed_progress)
+                    else:
+                        timeline_widget.set_connection_progress(0.0)
+                
+                # Emit completion signal for FSM
+                home_page.countdown_zero_signal.emit()
             except (ValueError, TypeError, AttributeError):
                 self.ui.c_t_s_value_2.setText("0")
 

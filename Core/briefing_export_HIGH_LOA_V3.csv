@@ -1,6 +1,6 @@
 Procedure,Classification,Type,Category,Task Object,Value,Human Role,Autonomy Role,interaction,Time to Initiate Action,Time after Ending Action,Callout,Condition Type,Condition Function,Monitor Scope
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Takeoff clearance,CONFIRM,performer,supporter,,0,is_acked,Starting NORMAL TAKEOFF procedure,,,
-BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Pitot-Static Switch,PITOT-STATIC,performer,supporter,pitot_static_switch,0,is_acked,,,,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Pitot-Static Switch,PITOT-STATIC,performer,supporter,pitot_static_switch,2,is_acked,,,,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ENGINE ANTI-ICE Switches,AS REQUIRED,performer,supporter,engine_anti_ice_requirement,0,is_acked,,,,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,WINDSHIELD ANTI-ICE Switches,AS REQUIRED,performer,supporter,windshield_anti_ice_requirement,0,is_acked,,,,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,PAX SAFETY Switch,PAX SAFETY,performer,supporter,pax_safety_switch,0,is_acked,,,,
