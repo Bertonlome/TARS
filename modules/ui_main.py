@@ -30,7 +30,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1716, 1271)
+        MainWindow.resize(1689, 1017)
         MainWindow.setMinimumSize(QSize(940, 560))
         self.styleSheet = QWidget(MainWindow)
         self.styleSheet.setObjectName(u"styleSheet")
@@ -1471,7 +1471,7 @@ class Ui_MainWindow(object):
 
         self.interaction_panel_text = QLabel(self.interaction_container)
         self.interaction_panel_text.setObjectName(u"interaction_panel_text")
-        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy8.setHorizontalStretch(0)
         sizePolicy8.setVerticalStretch(1)
         sizePolicy8.setHeightForWidth(self.interaction_panel_text.sizePolicy().hasHeightForWidth())
@@ -1480,8 +1480,9 @@ class Ui_MainWindow(object):
         self.interaction_panel_text.setMaximumSize(QSize(750, 16777215))
         self.interaction_panel_text.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\";")
         self.interaction_panel_text.setWordWrap(True)
+        self.interaction_panel_text.setMargin(25)
 
-        self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.verticalLayout_23.addWidget(self.interaction_panel_text, 0, Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignTop)
 
         self.interaction_panel_tars_input = QLabel(self.interaction_container)
         self.interaction_panel_tars_input.setObjectName(u"interaction_panel_tars_input")
@@ -1490,13 +1491,14 @@ class Ui_MainWindow(object):
         sizePolicy9.setVerticalStretch(1)
         sizePolicy9.setHeightForWidth(self.interaction_panel_tars_input.sizePolicy().hasHeightForWidth())
         self.interaction_panel_tars_input.setSizePolicy(sizePolicy9)
-        self.interaction_panel_tars_input.setMinimumSize(QSize(500, 0))
+        self.interaction_panel_tars_input.setMinimumSize(QSize(750, 150))
         self.interaction_panel_tars_input.setMaximumSize(QSize(750, 16777215))
         self.interaction_panel_tars_input.setStyleSheet(u"padding: 5px,5px;\n"
 "border: 4px solid rgba(19, 20, 23, 255);\n"
 "border-radius: 20px;\n"
 "font: 300 14pt \"JetBrains Mono\";\n"
 "color: #3399ff")
+        self.interaction_panel_tars_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.interaction_panel_tars_input.setWordWrap(True)
 
         self.verticalLayout_23.addWidget(self.interaction_panel_tars_input, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -2707,7 +2709,10 @@ class Ui_MainWindow(object):
         self.ecl_tab_container.setTabText(self.ecl_tab_container.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.interaction_panel_title.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
         self.interaction_panel_text.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
-        self.interaction_panel_tars_input.setText(QCoreApplication.translate("MainWindow", u"This is a test for TARS input", None))
+        self.interaction_panel_tars_input.setText(QCoreApplication.translate("MainWindow", u"WIND REPORT:\n"
+"\n"
+"METAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 \n"
+"RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
         self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))

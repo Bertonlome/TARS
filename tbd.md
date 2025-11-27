@@ -6,12 +6,12 @@
 [ ] Need to think of an override button
 [ ] Need to define exactly the behaviour of CHECK, CANCEL, ALLOW, DENY, OVERRIDE
 [ ] Need to finish implementing the interaction panel
-[ ] Need to add AGMEB to FMS to continue straight ahead
-[ ] Screenshot Jeppesen shows that departure is cleared straight ahead 5000ft for Jet aircraft
-[ ] Engine failure or fire or master warning or any other non-normal event during takeoff checklist clearly shows 1. CLIMB TO A SAFE ALTITUDE. So TARS need to help climbing (pallier d'acceleration 1500ft agl, vitesse d'acceleration Venr) ==> Engine FIRE
-[ ] Remove trimming alarm, use as cautionary tale
+[x] Need to add AGMEB to FMS to continue straight ahead
+[x] Screenshot Jeppesen shows that departure is cleared straight ahead 5000ft for Jet aircraft
+[x] Engine failure or fire or master warning or any other non-normal event during takeoff checklist clearly shows 1. CLIMB TO A SAFE ALTITUDE. So TARS need to help climbing (pallier d'acceleration 1500ft agl, vitesse d'acceleration Venr) ==> Engine FIRE
+[x] Remove trimming alarm, use as cautionary tale
 [ ] Add a reclaim vs offload button
-[ ] Add tars input composante de vent de travers sur checkwind
+[x] Add tars input composante de vent de travers sur checkwind
 [ ] How to set/ensure the frequencies for panpan/mayday call?
 [ ] The tars input should be boxed to look more like an output
 

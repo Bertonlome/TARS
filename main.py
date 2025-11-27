@@ -509,6 +509,7 @@ class MainWindow(QMainWindow):
             # Connect agent alert signals to home page
             if hasattr(self, 'agent') and self.agent:
                 self.agent.alertRequested.connect(home_page.displayAlert)
+                self.agent.clearAlertRequested.connect(home_page.clearAlert)
                 self.agent.interactionPanelMessage.connect(self.display_interaction_panel_message)
     
     def display_interaction_panel_message(self, message: str, tars_input: str = ""):
@@ -909,7 +910,7 @@ class MainWindow(QMainWindow):
                 self.ui.int_panel_right_button.setText("CHECK")
             self.ui.int_panel_left_button.hide()
         else :
-            self.ui.interaction_panel_text.setText(current_state_obj.task_object)
+            self.ui.interaction_panel_text.setText(current_state_obj.task_object + "    " + current_state_obj.value)
             self.ui.int_panel_right_button.hide()
             self.ui.int_panel_left_button.hide()
     
@@ -918,6 +919,8 @@ class MainWindow(QMainWindow):
             #self.ui.int_panel_right_button.hide()
             #self.ui.int_panel_left_button.hide()
             match current_state_obj.interaction:
+                case "pitot_static_switch":
+                    self.ui.interaction_panel_text.setText("PITOT STATIC HEAT SWITCH - PITOT-STATIC\nCAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.")
                 case "engine_anti_ice_requirement":
                     self.ui.interaction_panel_tars_input.show()            
                     self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, ENGINE ANTI-ICE ON")
@@ -975,8 +978,6 @@ class MainWindow(QMainWindow):
                 case "allow_trim_rudder":
                     home_page.connect_int_panel_buttons(default=False)
                     self.ui.interaction_panel_text.setText("Allow TARS to adjust trim/rudder settings?")
-                    self.ui.interaction_panel_tars_input.setText(current_state_obj.callout)
-                    self.ui.interaction_panel_tars_input.show()
                     self.ui.int_panel_right_button.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("DENY")

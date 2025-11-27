@@ -7,8 +7,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1716</width>
-    <height>1271</height>
+    <width>1689</width>
+    <height>1017</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -2466,10 +2466,10 @@ background-color: rgb(52, 59, 72);
                               </property>
                              </widget>
                             </item>
-                            <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                            <item alignment="Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignTop">
                              <widget class="QLabel" name="interaction_panel_text">
                               <property name="sizePolicy">
-                               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                                 <horstretch>0</horstretch>
                                 <verstretch>1</verstretch>
                                </sizepolicy>
@@ -2495,6 +2495,9 @@ background-color: rgb(52, 59, 72);
                               <property name="wordWrap">
                                <bool>true</bool>
                               </property>
+                              <property name="margin">
+                               <number>25</number>
+                              </property>
                              </widget>
                             </item>
                             <item alignment="Qt::AlignmentFlag::AlignHCenter">
@@ -2507,8 +2510,8 @@ background-color: rgb(52, 59, 72);
                               </property>
                               <property name="minimumSize">
                                <size>
-                                <width>500</width>
-                                <height>0</height>
+                                <width>750</width>
+                                <height>150</height>
                                </size>
                               </property>
                               <property name="maximumSize">
@@ -2525,7 +2528,13 @@ font: 300 14pt &quot;JetBrains Mono&quot;;
 color: #3399ff</string>
                               </property>
                               <property name="text">
-                               <string>This is a test for TARS input</string>
+                               <string>WIND REPORT:
+
+METAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 
+RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
+                              </property>
+                              <property name="alignment">
+                               <set>Qt::AlignmentFlag::AlignCenter</set>
                               </property>
                               <property name="wordWrap">
                                <bool>true</bool>

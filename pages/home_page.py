@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 class HomePage(BasePage):
     def set_checklist_label_current(self, procedure_name, task_object, value):
-        """Set the checklist label to 'current' (grey box)"""
+        """Set the checklist label to 'current' (grey box) and scroll to it if needed"""
         label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
         if label:
             label.setStyleSheet("""
@@ -33,6 +33,12 @@ class HomePage(BasePage):
                     padding: 4px;
                 }
             """)
+            
+            # Auto-scroll to make the current label visible
+            scroll_area = self.checklist_scroll_areas.get(procedure_name)
+            if scroll_area:
+                # Ensure the label is visible in the scroll area
+                scroll_area.ensureWidgetVisible(label, 50, 50)
 
     def set_checklist_label_passed(self, procedure_name, task_object, value):
         """Set the checklist label to 'passed' (neutral green, no box)"""
@@ -111,9 +117,11 @@ class HomePage(BasePage):
         self._glow_timer = None
         self._glow_steps = []
         self._glow_index = 0
+        self._glow_active_widget = None  # Track which widget is currently glowing
 
         # Store checklist item labels for later access
-        self.checklist_item_labels = {}  # Dict: procedure_name -> list of QLabel
+        self.checklist_item_labels = {}  # Dict: procedure_name -> dict of (task_object, value) -> QLabel
+        self.checklist_scroll_areas = {}  # Dict: procedure_name -> QScrollArea
 
         radio_style = """
         QRadioButton {
@@ -347,6 +355,9 @@ class HomePage(BasePage):
         # Ensure it's not set as a window (should be embedded widget only)
         timeline_widget.setWindowFlags(QtCore.Qt.Widget)
         
+        # Connect task click signal to handler
+        timeline_widget.task_clicked.connect(self.on_task_clicked)
+        
         # Determine tab label based on classification
         if classification == 'EMER':
             tab_label = f"️{procedure_name}"
@@ -405,6 +416,7 @@ class HomePage(BasePage):
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
             scroll.setWidget(container)
+            self.checklist_scroll_areas[procedure_name] = scroll  # Store reference for auto-scroll
             tab_index = tab_widget.addTab(scroll, procedure_name)
         print(f"Created checklist tab with {len(checklists)} checklists at index {tab_index}")
     
@@ -451,6 +463,9 @@ class HomePage(BasePage):
         
         # Ensure it's not set as a window (should be embedded widget only)
         timeline_widget.setWindowFlags(QtCore.Qt.Widget)
+        
+        # Connect task click signal to handler
+        timeline_widget.task_clicked.connect(self.on_task_clicked)
         
         # Determine tab label based on classification
         if classification == 'EMER':
@@ -545,6 +560,42 @@ class HomePage(BasePage):
         """Refresh task timeline data from agent (call when agent data updates)"""
         # Recreate all tabs with fresh data
         self._setup_task_timeline()
+    
+    @QtCore.Slot(tuple)
+    def on_task_clicked(self, task_key):
+        """Handle task click from timeline widget
+        
+        Args:
+            task_key: Tuple of (procedure, task_object, value) identifying the clicked task
+        """
+        print(f"🖱️ Task clicked: {task_key}")
+        
+        # Check if agent and FSM are available
+        if not hasattr(self.main_window, 'agent') or not self.main_window.agent:
+            print("⚠️ Agent not available")
+            return
+        
+        agent = self.main_window.agent
+        fsm = agent.fsm
+        
+        # Find the state object corresponding to this task key
+        target_state = None
+        for state_key, state in agent.states.items():
+            if state_key == task_key:
+                target_state = state
+                break
+        
+        if not target_state:
+            print(f"⚠️ Could not find state for task: {task_key}")
+            return
+        
+        # Force FSM to jump to this state
+        print(f"⚡ Forcing FSM to jump to state: {target_state.procedure} {target_state.task_object} {target_state.value}")
+        fsm.current_state = target_state
+        
+        # Emit state change signal to update UI
+        if hasattr(self.main_window, 'fsm_worker') and self.main_window.fsm_worker:
+            self.main_window.fsm_worker.state_changed.emit(target_state)
     
     def get_current_timeline_widget(self):
         """Get the timeline widget for the current active procedure
@@ -727,6 +778,7 @@ class HomePage(BasePage):
 
     def task_not_allowed_clicked(self):
         """Handle task not allowed button click"""
+        print("Task not allowed clicked")
         self.start_glow_effect(self.widgets.current_task_container_3, "red")
         # Emit signal to notify MainWindow
         self.task_not_allowed_signal.emit()
@@ -762,6 +814,13 @@ class HomePage(BasePage):
     # ///////////////////////////////////////////////////////////////
     def start_glow_effect(self, widget, color):
         """Start glow effect on widget"""
+        # Check if this widget is already glowing - don't start a new effect
+        if self._glow_active_widget is widget:
+            return
+        
+        # Mark this widget as actively glowing
+        self._glow_active_widget = widget
+        
         # Flicker parameters: border width and color alpha
         if color == "red":
             self._glow_steps = [
@@ -813,6 +872,8 @@ class HomePage(BasePage):
                 background-color: rgba(19, 20, 23, 255);
                 }}
             """)
+            # Clear the active widget tracking since glow is complete
+            self._glow_active_widget = None
     
     def reset_radio_button(self, button):
         button.setChecked(False)
@@ -839,7 +900,6 @@ class HomePage(BasePage):
             text: Alert text to display
             color: Alert border color (red, orange, yellow, etc.)
         """
-        self.widgets.interaction_panel_text.setText(text)
         self.widgets.alert_container_3.setStyleSheet(f"""
             QWidget#alert_container_3 {{
                 border: 2px solid {color};
@@ -853,7 +913,6 @@ class HomePage(BasePage):
     @QtCore.Slot()
     def clearAlert(self):
         """Clear the alert display"""
-        self.widgets.interaction_panel_text.setText("")
         self.widgets.alert_container_3.setStyleSheet("""
             QWidget#alert_container_3 {
                 border: 2px solid rgba(52, 59, 72, 255);

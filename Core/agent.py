@@ -55,6 +55,7 @@ class ApprovalStatus:
 class TarsAgent(QObject):
     # Define signals
     alertRequested = Signal(str, str)  # (message, color)
+    clearAlertRequested = Signal()  # Clear alert signal
     interactionPanelMessage = Signal(str, str)  # Send message to interaction panel
     
     def __init__(self, agent_name="TARS Agent", device=DEFAULT_DEVICE, port=5670, verbose=False):
@@ -182,9 +183,16 @@ class TarsAgent(QObject):
             self.is_acked, 
             self.dummy_action))
         
-        # LINE-UP AND HOLD Procedure
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "Radar", "AS REQUIRED")], 
+            self.states[("BEFORE TAKEOFF", "EICAS", "CHECKED")], 
+            self.is_acked, 
+            self.dummy_action))
+        
+        
+        # LINE-UP AND HOLD Procedure
+        self.fsm.add_transition(Transition(
+            self.states[("BEFORE TAKEOFF", "EICAS", "CHECKED")], 
             self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")], 
             self.is_acked, 
             self.dummy_action))
@@ -218,7 +226,7 @@ class TarsAgent(QObject):
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")],
             self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
             self.is_acked, 
-            self.takeoff_throttles_action_dev_mode))
+            transition_action=lambda: self.takeoff_throttles_action_dev_mode()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
@@ -388,7 +396,7 @@ class TarsAgent(QObject):
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "TRIM")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")], 
-            lambda: self.is_slip_skid_centered(),
+            lambda: self.is_slip_skid_centered() or self.is_acked() or self.is_allowed_trim_rudder[0] == ApprovalStatus.DENIED,
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
         
@@ -1162,6 +1170,7 @@ class TarsAgent(QObject):
                 diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
                 if diff <= 5:  # Assuming a threshold of 5% for even spool
                     self.engine_spool_alert_sent = False
+                    self.clearAlertRequested.emit()
                     return True
                 else:
                     self.alertRequested.emit("Engine N1 mismatch detected!", "red")
@@ -1169,13 +1178,11 @@ class TarsAgent(QObject):
         return False
     
     def check_pitot_heat_send_signals(self):
-        print(f"🔧 check_pitot_heat_send_signals() CALLED at {time.time()}")
         if self.agent.pitot_heat_i is not None:
             if self.agent.pitot_heat_i:
-                self.interactionPanelMessage.emit("CAUTION LIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
+                self.interactionPanelMessage.emit("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
             else:
-                self.interactionPanelMessage.emit("CAUTION LIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
-        print(f"✅ check_pitot_heat_send_signals() FINISHED at {time.time()}")
+                self.interactionPanelMessage.emit("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
     
     def check_engine_spool_send_signal(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
@@ -1871,6 +1878,8 @@ class TarsAgent(QObject):
     def check_slip_skid_action(self):
         if not self.is_slip_skid_centered():
             self.alertRequested.emit("Slip/Skid indicator is not centered!", "red")
+        else:
+            self.clearAlertRequested.emit()
     
     def dummy_action(self):
         print(f"Dummy action executed for {self.fsm.current_state}.")
@@ -1878,6 +1887,8 @@ class TarsAgent(QObject):
     def check_electrical_load_action(self):
         if not self.is_electrical_load_under_limit():
             self.alertRequested.emit("Electrical load is above 300 amps", "red")
+        else:
+            self.clearAlertRequested.emit()
 
 # Example usage
 if __name__ == "__main__":

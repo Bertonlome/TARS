@@ -18,6 +18,10 @@ class TaskTimelineWidget(QWidget):
     Each task is represented as a box with the task name
     """
     
+    # Signal emitted when a task box is clicked
+    # Emits the task key: (procedure, task_object, value)
+    task_clicked = QtCore.Signal(tuple)
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         
@@ -66,6 +70,17 @@ class TaskTimelineWidget(QWidget):
         
         # Task item references for violation marking
         self._task_items = {}
+        
+        # Task rectangles for click detection
+        # Maps task_key -> QRect for hit testing
+        self._task_rects = {}
+        
+        # Enable mouse tracking for hover effects
+        self.setMouseTracking(True)
+        self._hovered_task_key = None
+        
+        # Set cursor to indicate clickability
+        self.setCursor(Qt.PointingHandCursor)
         
     def load_tasks_from_agent(self, agent):
         """Load tasks directly from agent's state data (preferred method)
@@ -340,10 +355,44 @@ class TaskTimelineWidget(QWidget):
         super().resizeEvent(event)
         self._cache_valid = False
     
+    def mousePressEvent(self, event):
+        """Handle mouse press events to detect task clicks"""
+        if event.button() == Qt.LeftButton:
+            # Check if click is on any task box
+            pos = event.pos()
+            for task_key, rect in self._task_rects.items():
+                if rect.contains(pos):
+                    # Emit signal with the task key
+                    self.task_clicked.emit(task_key)
+                    break
+        super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event):
+        """Handle mouse move events for hover effects"""
+        pos = event.pos()
+        hovered = None
+        
+        # Check if hovering over any task box
+        for task_key, rect in self._task_rects.items():
+            if rect.contains(pos):
+                hovered = task_key
+                break
+        
+        # Update hover state if changed
+        if hovered != self._hovered_task_key:
+            self._hovered_task_key = hovered
+            self._cache_valid = False
+            self.update()
+        
+        super().mouseMoveEvent(event)
+    
     def _draw_chronological_timeline(self, painter, tasks, start_x, tars_y, pilot_y, available_width):
         """Draw timeline with tasks in chronological order on appropriate performer lines"""
         if not tasks:
             return
+        
+        # Clear task rectangles for this redraw
+        self._task_rects.clear()
         
         # Calculate box width based on total number of tasks
         num_tasks = len(tasks)
@@ -535,10 +584,18 @@ class TaskTimelineWidget(QWidget):
         # Draw box
         rect = QRect(int(x), int(y), int(box_width), self._box_height)
         
+        # Store rectangle for click detection
+        task_key = task['key']
+        self._task_rects[task_key] = rect
+        
+        # Check if this task is being hovered
+        is_hovered = (task_key == self._hovered_task_key)
+        
         # Fill box with semi-transparent background
         painter.setPen(Qt.NoPen)
         fill_color = QColor(color)
-        fill_color.setAlpha(50)
+        # Increase alpha for hover effect
+        fill_color.setAlpha(100 if is_hovered else 50)
         painter.setBrush(fill_color)
         painter.drawRoundedRect(rect, 5, 5)
         
@@ -570,8 +627,9 @@ class TaskTimelineWidget(QWidget):
             # For 0-delay tasks, draw full blue border instantly
             self._draw_animated_border(painter, rect, color, border_width, force_full=has_zero_delay)
         else:
-            # Draw normal border
-            pen = QPen(color, border_width)
+            # Draw normal border (brighter if hovered)
+            border_color = QColor("#55aaff") if is_hovered else color
+            pen = QPen(border_color, border_width + (1 if is_hovered else 0))
             painter.setPen(pen)
             painter.setBrush(Qt.NoBrush)
             painter.drawRoundedRect(rect, 5, 5)
