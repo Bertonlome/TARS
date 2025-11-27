@@ -64,6 +64,38 @@ class HomePage(BasePage):
                     padding: 4px;
                 }
             """)
+    
+    def set_checklist_label_violated(self, procedure_name, task_object, value):
+        """Revert checklist label to white when condition is violated (subtle indication)"""
+        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if not label:
+            return
+        # Revert to original white color to show it's no longer validated
+        label.setStyleSheet("""
+            QLabel {
+                font: 600 12pt 'OCR A';
+                color: white;
+                border: none;
+                border-radius: 0px;
+                padding: 4px;
+            }
+        """)
+    
+    def set_checklist_label_restored(self, procedure_name, task_object, value):
+        """Restore checklist label to green when condition is restored"""
+        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if not label:
+            return
+        # Restore green color to show validation is back
+        label.setStyleSheet("""
+            QLabel {
+                font: 600 12pt 'OCR A';
+                color: #55de71;
+                border: none;
+                border-radius: 0px;
+                padding: 4px;
+            }
+        """)
     """
     Home page implementation
     Contains the main dashboard and status information

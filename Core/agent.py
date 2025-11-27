@@ -45,6 +45,11 @@ SEVENTY_KTS = 70  # 70 knots speed
 RUNWAY_HEADING = 57 # Runway heading for alignment
 RUNWAY_NUMBER = "Zero-Six Left"  # Runway number for display
 TRANSITION_ALTITUDE = 18000  # Transition altitude in feet
+PITCH_ANGLE_THRESHOLD = 7  # Minimum pitch angle to consider "maintained"
+SLIP_SKID_THRESHOLD = 2  # Maximum slip/skid value to consider "maintained"
+POSITIVE_RATE_THRESHOLD = 100  # Minimum vertical speed to consider "positive rate"
+AUTOPILOT_ALTITUDE_THRESHOLD = 700  # Minimum altitude to engage autopilot
+ONE_THOUSAND_FIVE_HUNDRED_FEET = 1500  # 1500 feet altitude threshold
 ### ENUMS ###
 class ApprovalStatus:
     NOT_ANSWERED = 0
@@ -1108,32 +1113,31 @@ class TarsAgent(QObject):
             # Send cabin altitude info to UI
             return True
         elif self.agent.cabin_altitude_i is not None:
-            # Cabin altitude too high
             return False
         return False
     
     def check_cab_alt_send_signal(self):
         if self.agent.cabin_altitude_i is not None:
             if self.agent.cabin_altitude_i >= 8000:
-                self.interactionPanelMessage.emit(f"Cabin Altitude: {self.agent.cabin_altitude_i:.0f} ft", f"⚠️ Cabin Altitude above 8000 ft!")
+                self.interactionPanelMessage.emit(f"Cabin Altitude: {self.agent.cabin_altitude_i:.0f} ft", f"Cabin Altitude above 8000 ft!")
             else:
                 self.interactionPanelMessage.emit(f"Cabin Altitude: {self.agent.cabin_altitude_i:.0f} ft", f"Cabin Altitude is within normal limits. (OK - below 8000 ft)")
     
     def check_1500_ft_send_signal(self):
         if self.agent.altitude_i is not None:
             if self.agent.altitude_i >= 1500:
-                self.interactionPanelMessage.emit(f"Altitude: {self.agent.altitude_i:.0f} ft", f"✅ Altitude above 1500 ft.")
+                self.interactionPanelMessage.emit(f"Altitude: {self.agent.altitude_i:.0f} ft", f"Altitude above 1500 ft.")
             else:
-                self.interactionPanelMessage.emit(f"Altitude: {self.agent.altitude_i:.0f} ft", f"⚠️ Altitude below 1500 ft!")
+                self.interactionPanelMessage.emit(f"Altitude: {self.agent.altitude_i:.0f} ft", f"Altitude below 1500 ft.")
     
     def check_v2_plus_10_send_signal(self):
         global V_TWO
         v2_plus_10 = V_TWO + 10
         if self.agent.airspeed_i is not None:
             if self.agent.airspeed_i >= v2_plus_10:
-                self.interactionPanelMessage.emit(f"Airspeed: {self.agent.airspeed_i:.0f} kts", f"✅ Airspeed above V2 + 10 kts ({v2_plus_10} kts).")
+                self.interactionPanelMessage.emit(f"Airspeed: {self.agent.airspeed_i:.0f} kts", f"Airspeed above V2 + 10 kts ({v2_plus_10} kts).")
             else:
-                self.interactionPanelMessage.emit(f"Airspeed: {self.agent.airspeed_i:.0f} kts", f"⚠️ Airspeed below V2 + 10 kts ({v2_plus_10} kts)!")
+                self.interactionPanelMessage.emit(f"Airspeed: {self.agent.airspeed_i:.0f} kts", f"Airspeed below V2 + 10 kts ({v2_plus_10} kts).")
     
     def check_gear_up_send_signal(self):
         if self.agent.landing_gear_pos_i is not None:
@@ -1191,9 +1195,9 @@ class TarsAgent(QObject):
             diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
             self.interactionPanelMessage.emit(f"N1 Difference: {diff:.1f}%")
             if diff > 5 and not self.engine_spool_alert_sent:
-                self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"⚠️ Engine N1 mismatch detected!")
+                self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 mismatch detected!")
             elif diff <= 5:
-                self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"✅ Engine N1 values are within normal limits.")
+                self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 values are within normal limits.")
     
     def is_n1_percent_above_90(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
@@ -1212,12 +1216,12 @@ class TarsAgent(QObject):
         return False
 
     def is_airspeed_alive(self):
-        if self.agent.airspeed_i is not None and self.agent.airspeed_i > 30:
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i > AIRSPEED_ALIVE_THRESHOLD:
             return True
         return False
 
     def is_seventy_kts(self):
-        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= 70:
+        if self.agent.airspeed_i is not None and self.agent.airspeed_i >= SEVENTY_KTS:
             return True
         return False
 
@@ -1234,18 +1238,17 @@ class TarsAgent(QObject):
         return False
     
     def is_pitch_maintained(self):
-        if self.agent.pitch_i is not None and self.agent.pitch_i >= 5:
-            if self.agent.pitch_i >= 6:
-                return True
+        if self.agent.pitch_i is not None and self.agent.pitch_i >= PITCH_ANGLE_THRESHOLD:
+            return True
         return False
 
     def is_slip_skid_centered(self):
-        if self.agent.slip_skid_i is not None and abs(self.agent.slip_skid_i) < 2:
+        if self.agent.slip_skid_i is not None and abs(self.agent.slip_skid_i) < SLIP_SKID_THRESHOLD:
             return True
         return False
 
     def is_positive_rate(self):
-        if self.agent.vertical_speed_i is not None and self.agent.vertical_speed_i > 100:
+        if self.agent.vertical_speed_i is not None and self.agent.vertical_speed_i > POSITIVE_RATE_THRESHOLD:
             return True
         return False
     
@@ -1303,12 +1306,12 @@ class TarsAgent(QObject):
         return False
     
     def is_ap_altitude(self):
-        if self.agent.altitude_i is not None and self.agent.altitude_i >= 700:
+        if self.agent.altitude_i is not None and self.agent.altitude_i >= AUTOPILOT_ALTITUDE_THRESHOLD:
             return True
         return False
 
     def is_1500_ft(self):
-        if self.agent.altitude_i is not None and self.agent.altitude_i >= 1500:
+        if self.agent.altitude_i is not None and self.agent.altitude_i >= ONE_THOUSAND_FIVE_HUNDRED_FEET:
             return True
         return False
     
@@ -1330,23 +1333,64 @@ class TarsAgent(QObject):
         return False
     
     def is_bottle_pushed(self):
-        if self.agent.l_bottle_arm_i == 1 or self.agent.r_bottle_arm_i == 1:
+        if self.engine_failed_side == "Left":
+            if self.agent.l_bottle_arm_i == 1:
+                return True
+            elif self.agent.r_bottle_arm_i == 1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Right fire bottle activated instead of Left!")
+        elif self.engine_failed_side == "Right":
+            if self.agent.r_bottle_arm_i == 1:
+                return True
+            elif self.agent.l_bottle_arm_i == 1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Left fire bottle activated instead of Right!")
+        elif self.agent.l_bottle_arm_i == 1 or self.agent.r_bottle_arm_i == 1:
             return True
         return False
     
     def is_throttle_cutoff(self):
-        if self.agent.l_throttle_i == 0 or self.agent.r_throttle_i == 0:
+        if self.engine_failed_side == "Left":
+            if self.agent.l_throttle_i == -1:
+                return True
+            elif self.agent.r_throttle_i == -1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Right throttle lever moved to cutoff instead of Left!")
+        elif self.engine_failed_side == "Right":
+            if self.agent.r_throttle_i == -1:
+                return True
+            elif self.agent.l_throttle_i == -1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Left throttle lever moved to cutoff instead of Right!")
+        elif self.agent.r_throttle_i == -1 or self.agent.l_throttle_i == -1:
+            self.interactionPanelMessage.emit(f"", f"ALERT: Engine failed side not determined!")
             return True
         return False
     
     def is_fuel_boost_off(self):
-        #print(f"Checking if fuel boost is off - Left: {self.agent.fuel_boost_l_i}, Right: {self.agent.fuel_boost_r_i}")
-        if self.agent.fuel_boost_l_i == 1 or self.agent.fuel_boost_r_i == 1:
+        if self.engine_failed_side == "Left":
+            if self.agent.fuel_boost_l_i == 1:
+                return True
+            elif self.agent.fuel_boost_r_i == 1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Right fuel boost pump activated instead of Left!")
+        elif self.engine_failed_side == "Right":
+            if self.agent.fuel_boost_r_i == 1:
+                return True
+            elif self.agent.fuel_boost_l_i == 1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Left fuel boost pump activated instead of Right!")
+        elif self.agent.fuel_boost_l_i == 1 or self.agent.fuel_boost_r_i == 1:
+            self.interactionPanelMessage.emit(f"", f"ALERT: Engine failed side not determined!")
             return True
         return False
-    
+
     def is_fuel_boost_norm(self):
-        if self.agent.fuel_boost_l_i == 0 and self.agent.fuel_boost_r_i == 0:
+        if self.engine_failed_side == "Left":
+            if self.agent.fuel_boost_l_i == 0:
+                return True
+            elif self.agent.fuel_boost_r_i == 0:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Right fuel boost pump deactivated instead of Left!")
+        elif self.engine_failed_side == "Right":
+            if self.agent.fuel_boost_r_i == 0:
+                return True
+            elif self.agent.fuel_boost_l_i == 0:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Left fuel boost pump deactivated instead of Right!")
+        elif self.agent.fuel_boost_l_i == 0 and self.agent.fuel_boost_r_i == 0:
             return True
         return False
     
@@ -1367,12 +1411,32 @@ class TarsAgent(QObject):
         return False
     
     def is_gen_switch_off(self):
-        if self.agent.l_gen_switch_i == 1 or self.agent.r_gen_switch_i == 1:
+        if self.engine_failed_side == "Left":
+            if self.agent.l_gen_switch_i == 0:
+                return True
+            elif self.agent.r_gen_switch_i == 0:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Right generator switch turned off instead of Left!")
+        elif self.engine_failed_side == "Right":
+            if self.agent.r_gen_switch_i == 0:
+                return True
+            elif self.agent.l_gen_switch_i == 0:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Left generator switch turned off instead of Right!")
+        elif self.agent.l_gen_switch_i == 1 or self.agent.r_gen_switch_i == 1:
             return True
         return False
     
     def is_ignition_switch_norm(self):
-        if self.agent.l_ign_switch_i == 0 or self.agent.r_ign_switch_i == 0:
+        if self.engine_failed_side == "Left":
+            if self.agent.l_ign_switch_i == 1:
+                return True
+            elif self.agent.r_ign_switch_i == 1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Right ignition switch set to NORM instead of Left!")
+        elif self.engine_failed_side == "Right":
+            if self.agent.r_ign_switch_i == 1:
+                return True
+            elif self.agent.l_ign_switch_i == 1:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Left ignition switch set to NORM instead of Right!")
+        elif self.agent.l_ign_switch_i == 1 and self.agent.r_ign_switch_i == 1:
             return True
         return False
     

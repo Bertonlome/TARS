@@ -668,15 +668,21 @@ class MainWindow(QMainWindow):
         home_page = self.get_home_page()
         if not home_page:
             return
+        
+        # Update checklist to show violation (revert to white)
+        home_page.set_checklist_label_violated(
+            state_obj.procedure, 
+            state_obj.task_object, 
+            state_obj.value
+        )
+        print(f"  → Checklist item reverted to white for {state_obj.procedure} - {state_obj.task_object}")
+        
         # Update timeline to show violation
         timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
         if timeline_widget:
             state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
-            # TODO: Add method to timeline widget to mark task as violated
-            # timeline_widget.mark_task_violated(state_key)
-            print(f"  → Would mark task violated in timeline for procedure {state_obj.procedure}")
-        # TODO: Show warning banner or notification
-        # home_page.show_warning_banner(f"⚠️ {state_obj.task_object} - condition violated!")
+            timeline_widget.mark_task_violated(state_key)
+            print(f"  → Task marked violated in timeline for procedure {state_obj.procedure}")
     
     @QtCore.Slot(object, str)
     def handle_condition_restoration(self, state_obj, condition_name):
@@ -691,16 +697,20 @@ class MainWindow(QMainWindow):
         if not home_page:
             return
         
+        # Update checklist to show restoration (restore green)
+        home_page.set_checklist_label_restored(
+            state_obj.procedure, 
+            state_obj.task_object, 
+            state_obj.value
+        )
+        print(f"  → Checklist item restored to green for {state_obj.procedure} - {state_obj.task_object}")
+        
         # Update timeline to show restoration
         timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
         if timeline_widget:
             state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
-            # TODO: Add method to timeline widget to mark task as restored
-            # timeline_widget.mark_task_restored(state_key)
-            print(f"  → Would mark task restored in timeline for procedure {state_obj.procedure}")
-        
-        # TODO: Clear warning banner or show restoration notification
-        # home_page.clear_warning_banner()
+            timeline_widget.mark_task_restored(state_key)
+            print(f"  → Task marked restored in timeline for procedure {state_obj.procedure}")
     
     @QtCore.Slot(str)
     def on_tts_finished(self, text):

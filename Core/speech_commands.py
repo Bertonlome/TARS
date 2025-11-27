@@ -35,7 +35,7 @@ COMMANDS = [
     # Approvals (exact match for safety-critical operations)
     Command(
         action="approve",
-        keywords=["yes", "approved", "affirmative", "confirm", "roger", "accept", "accepted",  "allow", "continue", "proceed", "go ahead", "by all means", "certainly", "definitely", "of course", "sure thing", "you bet", "absolutely", "without a doubt", "gladly", "willingly", "indeed", "naturally", "positively", "unquestionably", "beyond any doubt", "most assuredly", "surely", "undoubtedly", "unhesitatingly", "with pleasure", "it is so", "as you wish", "consider it done", "no problem", "no worries", "not a problem", "not an issue", "go for it", "make it so", "by all means go ahead", "feel free to proceed", "authorize", "authorized"],
+        keywords=["yes", "approved", "approve", "affirmative", "confirm", "roger", "accept", "accepted",  "allow", "continue", "proceed", "go ahead", "by all means", "certainly", "definitely", "of course", "sure thing", "you bet", "absolutely", "without a doubt", "gladly", "willingly", "indeed", "naturally", "positively", "unquestionably", "beyond any doubt", "most assuredly", "surely", "undoubtedly", "unhesitatingly", "with pleasure", "it is so", "as you wish", "consider it done", "no problem", "no worries", "not a problem", "not an issue", "go for it", "make it so", "by all means go ahead", "feel free to proceed", "authorize", "authorized"],
         requires_exact=False,
         answer = "Understood, action approved.",
         description="Approve pending action or request"
