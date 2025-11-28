@@ -8,10 +8,18 @@ import os
 import threading
 from echo_speech import *
 
+import platform
+if platform.system() == "Linux":
+    DEFAULT_DEVICE = "wlp0s20f3"
+elif platform.system() == "Windows":
+    DEFAULT_DEVICE = "Wi-Fi"
+else:
+    DEFAULT_DEVICE = "wlps"
+
 SAMPLE_RATE = 16000
 port = 5670
 agent_name = "Speech_to_Text_Agent"
-device = "wlp0s20f3" 
+device = DEFAULT_DEVICE
 verbose = False
 is_interrupted = False
 

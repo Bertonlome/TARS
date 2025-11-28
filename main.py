@@ -25,7 +25,7 @@ import threading
 import subprocess
 from pathlib import Path
 from Core.agent import ApprovalStatus, TarsAgent
-from Core.tts import shutdown, register_speak_callback, register_finished_callback
+from Core.tts import format_callout, shutdown, register_speak_callback, register_finished_callback
 import time
 
 # IMPORT / GUI AND MODULES AND WIDGETS
@@ -373,7 +373,7 @@ class MainWindow(QMainWindow):
         # Start STT (Speech-to-Text) subprocess
         self.stt_process = None
         self.stt_monitor_timer = None
-        self.start_stt_subprocess()
+        #self.start_stt_subprocess()
         
         # Start ATC (Air Traffic Control) subprocess
         self.atc_process = None
@@ -545,6 +545,7 @@ class MainWindow(QMainWindow):
         self.agent.is_requesting_vectors[0] = ApprovalStatus.APPROVED
         self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.APPROVED
         self.agent.is_allowed_engage_autopilot[0] = ApprovalStatus.APPROVED
+        self.agent.is_allowed_to_declare_panpan[0] = ApprovalStatus.APPROVED
         self.countdown_completion_event.set()
     
     def handle_task_not_allowed(self):
@@ -555,6 +556,7 @@ class MainWindow(QMainWindow):
         self.agent.is_requesting_vectors[0] = ApprovalStatus.DENIED
         self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.DENIED
         self.agent.is_allowed_engage_autopilot[0] = ApprovalStatus.DENIED
+        self.agent.is_allowed_to_declare_panpan[0] = ApprovalStatus.DENIED
         self.countdown_completion_event.set()
     
     def handle_countdown_zero(self):
@@ -663,7 +665,7 @@ class MainWindow(QMainWindow):
             state_obj: State object with violated condition
             condition_name: Name of the condition function that was violated
         """
-        print(f"🚨 CONDITION VIOLATION: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
+        #print(f"🚨 CONDITION VIOLATION: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
         # Get home page
         home_page = self.get_home_page()
         if not home_page:
@@ -691,7 +693,7 @@ class MainWindow(QMainWindow):
             state_obj: State object with restored condition
             condition_name: Name of the condition function that was restored
         """
-        print(f"✅ CONDITION RESTORED: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
+        #print(f"✅ CONDITION RESTORED: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
         # Get home page
         home_page = self.get_home_page()
         if not home_page:
@@ -936,7 +938,7 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, ENGINE ANTI-ICE ON")
                 case "windshield_anti_ice_requirement":
                     self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, ENGINE ANTI-ICE ON")
+                    self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, WINDSHIELD ANTI-ICE ON")
                 case "anti_ice_systems_as_required":
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.interaction_panel_tars_input.setText("LAST METAR TEMPERATURE 05°C - IF VISIBLE MOISTURE PRESENT, ANTI-ICE SYSTEMS ON")
@@ -966,12 +968,8 @@ class MainWindow(QMainWindow):
                     self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
                 case "engine_fire_memo_items":
                     self.ui.interaction_panel_text.setText(f"ENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n\n1. Throttle ({self.agent.engine_failed_side}) - IDLE\n\nIF LIGHT REMAINS ON (15 SECONDS)\n\n2. ENGINE FIRE Button ({self.agent.engine_failed_side}) LIFT COVER and PUSH")
-                    self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
                 case "immediate_action_items":
                     self.ui.interaction_panel_text.setText(f"IMMEDIATE ACTION ITEMS:\n\nNON-NORMAL EVENT DURING TAKEOFF\n1. Climb to a safe altitude (1500ft AGL)\n\nENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle ({self.agent.engine_failed_side}) - IDLE\nIF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button ({self.agent.engine_failed_side}) LIFT COVER and PUSH")
-                    self.ui.interaction_panel_tars_input.show()
-                    self.ui.interaction_panel_tars_input.setText("Engine fire detected on " + self.agent.engine_failed_side + " engine.")
                 case "end_emer":
                     home_page.clearAlert()
                     self.ui.alert_label_2.setText("")
@@ -994,21 +992,32 @@ class MainWindow(QMainWindow):
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                case "allow_engage_ap":
+                    home_page.connect_int_panel_buttons(default=False)
+                    self.ui.interaction_panel_text.setText("Allow TARS to engage the autopilot?")
+                    self.ui.int_panel_right_button.setText("APPROVE")
+                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    self.ui.int_panel_left_button.setText("DENY")
+                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
                 case "show_v_enr":
                     self.ui.interaction_panel_text.setText(f"Set speed to VEnr = {self.agent.V_ENR} knots")
                 case "allow_comm":
                     home_page.connect_int_panel_buttons(default=False)
                     self.ui.interaction_panel_text.setText("Allow TARS to communicate with ATC?")
-                    self.ui.interaction_panel_tars_input.setText(current_state_obj.callout)
+                    formatted_callout = format_callout(current_state_obj.callout)
+                    self.ui.interaction_panel_tars_input.setText(formatted_callout)
                     self.ui.interaction_panel_tars_input.show()
                     self.ui.int_panel_right_button.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                case "add_request_vectors":
-                    self.ui.interaction_panel_text.setText(f"Add request for vectors to return runway {self.agent.RUNWAY_NUMBER if self.agent.RUNWAY_NUMBER else 'unknown'}?")
+                case "prompt_announce_panpan":
+                    home_page.connect_int_panel_buttons(default=False)
+                    self.ui.interaction_panel_text.setText("Do you want me to announce announce PAN-PAN and request vectors to ATC on 119.9?")
+                    formatted_callout = format_callout(current_state_obj.callout)
+                    self.ui.interaction_panel_tars_input.setText(formatted_callout)
+                    self.ui.interaction_panel_tars_input.show()
                     self.ui.int_panel_right_button.setText("APPROVE")
-                    self.ui.interaction_panel_tars_input.setText(previous_state_obj.callout + " " + current_state_obj.callout)
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
@@ -1164,6 +1173,7 @@ class MainWindow(QMainWindow):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,  # Merge stderr into stdout
                 text=True,
+                encoding='utf-8',
                 bufsize=1,
                 cwd=str(project_root)
             )
@@ -1242,6 +1252,7 @@ class MainWindow(QMainWindow):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,  # Merge stderr into stdout
                 text=True,
+                encoding='utf-8',
                 bufsize=1,
                 cwd=str(project_root)
             )

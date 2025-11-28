@@ -33,6 +33,7 @@ class Echo(metaclass=Singleton):
         self.pitch_i = None
         self.roll_i = None
         self.heading_i = None
+        self.control_rudder_i = None
         self.vertical_speed_i = None
         self.control_throttle_i = None
         self.control_flaps_i = None
@@ -72,6 +73,8 @@ class Echo(metaclass=Singleton):
         self.r_bottle_arm_i = None
         self.speech_input_i = None  # For speech recognition input
         self.pitot_heat_i = None  # Pitot heat on/off
+        self.latitude_i = None  # Latitude
+        self.longitude_i = None  # Longitude
 
         # outputs
         self.pax_safety_o = None

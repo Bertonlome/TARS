@@ -3,15 +3,26 @@ import time
 import sys
 import os
 import threading
+import tempfile
 import soundfile as sf
 import sounddevice as sd
 import pyttsx3
 import numpy as np
 from echo_atc import *
 
+# Choose sensible default network device name depending on host OS.
+# Linux typically uses interface names like 'wlp0s20f3'; Windows GUI name is 'Wi-Fi'.
+import platform
+if platform.system() == "Linux":
+    DEFAULT_DEVICE = "wlp0s20f3"
+elif platform.system() == "Windows":
+    DEFAULT_DEVICE = "Wi-Fi"
+else:
+    DEFAULT_DEVICE = "wlps"
+
 port = 5670
 agent_name = "ATC_Agent"
-device = "wlp0s20f3" 
+device = DEFAULT_DEVICE
 verbose = False
 is_interrupted = False
 
@@ -57,8 +68,8 @@ def speak_with_radio_effect(text):
     try:
         print(f"📻 ATC (TTS): {text}")
         
-        # Generate TTS to temporary file
-        temp_file = "/tmp/atc_tts_temp.wav"
+        # Generate TTS to temporary file (platform-independent)
+        temp_file = os.path.join(tempfile.gettempdir(), "atc_tts_temp.wav")
         tts_engine.save_to_file(text, temp_file)
         tts_engine.runAndWait()
         
@@ -84,7 +95,7 @@ def speak_with_radio_effect(text):
             
             print(f"✅ TTS playback finished")
         else:
-            print(f"⚠️  TTS file not generated")
+            print(f"⚠️  TTS file not generated at {temp_file}")
             
     except Exception as e:
         print(f"❌ Error in TTS with radio effect: {e}")
@@ -177,17 +188,17 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
             print(f"📡 Received: {name}")
             play_audio_file("audio/takeoff_clearance.mp3")
         elif name == "declare_mayday":
-            time.sleep(15) # Simulate delay before responding
+            time.sleep(20) # Simulate delay before responding
             agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Mayday. Continue runway heading. You are cleared to return runway zero-six left to land. Emergency vehicles are standing by."
             print(f"📡 Received: {name}")
             play_audio_async("audio/roger_mayday.mp3")
         elif name == "declare_panpan":
-            time.sleep(15) # Simulate delay before responding
+            time.sleep(20) # Simulate delay before responding
             agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Pan-Pan. Continue runway heading. Advise if you require vectors for an approach to runway zero-six left."
             print(f"📡 Received: {name}")
             play_audio_async("audio/panpan_no_vectors.mp3")
         elif name == "request_vectors":
-            time.sleep(15) # Simulate delay before responding
+            time.sleep(25) # Simulate delay before responding
             agent_object.speech_output_o = "C-POLY, Montréal Tower, roger. Turn right heading one-five-zero, descend and maintain three thousand feet. Expect ILS approach runway zero-six left."
             print(f"📡 Received: {name}")
             play_audio_async("audio/first_vectors.mp3")

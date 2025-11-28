@@ -4,6 +4,7 @@ from operator import is_
 import stat
 import time
 import signal
+import math
 from pathlib import Path
 from Core.echo import *
 from Core.fsm import FiniteStateMachine, State, Transition
@@ -45,11 +46,14 @@ SEVENTY_KTS = 70  # 70 knots speed
 RUNWAY_HEADING = 57 # Runway heading for alignment
 RUNWAY_NUMBER = "Zero-Six Left"  # Runway number for display
 TRANSITION_ALTITUDE = 18000  # Transition altitude in feet
-PITCH_ANGLE_THRESHOLD = 7  # Minimum pitch angle to consider "maintained"
+PITCH_ANGLE_THRESHOLD = 1  # Minimum pitch angle to consider "maintained"
+PITCH_TEN_DEGREES = 10  # Minimum pitch angle to consider "maintained"
 SLIP_SKID_THRESHOLD = 2  # Maximum slip/skid value to consider "maintained"
 POSITIVE_RATE_THRESHOLD = 100  # Minimum vertical speed to consider "positive rate"
 AUTOPILOT_ALTITUDE_THRESHOLD = 700  # Minimum altitude to engage autopilot
 ONE_THOUSAND_FIVE_HUNDRED_FEET = 1500  # 1500 feet altitude threshold
+CYUL_06L_LATITUDE = 45.461222  # CYUL 06L Latitude
+CYUL_06L_LONGITUDE = -73.76474  # CYUL 06L Longitude
 ### ENUMS ###
 class ApprovalStatus:
     NOT_ANSWERED = 0
@@ -82,6 +86,9 @@ class TarsAgent(QObject):
         self.TO_PITCH = TO_PITCH # Takeoff pitch target
         self.SAFE_ALTITUDE = SAFE_ALTITUDE # Safe altitude to climb to after engine failure
         self.TRANSITION_ALTITUDE = TRANSITION_ALTITUDE  # Transition altitude in feet
+        self.INITIAL_LATITUDE = CYUL_06L_LATITUDE  # To be set at start
+        self.INITIAL_LONGITUDE = CYUL_06L_LONGITUDE  # To be set at start
+        self.AIRPORT_NAME = "Montreal Trudeau"  # Airport name for position reporting
 
         # FSM setup
         self.task_acked = [False]
@@ -316,49 +323,55 @@ class TarsAgent(QObject):
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")], 
-            self.is_safe_altitude_no_alarm, 
+            lambda: self.is_safe_altitude_no_alarm(), 
             transition_action=lambda: self.on_speak_action(self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")].callout) if self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")].autonomy_role == "performer" else self.dummy_action()))
         
         # Branch: Emergency path - ENGINE FAILURE DURING TAKEOFF AFTER V1 added transitions for EACH state after V1
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")],
-            self.is_engine_failed,
+            lambda: self.is_engine_failed() or self.is_alarm(),
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")],
-            self.is_engine_failed,
+            lambda: self.is_engine_failed() or self.is_alarm(),
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Elevator Control", "ROTATE")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")],
-            self.is_engine_failed,
+            lambda: self.is_engine_failed() or self.is_alarm(),
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
-            self.is_engine_failed, 
+            lambda: self.is_engine_failed() or self.is_alarm(), 
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
-            self.is_engine_failed, 
+            lambda: self.is_engine_failed() or self.is_alarm(), 
             self.dummy_action,
+            transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
+
+        self.fsm.add_transition(Transition(
+            self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
+            lambda : self.is_engine_failed() or self.is_alarm(),
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
-            self.is_engine_failed, 
+            lambda: self.is_engine_failed() or self.is_alarm(), 
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
 
@@ -374,7 +387,7 @@ class TarsAgent(QObject):
             self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             self.allow_transition, 
-            lambda: self.dummy_action(),
+            lambda: self.check_pitch_send_signal() if self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")].autonomy_role == "supporter" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
@@ -449,22 +462,22 @@ class TarsAgent(QObject):
             self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")], 
             self.is_acked, 
-            lambda: (igs.output_set_double("speed_mode", 1), self.on_speak_action("Speed mode armed, FLC V two")) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].autonomy_role == "performer" else self.dummy_action(),
+            lambda: self.arm_speed_mode_send_signal() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].autonomy_role == "performer" else self.dummy_action(),
             transition_action= lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].callout))) 
         
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")], 
             self.allow_transition, 
-            lambda: (igs.output_set_double("heading_mode", 1), (igs.output_set_bool("autopilot_heading_set", int(self.agent.heading_i))), self.on_speak_action(f"Heading mode armed, heading {self.agent.heading_i}")) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].autonomy_role == "performer" else self.dummy_action(),
+            lambda: self.arm_heading_mode_send_signal() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].autonomy_role == "performer" else self.dummy_action(),
             transition_action= lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].callout))) 
 
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
             self.allow_transition, 
-            lambda: (self.on_speak_action("bip"), igs.output_set_double("autopilot_master", 1), self.on_speak_action("Autopilot engaged")) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer"  and self.is_allowed_engage_autopilot[0] == ApprovalStatus.APPROVED else self.dummy_action(),
-            transition_action= lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action()))
+            lambda: self.engage_autopilot_action() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action(),
+            transition_action= lambda: (setattr(self, 'is_allowed_engage_autopilot', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].callout)) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
@@ -498,7 +511,7 @@ class TarsAgent(QObject):
             self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")], 
             self.is_flaps_retracted, 
             self.dummy_action,
-            transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].autonomy_role == "supporter" else self.dummy_action()))
+            transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].autonomy_role == "supporter" and self.agent.airspeed_i <= V_ENR else self.dummy_action()))
         
         # Communicate with ATC transitions
         self.fsm.add_transition(Transition(
@@ -506,20 +519,22 @@ class TarsAgent(QObject):
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
             self.is_v_enr, 
             action=lambda: self.dummy_action(),
-            transition_action= lambda: self.on_speak_action("Do you want me to announce emergency to ATC on one one niner point niner? Answer Allow or Deny") if self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action()))
+            transition_action= lambda: (setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action("Do you want me to announce emergency to ATC on one one niner point niner? Answer Approve or Deny")) if self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
             self.is_allowed_comm, 
-            lambda: (self.contact_atc_action("mayday"), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
+            self.dummy_action,
+            transition_action=lambda: (self.contact_atc_action("mayday"), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
         # If not allowed to communicate, skip directly to readback
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
             self.is_denied_comm, 
-            lambda: (self.on_speak_action("Action denied"), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
+            lambda: self.dummy_action(),
+            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
@@ -604,15 +619,15 @@ class TarsAgent(QObject):
             self.states[("ENGINE FIRE", "Checklist", "ANNOUNCE COMPLETED")], 
             self.states[("DECLARE PANPAN", "ATC", "CONTACT")],
             self.allow_transition, 
-            self.dummy_action,
-            transition_action=lambda: self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "CONTACT")].callout) if self.states[("DECLARE PANPAN", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action()))
+            action= lambda: self.dummy_action(),
+            transition_action=lambda: (setattr(self, 'is_allowed_to_declare_panpan', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "CONTACT")].callout) if self.states[("DECLARE PANPAN", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action())))
 
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "CONTACT")],
             self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")], 
             self.is_allowed_panpan, 
-            self.dummy_action,
-            transition_action=lambda: (setattr(self, 'is_allowed_to_declare_panpan', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action("Do you want me to announce PANPAN?") if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].autonomy_role == "performer" else self.dummy_action())))
+            action= lambda: self.dummy_action(),
+            transition_action=lambda: (self.contact_atc_action("panpan"), setattr(self, 'is_allowed_to_declare_panpan', [ApprovalStatus.NOT_ANSWERED])) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].autonomy_role == "performer" else self.dummy_action()))
         
         # if PANPAN not accepted, skip to AFTER TAKEOFF
         self.fsm.add_transition(Transition(
@@ -622,33 +637,13 @@ class TarsAgent(QObject):
             self.dummy_action,
             transition_action=lambda: (self.dummy_action(), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_allowed_to_declare_panpan', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
-        self.fsm.add_transition(Transition(
-            self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")], 
-            self.states[("DECLARE PANPAN", "ATC", "REQUEST VECTOR")], 
-            self.is_allowed_comm, 
-            self.dummy_action,
-            transition_action=lambda: (self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].callout) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].autonomy_role == "performer" else self.dummy_action())))
-        
         # If TARS not allowed, skip to READBACK
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")], 
             self.states[("DECLARE PANPAN", "ATC", "READBACK")],
-            self.is_denied_comm,
+            self.allow_transition,
             self.dummy_action,
             transition_action=lambda: (self.dummy_action(), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
-        
-        self.fsm.add_transition(Transition(
-            self.states[("DECLARE PANPAN", "ATC", "REQUEST VECTOR")], 
-            self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
-            self.is_allowed_comm_and_vector, 
-            self.dummy_action,
-            transition_action=lambda: (self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "REQUEST VECTOR")].callout) if self.states[("DECLARE PANPAN", "ATC", "REQUEST VECTOR")].autonomy_role == "performer" else self.dummy_action(), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
-
-        self.fsm.add_transition(Transition(
-            self.states[("DECLARE PANPAN", "ATC", "REQUEST VECTOR")],
-            self.states[("DECLARE PANPAN", "ATC", "READBACK")],
-            self.is_denied_comm_or_vector,
-            lambda: (self.dummy_action(), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
@@ -712,14 +707,14 @@ class TarsAgent(QObject):
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "THROTTLES", "CLB Detent")], 
             self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")], 
-            self.is_throttle_clb, 
+            lambda: self.is_throttle_clb() or self.is_acked(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")], 
             self.states[("AFTER TAKEOFF", "Anti-Ice/Deice Systems", "AS REQUIRED")], 
             self.is_acked, 
-            lambda: igs.output_set_double("yaw_damper", 0) if self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")].autonomy_role == "performer"  else self.dummy_action()))
+            lambda: self.engage_yaw_damper_action() if self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")].autonomy_role == "performer"  else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Anti-Ice/Deice Systems", "AS REQUIRED")], 
@@ -872,22 +867,22 @@ class TarsAgent(QObject):
     @property
     def altitude(self):
         """Current altitude (dynamically fetched)"""
-        return self.agent.altitude_i if self.agent.altitude_i is not None else 0
+        return int(self.agent.altitude_i) if self.agent.altitude_i is not None else 0
     
     @property
     def airspeed(self):
         """Current airspeed (dynamically fetched)"""
-        return self.agent.airspeed_i if self.agent.airspeed_i is not None else 0
+        return int(self.agent.airspeed_i) if self.agent.airspeed_i is not None else 0
     
     @property
     def heading(self):
         """Current heading (dynamically fetched)"""
-        return self.agent.heading_i if self.agent.heading_i is not None else 0
+        return int(self.agent.heading_i) if self.agent.heading_i is not None else 0
     
     @property
     def vertical_speed(self):
         """Current vertical speed (dynamically fetched)"""
-        return self.agent.vertical_speed_i if self.agent.vertical_speed_i is not None else 0
+        return int(self.agent.vertical_speed_i) if self.agent.vertical_speed_i is not None else 0
     
     @property
     def pitch(self):
@@ -897,17 +892,66 @@ class TarsAgent(QObject):
     @property
     def e1_n1_percent(self):
         """Left engine N1 percentage (dynamically fetched)"""
-        return self.agent.e1_n1_percent_i if self.agent.e1_n1_percent_i is not None else 0
+        return int(self.agent.e1_n1_percent_i) if self.agent.e1_n1_percent_i is not None else 0
     
     @property
     def e2_n1_percent(self):
         """Right engine N1 percentage (dynamically fetched)"""
-        return self.agent.e2_n1_percent_i if self.agent.e2_n1_percent_i is not None else 0
+        return int(self.agent.e2_n1_percent_i) if self.agent.e2_n1_percent_i is not None else 0
     
+    @property
     def cabin_altitude(self):
         """Cabin altitude (dynamically fetched)"""
-        return self.agent.cabin_altitude_i if self.agent.cabin_altitude_i is not None else 0
-
+        return int(self.agent.cabin_altitude_i) if self.agent.cabin_altitude_i is not None else 0
+    
+    @property
+    def flight_director_mode(self):
+        """Flight director mode (dynamically fetched)"""
+        return self.agent.flight_director_i if self.agent.flight_director_i is not None else "N/A"
+    
+    @property
+    def speed_mode(self):
+        """Speed mode (dynamically fetched)"""
+        return self.agent.speed_mode_i if self.agent.speed_mode_i is not None else "N/A"
+    
+    @property
+    def heading_mode(self):
+        """Heading mode (dynamically fetched)"""
+        return self.agent.heading_mode_i if self.agent.heading_mode_i is not None else "N/A"
+    
+    @property
+    def position_compared_to_initial(self):
+        """Calculate position relative to initial coordinates (e.g., '5nm north of Montreal Trudeau')"""
+        if self.agent.latitude_i is None or self.agent.longitude_i is None:
+            return f"position unknown from {self.AIRPORT_NAME}"
+        
+        lat1, lon1 = math.radians(self.INITIAL_LATITUDE), math.radians(self.INITIAL_LONGITUDE)
+        lat2, lon2 = math.radians(self.agent.latitude_i), math.radians(self.agent.longitude_i)
+        
+        # Haversine formula for distance in nautical miles
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        distance_nm = 3440.065 * c  # Earth radius in nautical miles
+        
+        # Calculate bearing
+        y = math.sin(dlon) * math.cos(lat2)
+        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+        bearing = math.degrees(math.atan2(y, x))
+        bearing = (bearing + 360) % 360  # Normalize to 0-360
+        
+        # Convert bearing to cardinal direction
+        directions = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"]
+        idx = round(bearing / 45) % 8
+        direction = directions[idx]
+        
+        # Format output
+        if distance_nm < 0.5:
+            return f"overhead {self.AIRPORT_NAME}"
+        else:
+            return f"{distance_nm:.1f} nautical miles {direction} of {self.AIRPORT_NAME}"
+    
     # ===================================================================
     # END PROPERTIES
     # ===================================================================
@@ -1181,6 +1225,12 @@ class TarsAgent(QObject):
                     self.engine_spool_alert_sent = True
         return False
     
+    def check_pitch_send_signal(self):
+        if self.agent.pitch_i is not None and self.agent.pitch_i <= PITCH_TEN_DEGREES:
+            self.interactionPanelMessage.emit(f"Pitch Angle: {self.agent.pitch_i:.1f}°", f"Pitch angle below {PITCH_TEN_DEGREES}°.")
+            self.on_speak_action(f"Pitch angle low")
+            
+    
     def check_pitot_heat_send_signals(self):
         if self.agent.pitot_heat_i is not None:
             if self.agent.pitot_heat_i:
@@ -1190,14 +1240,14 @@ class TarsAgent(QObject):
     
     def check_engine_spool_send_signal(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
-            self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%")
-            self.interactionPanelMessage.emit(f"Engine 2 N1: {self.agent.e2_n1_percent_i:.1f}%")
             diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
-            self.interactionPanelMessage.emit(f"N1 Difference: {diff:.1f}%")
             if diff > 5 and not self.engine_spool_alert_sent:
                 self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 mismatch detected!")
+                self.on_speak_action("Engine spool mismatch")
+                self.alertRequested.emit("Engine N1 mismatch detected!", "red")
             elif diff <= 5:
                 self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 values are within normal limits.")
+                self.on_speak_action("Engine spool normal")
     
     def is_n1_percent_above_90(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
@@ -1279,8 +1329,7 @@ class TarsAgent(QObject):
         return False
 
     def is_alarm(self):
-        # Just return the alarm condition - UI will auto-discover the procedure
-        if self.agent.master_warning_i is not None and self.agent.master_warning_i == 1 and self.agent.master_caution_i == 1:
+        if self.agent.master_warning_i == 1 or self.agent.engine_fire_l_i == True or self.agent.engine_fire_r_i == True:
             return True
         return False
     
@@ -1406,37 +1455,37 @@ class TarsAgent(QObject):
     
     
     def is_throttle_idle(self):
-        if self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0 or self.agent.r_throttle_i == 0:
+        if self.engine_failed_side == "Left":
+            if self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0:
+                return True
+            elif self.agent.r_throttle_i is not None and self.agent.r_throttle_i == 0:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Right throttle lever moved to idle instead of Left!")
+        elif self.engine_failed_side == "Right":
+            if self.agent.r_throttle_i is not None and self.agent.r_throttle_i == 0:
+                return True
+            elif self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0:
+                self.interactionPanelMessage.emit(f"", f"ALERT: Left throttle lever moved to idle instead of Right!")
+        elif self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0 or self.agent.r_throttle_i == 0:
             return True
         return False
     
     def is_gen_switch_off(self):
         if self.engine_failed_side == "Left":
-            if self.agent.l_gen_switch_i == 0:
+            if self.agent.l_gen_switch_i == 1:
                 return True
-            elif self.agent.r_gen_switch_i == 0:
+            elif self.agent.r_gen_switch_i == 1:
                 self.interactionPanelMessage.emit(f"", f"ALERT: Right generator switch turned off instead of Left!")
         elif self.engine_failed_side == "Right":
-            if self.agent.r_gen_switch_i == 0:
+            if self.agent.r_gen_switch_i == 1:
                 return True
-            elif self.agent.l_gen_switch_i == 0:
+            elif self.agent.l_gen_switch_i == 1:
                 self.interactionPanelMessage.emit(f"", f"ALERT: Left generator switch turned off instead of Right!")
         elif self.agent.l_gen_switch_i == 1 or self.agent.r_gen_switch_i == 1:
             return True
         return False
     
     def is_ignition_switch_norm(self):
-        if self.engine_failed_side == "Left":
-            if self.agent.l_ign_switch_i == 1:
-                return True
-            elif self.agent.r_ign_switch_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Right ignition switch set to NORM instead of Left!")
-        elif self.engine_failed_side == "Right":
-            if self.agent.r_ign_switch_i == 1:
-                return True
-            elif self.agent.l_ign_switch_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Left ignition switch set to NORM instead of Right!")
-        elif self.agent.l_ign_switch_i == 1 and self.agent.r_ign_switch_i == 1:
+        if self.agent.l_ign_switch_i == 0.0 and self.agent.r_ign_switch_i == 0.0:
             return True
         return False
     
@@ -1445,6 +1494,13 @@ class TarsAgent(QObject):
         if self.agent.slip_i is not None:
             # Consider centered if within ±1 degree
             return abs(self.agent.slip_i) <= 1
+        return False
+    
+    def is_rudder_control_release(self):
+        """Check if rudder control is released (within tolerance)"""
+        print(f"Rudder Control Input: {self.agent.control_rudder_i}")
+        if self.agent.control_rudder_i is not None and self.agent.control_rudder_i == 0:
+            return True
         return False
     
     def is_brake_released(self):
@@ -1576,6 +1632,14 @@ class TarsAgent(QObject):
             agent_object.r_bottle_arm_i = value
         elif name == "pitot_heat":
             agent_object.pitot_heat_i = value
+        elif name == "engine_fire_l":
+            agent_object.engine_fire_l_i = value
+            if value == True:
+                self.engine_failed_side = "Left"
+        elif name == "engine_fire_r":
+            agent_object.engine_fire_r_i = value
+            if value == True:
+                self.engine_failed_side = "Right"
 
     def integer_input_callback(self, io_type, name, value_type, value, my_data):
         igs.info(f"Input {name} written to {value}")
@@ -1595,6 +1659,8 @@ class TarsAgent(QObject):
             agent_object.roll_i = value
         elif name == "heading":
             agent_object.heading_i = value
+        elif name == "control_rudder":
+            agent_object.control_rudder_i = value
         elif name == "vertical_speed":
             agent_object.vertical_speed_i = value
         elif name == "altitude":
@@ -1621,10 +1687,6 @@ class TarsAgent(QObject):
             agent_object.e2_n1_percent_i = value
         elif name == "slip":
             agent_object.slip_i = value
-        elif name == "engine_fire_l":
-            agent_object.engine_fire_l_i = value
-        elif name == "engine_fire_r":
-            agent_object.engine_fire_r_i = value
         elif name == "test_knob":
             agent_object.test_knob_i = value
         elif name == "l_gen_switch":    
@@ -1663,6 +1725,10 @@ class TarsAgent(QObject):
             agent_object.l_gen_load_i = value
         elif name == "r_gen_load":
             agent_object.r_gen_load_i = value
+        elif name == "latitude":
+            agent_object.latitude_i = value
+        elif name == "longitude":
+            agent_object.longitude_i = value
         
         # EVENT-DRIVEN CONDITION MONITORING
         # Check if this input affects any monitored conditions
@@ -1697,6 +1763,9 @@ class TarsAgent(QObject):
                         self.is_allowed_to_comm_atc[0] = ApprovalStatus.APPROVED
                         self.is_requesting_vectors[0] = ApprovalStatus.APPROVED
                         self.is_allowed_trim_rudder[0] = ApprovalStatus.APPROVED
+                        self.is_allowed_engage_autopilot[0] = ApprovalStatus.APPROVED
+                        self.is_allowed_to_declare_panpan[0] = ApprovalStatus.APPROVED
+                        self.on_speak_action("Action approved.")
                         print("✅ Approval granted")
                         
                     elif cmd.action == "deny":
@@ -1704,7 +1773,10 @@ class TarsAgent(QObject):
                         self.is_allowed_to_comm_atc[0] = ApprovalStatus.DENIED
                         self.is_requesting_vectors[0] = ApprovalStatus.DENIED
                         self.is_allowed_trim_rudder[0] = ApprovalStatus.DENIED
+                        self.is_allowed_engage_autopilot[0] = ApprovalStatus.DENIED
+                        self.is_allowed_to_declare_panpan[0] = ApprovalStatus.DENIED
                         print("❌ Request denied")
+                        self.on_speak_action("Action denied.")
                         
                     elif cmd.action == "acknowledge":
                         # Task acknowledgment
@@ -1788,6 +1860,7 @@ class TarsAgent(QObject):
         igs.input_create("pitch", igs.DOUBLE_T, None)
         igs.input_create("roll", igs.DOUBLE_T, None)
         igs.input_create("heading", igs.DOUBLE_T, None)
+        igs.input_create("control_rudder", igs.DOUBLE_T, None)
         igs.input_create("vertical_speed", igs.DOUBLE_T, None)
         igs.input_create("altitude", igs.DOUBLE_T, None)
         igs.input_create("control_throttle", igs.DOUBLE_T, None)
@@ -1801,8 +1874,8 @@ class TarsAgent(QObject):
         igs.input_create("e1_n1_percent", igs.DOUBLE_T, None)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         igs.input_create("e2_n1_percent", igs.DOUBLE_T, None)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         igs.input_create("slip", igs.DOUBLE_T, None)  # positive is right, negative is left
-        igs.input_create("engine_fire_l", igs.DOUBLE_T, None)  # [0, 0] first means E1, second means E2
-        igs.input_create("engine_fire_r", igs.DOUBLE_T, None)  # [0, 0] first means E1, second means E2
+        igs.input_create("engine_fire_l", igs.BOOL_T, None)  # [0, 0] first means E1, second means E2
+        igs.input_create("engine_fire_r", igs.BOOL_T, None)  # [0, 0] first means E1, second means E2
         igs.input_create("pax_safety", igs.DOUBLE_T, None)  # 0 is off, 1 is on
         igs.input_create("master_warning", igs.DOUBLE_T, None)  # readonly 0 is off, 1 is on
         igs.input_create("master_caution", igs.DOUBLE_T, None)  # readonly 0 is off, 1 is on
@@ -1827,6 +1900,8 @@ class TarsAgent(QObject):
         igs.input_create("r_bottle_arm", igs.BOOL_T, None)  # Right fire bottle armed
         igs.input_create("speech_input", igs.STRING_T, None)  # For speech recognition input
         igs.input_create("pitot_heat", igs.BOOL_T, None)  # Pitot heat on/off
+        igs.input_create("latitude", igs.DOUBLE_T, None)  # Latitude
+        igs.input_create("longitude", igs.DOUBLE_T, None)  # Longitude
 
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("next_step", self.impulsion_input_callback, self.agent)
@@ -1835,6 +1910,7 @@ class TarsAgent(QObject):
         igs.observe_input("pitch", self.double_input_callback, self.agent)
         igs.observe_input("roll", self.double_input_callback, self.agent)
         igs.observe_input("heading", self.double_input_callback, self.agent)
+        igs.observe_input("control_rudder", self.double_input_callback, self.agent)
         igs.observe_input("vertical_speed", self.double_input_callback, self.agent)
         igs.observe_input("altitude", self.double_input_callback, self.agent)
         igs.observe_input("control_throttle", self.double_input_callback, self.agent)
@@ -1848,8 +1924,8 @@ class TarsAgent(QObject):
         igs.observe_input("e1_n1_percent", self.double_input_callback, self.agent)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         igs.observe_input("e2_n1_percent", self.double_input_callback, self.agent)  # [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         igs.observe_input("slip", self.double_input_callback, self.agent)  # positive is right, negative is left
-        igs.observe_input("engine_fire_l", self.double_input_callback, self.agent)  
-        igs.observe_input("engine_fire_r", self.double_input_callback, self.agent)  
+        igs.observe_input("engine_fire_l", self.bool_input_callback, self.agent)  
+        igs.observe_input("engine_fire_r", self.bool_input_callback, self.agent)  
         igs.observe_input("pax_safety", self.double_input_callback, self.agent)  # 0 is off, 1 is on
         igs.observe_input("master_warning", self.double_input_callback, self.agent)  # readonly 0 is off, 1 is on
         igs.observe_input("master_caution", self.double_input_callback, self.agent)  # readonly 0 is off, 1 is on
@@ -1874,6 +1950,8 @@ class TarsAgent(QObject):
         igs.observe_input("r_bottle_arm", self.bool_input_callback, self.agent)
         igs.observe_input("speech_input", self.string_input_callback, self.agent)  # For speech recognition input
         igs.observe_input("pitot_heat", self.bool_input_callback, self.agent)  # Pitot heat on/off
+        igs.observe_input("latitude", self.double_input_callback, self.agent)  # Latitude
+        igs.observe_input("longitude", self.double_input_callback, self.agent)  # Longitude
 
         igs.log_set_console(True)
         igs.log_set_console_level(igs.LOG_INFO)
@@ -1896,30 +1974,128 @@ class TarsAgent(QObject):
         igs.output_set_double("autopilot_state", 1.0)  # Set throttle to TOGA (1.0)
         print("Throttle set to TOGA (1.0).")
     
+    def arm_speed_mode_send_signal(self):
+        if self.speed_mode == 2:
+            return  # Already armed
+        igs.output_set_double("speed_mode", 1.0)  # Arm speed mode
+        self.on_speak_action("Speed mode armed.")
+        self.interactionPanelMessage.emit("", "Speed mode armed.")
+    
+    def arm_heading_mode_send_signal(self):
+        if self.heading_mode == 2:
+            return  # Already armed
+        igs.output_set_double("heading_mode", 1.0)  # Arm heading mode
+        self.on_speak_action("Heading mode armed.")
+        self.interactionPanelMessage.emit("", "Heading mode armed.")
+    
+    def engage_autopilot_action(self):
+        # Check if denied
+        if self.is_allowed_engage_autopilot[0] == ApprovalStatus.DENIED or self.is_allowed_engage_autopilot[0] == ApprovalStatus.NOT_ANSWERED:
+            self.is_allowed_engage_autopilot[0] = ApprovalStatus.NOT_ANSWERED  # Reset
+            return
+        # Approved - proceed with autopilot engagement
+        if self.flight_director_mode == 2:
+            print("Flight Director already in AP+FD mode.")
+            return
+        else:
+            self.on_speak_action("Engaging autopilot.")
+            igs.output_set_double("autopilot_master", 1.0)  # Engage autopilot
+            time.sleep(1)  # Wait a moment
+            self.on_speak_action("Autopilot engaged.")
+            self.interactionPanelMessage.emit("", "Autopilot engaged.")
+            self.is_allowed_engage_autopilot[0] = ApprovalStatus.NOT_ANSWERED  # Reset
+    
     def trim_action(self):
         # Check if denied
         if self.is_allowed_trim_rudder[0] == ApprovalStatus.DENIED or self.is_allowed_trim_rudder[0] == ApprovalStatus.NOT_ANSWERED:
             self.is_allowed_trim_rudder[0] = ApprovalStatus.NOT_ANSWERED  # Reset
             return
         # Approved - proceed with trim
-        if self.engine_failed_side == "Left" and not self.is_slip_skid_centered():
+        if self.engine_failed_side == "Left":
             self.on_speak_action("Trimming right rudder for left engine failure.")
-            while not self.is_slip_skid_centered() and self.is_allowed_trim_rudder[0] == ApprovalStatus.APPROVED:
+            stable_start_time = None
+            while self.is_allowed_trim_rudder[0] == ApprovalStatus.APPROVED:
                 current_trim = self.agent.trim_rudder_i if self.agent.trim_rudder_i is not None else 0.0
-                print(f"Current rudder trim: {current_trim}, adjusting...")
-                self.interactionPanelMessage.emit(f"Trimming right rudder for left engine failure.", f"Current trim: {current_trim:.2f}")
-                igs.output_set_double("trim_rudder", current_trim + 0.1)  # Trim right
+                current_slip = self.agent.slip_i if self.agent.slip_i is not None else 0.0
+                
+                # Check if conditions are met
+                if self.is_slip_skid_centered() and self.is_rudder_control_release():
+                    # Start timer if not already started
+                    if stable_start_time is None:
+                        stable_start_time = time.time()
+                        print(f"Conditions met, waiting for 3 seconds of stability...")
+                    # Check if 3 seconds have elapsed
+                    elif time.time() - stable_start_time >= 3.0:
+                        print(f"Conditions stable for 3 seconds, trim complete")
+                        break
+                else:
+                    # Conditions not met, reset timer and continue trimming
+                    stable_start_time = None
+                    
+                    # Left engine failure: need right rudder (positive trim)
+                    # Only trim if slip is negative (ball left) - need to push right
+                    if current_slip < -1:  # Ball is to the left, need right rudder
+                        print(f"Current rudder trim: {current_trim}, slip: {current_slip:.2f}, trimming right...")
+                        self.interactionPanelMessage.emit(f"Trimming right rudder for left engine failure.", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_double("trim_rudder", current_trim + 0.1)  # Trim right
+                    elif current_slip > 1:  # Ball is to the right, overshot - need left rudder
+                        print(f"Overshot! Current trim: {current_trim}, slip: {current_slip:.2f}, trimming left...")
+                        self.interactionPanelMessage.emit(f"Correcting overshoot", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_double("trim_rudder", current_trim - 0.1)  # Trim left to correct
+                    else:
+                        print(f"Near center (slip: {current_slip:.2f}), waiting for rudder release...")
+                
                 time.sleep(0.5)
-        elif self.engine_failed_side == "Right" and not self.is_slip_skid_centered():
+        elif self.engine_failed_side == "Right":
             self.on_speak_action("Trimming left rudder for right engine failure.")
-            while not self.is_slip_skid_centered() and self.is_allowed_trim_rudder[0] == ApprovalStatus.APPROVED:
+            stable_start_time = None
+            while self.is_allowed_trim_rudder[0] == ApprovalStatus.APPROVED:
                 current_trim = self.agent.trim_rudder_i if self.agent.trim_rudder_i is not None else 0.0
-                print(f"Current rudder trim: {current_trim}, adjusting...")
-                self.interactionPanelMessage.emit(f"Trimming left rudder for right engine failure.", f"Current trim: {current_trim:.2f}")
-                igs.output_set_double("trim_rudder", current_trim - 0.1)  # Trim left
+                current_slip = self.agent.slip_i if self.agent.slip_i is not None else 0.0
+                
+                # Check if conditions are met
+                if self.is_slip_skid_centered() and self.is_rudder_control_release():
+                    # Start timer if not already started
+                    if stable_start_time is None:
+                        stable_start_time = time.time()
+                        print(f"Conditions met, waiting for 3 seconds of stability...")
+                    # Check if 3 seconds have elapsed
+                    elif time.time() - stable_start_time >= 3.0:
+                        print(f"Conditions stable for 3 seconds, trim complete")
+                        break
+                else:
+                    # Conditions not met, reset timer and continue trimming
+                    stable_start_time = None
+                    
+                    # Right engine failure: need left rudder (negative trim)
+                    # Only trim if slip is positive (ball right) - need to push left
+                    if current_slip > 1:  # Ball is to the right, need left rudder
+                        print(f"Current rudder trim: {current_trim}, slip: {current_slip:.2f}, trimming left...")
+                        self.interactionPanelMessage.emit(f"Trimming left rudder for right engine failure.", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_double("trim_rudder", current_trim - 0.1)  # Trim left
+                    elif current_slip < -1:  # Ball is to the left, overshot - need right rudder
+                        print(f"Overshot! Current trim: {current_trim}, slip: {current_slip:.2f}, trimming right...")
+                        self.interactionPanelMessage.emit(f"Correcting overshoot", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_double("trim_rudder", current_trim + 0.1)  # Trim right to correct
+                    else:
+                        print(f"Near center (slip: {current_slip:.2f}), waiting for rudder release...")
+                
                 time.sleep(0.5)
         self.on_speak_action("Rudder trim complete")
         self.is_allowed_trim_rudder[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
+    
+    def engage_yaw_damper_action(self):
+        if self.is_alarm():
+            return  # Do not engage yaw damper during alarm
+        if self.yaw_damper_mode == 1:
+            print("Yaw Damper already engaged.")
+            return
+        else:
+            self.on_speak_action("Engaging yaw damper.")
+            igs.output_set_double("yaw_damper", 1.0)  # Engage yaw damper
+            time.sleep(1)  # Wait a moment
+            self.on_speak_action("Yaw damper engaged.")
+            self.interactionPanelMessage.emit("", "Yaw damper engaged.")
     
     def contact_atc_action(self, message=None):
         # Check if denied
@@ -1931,11 +2107,8 @@ class TarsAgent(QObject):
         if message == "mayday":
             self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action()
             igs.output_set_impulsion("declare_mayday")
-        elif message == "pan":
+        elif message == "panpan":
             self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].callout) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].autonomy_role == "performer" else self.dummy_action()
-            igs.output_set_impulsion("declare_pan")
-        elif message == "vectors":
-            self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "REQUEST VECTORS")].callout) if self.states[("DECLARE PANPAN", "ATC", "REQUEST VECTORS")].autonomy_role == "performer" else self.dummy_action()
             igs.output_set_impulsion("request_vectors")
         self.is_allowed_to_comm_atc[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
 
