@@ -21,79 +21,116 @@ if TYPE_CHECKING:
 
 class HomePage(BasePage):
     def set_checklist_label_current(self, procedure_name, task_object, value):
-        """Set the checklist label to 'current' (grey box) and scroll to it if needed"""
-        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
-        if label:
-            label.setStyleSheet("""
-                QLabel {
+        """Set the checklist button to 'current' (grey box) and scroll to it if needed"""
+        button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if button:
+            button.setStyleSheet("""
+                QPushButton {
                     font: 600 12pt 'OCR A';
                     color: white;
+                    text-align: left;
                     border: 2px solid #888888;
                     border-radius: 8px;
                     padding: 4px;
+                    background-color: transparent;
+                }
+                QPushButton:hover {
+                    background-color: rgba(85, 170, 255, 30);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(85, 170, 255, 50);
                 }
             """)
             
-            # Auto-scroll to make the current label visible
+            # Auto-scroll to make the current button visible
             scroll_area = self.checklist_scroll_areas.get(procedure_name)
             if scroll_area:
-                # Ensure the label is visible in the scroll area
-                scroll_area.ensureWidgetVisible(label, 50, 50)
+                # Ensure the button is visible in the scroll area
+                scroll_area.ensureWidgetVisible(button, 50, 50)
 
     def set_checklist_label_passed(self, procedure_name, task_object, value):
-        """Set the checklist label to 'passed' (neutral green, no box)"""
-        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
-        if not label:
-            return  # or handle the missing label case appropriately
+        """Set the checklist button to 'passed' (neutral green, no box)"""
+        button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if not button:
+            return  # or handle the missing button case appropriately
         target = task_object
-        label_text = label.text() if label else ""
-        index = label_text.find(target)
+        button_text = button.text() if button else ""
+        index = button_text.find(target)
+        # Only add ": " if it's not already there
         if index != -1:
             end_index = index + len(target)
-            label_text = label_text[:end_index] + ": " + label_text[end_index:]
-        label_text = label_text
-        #label_text = label_text.replace("-", "")
-        label.setText(label_text)
-        if label:
-            label.setStyleSheet("""
-                QLabel {
+            # Check if ": " is already present after the target
+            if not button_text[end_index:end_index+2] == ": ":
+                button_text = button_text[:end_index] + ": " + button_text[end_index:]
+        #button_text = button_text.replace("-", "")
+        button.setText(button_text)
+        if button:
+            button.setStyleSheet("""
+                QPushButton {
                     font: 600 12pt 'OCR A';
                     color: #55de71;
+                    text-align: left;
                     border: none;
                     border-radius: 0px;
                     padding: 4px;
+                    background-color: transparent;
+                }
+                QPushButton:hover {
+                    background-color: rgba(85, 170, 255, 30);
+                    border-radius: 5px;
+                }
+                QPushButton:pressed {
+                    background-color: rgba(85, 170, 255, 50);
                 }
             """)
     
     def set_checklist_label_violated(self, procedure_name, task_object, value):
-        """Revert checklist label to white when condition is violated (subtle indication)"""
-        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
-        if not label:
+        """Revert checklist button to white when condition is violated (subtle indication)"""
+        button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if not button:
             return
         # Revert to original white color to show it's no longer validated
-        label.setStyleSheet("""
-            QLabel {
+        button.setStyleSheet("""
+            QPushButton {
                 font: 600 12pt 'OCR A';
                 color: white;
+                text-align: left;
                 border: none;
                 border-radius: 0px;
                 padding: 4px;
+                background-color: transparent;
+            }
+            QPushButton:hover {
+                background-color: rgba(85, 170, 255, 30);
+                border-radius: 5px;
+            }
+            QPushButton:pressed {
+                background-color: rgba(85, 170, 255, 50);
             }
         """)
     
     def set_checklist_label_restored(self, procedure_name, task_object, value):
-        """Restore checklist label to green when condition is restored"""
-        label = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
-        if not label:
+        """Restore checklist button to green when condition is restored"""
+        button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
+        if not button:
             return
         # Restore green color to show validation is back
-        label.setStyleSheet("""
-            QLabel {
+        button.setStyleSheet("""
+            QPushButton {
                 font: 600 12pt 'OCR A';
                 color: #55de71;
+                text-align: left;
                 border: none;
                 border-radius: 0px;
                 padding: 4px;
+                background-color: transparent;
+            }
+            QPushButton:hover {
+                background-color: rgba(85, 170, 255, 30);
+                border-radius: 5px;
+            }
+            QPushButton:pressed {
+                background-color: rgba(85, 170, 255, 50);
             }
         """)
     """
@@ -419,10 +456,10 @@ class HomePage(BasePage):
         tab_widget = self.widgets.ecl_tab_container
         tab_widget.removeTab(0)
         tab_widget.removeTab(0)
-        from PySide6.QtWidgets import QScrollArea
+        from PySide6.QtWidgets import QScrollArea, QPushButton
         for checklist in checklists.values():
             procedure_name = checklist[0]['procedure']
-            item_labels = {}  # (task_object, value) -> QLabel
+            item_labels = {}  # (task_object, value) -> QPushButton (changed from QLabel)
             # Create a container widget for the checklist items
             container = QWidget()
             layout = QVBoxLayout(container)
@@ -430,18 +467,38 @@ class HomePage(BasePage):
             layout.setSpacing(14)
             for checklist_item in checklist:
                 line = self.format_checklist_line(checklist_item['task_object'], checklist_item['value'])
-                item_label = QLabel(line)
-                item_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-                item_label.setTextFormat(QtCore.Qt.RichText)
-                item_label.setStyleSheet("""
-                    QLabel {
+                # Create QPushButton instead of QLabel for clickability
+                item_button = QPushButton(line)
+                item_button.setFlat(True)  # Flat button for minimal look
+                item_button.setCursor(QtCore.Qt.PointingHandCursor)  # Show pointer cursor
+                item_button.setStyleSheet("""
+                    QPushButton {
                         font: 600 12pt 'OCR A';
                         color: white;
+                        text-align: left;
+                        border: none;
+                        padding: 4px;
+                        background-color: transparent;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(85, 170, 255, 30);
+                        border-radius: 5px;
+                    }
+                    QPushButton:pressed {
+                        background-color: rgba(85, 170, 255, 50);
                     }
                 """)
-                layout.addWidget(item_label)
+                
+                # Store the task key with the button for later retrieval
+                task_key = (checklist_item['procedure'], checklist_item['task_object'], checklist_item['value'])
+                item_button.setProperty('task_key', task_key)
+                
+                # Connect button click to handler
+                item_button.clicked.connect(lambda checked=False, key=task_key: self.on_checklist_item_clicked(key))
+                
+                layout.addWidget(item_button)
                 key = (checklist_item['task_object'], checklist_item['value'])
-                item_labels[key] = item_label
+                item_labels[key] = item_button  # Store button reference (not label)
             layout.addStretch(1)
             self.checklist_item_labels[procedure_name] = item_labels
             # Make scrollable area
@@ -623,6 +680,42 @@ class HomePage(BasePage):
         
         # Force FSM to jump to this state
         print(f"⚡ Forcing FSM to jump to state: {target_state.procedure} {target_state.task_object} {target_state.value}")
+        fsm.current_state = target_state
+        
+        # Emit state change signal to update UI
+        if hasattr(self.main_window, 'fsm_worker') and self.main_window.fsm_worker:
+            self.main_window.fsm_worker.state_changed.emit(target_state)
+    
+    @QtCore.Slot(tuple)
+    def on_checklist_item_clicked(self, task_key):
+        """Handle checklist item click from electronic checklist
+        
+        Args:
+            task_key: Tuple of (procedure, task_object, value) identifying the clicked checklist item
+        """
+        print(f"📋 Checklist item clicked: {task_key}")
+        
+        # Check if agent and FSM are available
+        if not hasattr(self.main_window, 'agent') or not self.main_window.agent:
+            print("⚠️ Agent not available")
+            return
+        
+        agent = self.main_window.agent
+        fsm = agent.fsm
+        
+        # Find the state object corresponding to this task key
+        target_state = None
+        for state_key, state in agent.states.items():
+            if state_key == task_key:
+                target_state = state
+                break
+        
+        if not target_state:
+            print(f"⚠️ Could not find state for checklist item: {task_key}")
+            return
+        
+        # Force FSM to jump to this state
+        print(f"⚡ Forcing FSM to jump to state: {target_state.procedure} - {target_state.task_object} - {target_state.value}")
         fsm.current_state = target_state
         
         # Emit state change signal to update UI
