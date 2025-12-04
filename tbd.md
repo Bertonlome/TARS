@@ -14,6 +14,10 @@
 [x] Add tars input composante de vent de travers sur checkwind
 [ ] How to set/ensure the frequencies for panpan/mayday call?
 [ ] The tars input should be boxed to look more like an output
+[ ] Remove aviate tasks such as brakes hold.
+[ ] Create a version with only the interaction panel, as a new page
+[ ] Agentify the interface
+[ ] Add NLP for ATC
 
 
 this is the behaviour of the FSM for one example 

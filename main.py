@@ -40,287 +40,64 @@ os.environ["QT_FONT_DPI"] = "96" # FIX Problem for High DPI and Scale above 100%
 # ///////////////////////////////////////////////////////////////
 widgets = None
 
-# FSM Worker
+# FSM Worker - Qt Wrapper
 # ///////////////////////////////////////////////////////////////
 class FSMWorker(QtCore.QObject):
+    """
+    Qt wrapper for FSMWorkerCore - bridges callback pattern to Qt signals
+    This allows gradual migration from direct Qt coupling to pure callback pattern
+    """
     state_changed = QtCore.Signal(object)  # Changed from str to object to emit State object
     action_about_to_fire = QtCore.Signal(object)  # Emitted right before action executes (after countdown)
     condition_violated_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now False
     condition_restored_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now True
-    current_state = None
 
     def __init__(self, agent: TarsAgent):
         super().__init__()
         self.agent = agent
-        # Performance monitoring
-        self.performance_metrics = {}
-        self.loop_count = 0
-        self.last_performance_report = time.perf_counter()
-        # Action inhibition flag
-        self.skip_current_action = False
         
-        # Active condition monitoring registry
-        # Dict: state_key -> monitoring_info
-        self.active_monitored_conditions = {}
-        self.current_procedure = None  # Track current procedure for scope management
-
-    def start_performance_timer(self, action_name):
-        """Start timing for a specific action"""
-        return time.perf_counter()
-
-    def stop_performance_timer(self, action_name, start_time):
-        """Stop timing and record the result"""
-        elapsed = time.perf_counter() - start_time
-        if action_name not in self.performance_metrics:
-            self.performance_metrics[action_name] = []
-        self.performance_metrics[action_name].append(elapsed)
-        return elapsed
-
-    def print_performance_report(self):
-        """Print performance report every 10 seconds"""
-        print(f"\n=== FSM Performance Report (Loops: {self.loop_count}) ===")
-        for action, times in self.performance_metrics.items():
-            if times:
-                avg_time = sum(times) / len(times)
-                print(f"{action}: avg={avg_time*1000:.2f}ms, count={len(times)}, min={min(times)*1000:.2f}ms, max={max(times)*1000:.2f}ms")
+        # Create the core worker (no Qt dependencies)
+        self.core_worker = FSMWorkerCore(agent)
         
-        # Reset counters
-        self.performance_metrics.clear()
-        self.loop_count = 0
+        # Register callbacks to emit Qt signals
+        self.core_worker.set_state_changed_callback(self._on_state_changed)
+        self.core_worker.set_action_about_to_fire_callback(self._on_action_about_to_fire)
+        
+        # Expose properties for backwards compatibility
+        @property
+        def active_monitored_conditions(self):
+            return self.core_worker.active_monitored_conditions
+        
+        @property
+        def current_procedure(self):
+            return self.core_worker.current_procedure
+    
+    @property
+    def current_state(self):
+        return self.core_worker.current_state
+    
+    # Callback handlers that emit Qt signals
+    def _on_state_changed(self, state):
+        self.state_changed.emit(state)
+    
+    def _on_action_about_to_fire(self, state):
+        self.action_about_to_fire.emit(state)
+    
+    def _on_condition_violated(self, state, condition_name):
+        self.condition_violated_signal.emit(state, condition_name)
+    
+    def _on_condition_restored(self, state, condition_name):
+        self.condition_restored_signal.emit(state, condition_name)
     
     @QtCore.Slot()
     def cancel_current_action(self):
         """Slot to cancel/skip the current action execution"""
-        self.skip_current_action = True
-        print(f"Current action inhibited - user reclaimed task")
+        self.core_worker.cancel_current_action()
     
-    def add_to_monitoring(self, state):
-        """Add state to continuous condition monitoring"""
-        # Only monitor states with 'continuous' condition type
-        if state.condition_type != 'continuous' or not state.condition_function:
-            return
-        
-        state_key = (state.procedure, state.task_object, state.value)
-        
-        # Get condition function by name from agent
-        try:
-            condition_func = getattr(self.agent, state.condition_function)
-        except AttributeError:
-            print(f"Warning: Condition function '{state.condition_function}' not found in agent")
-            return
-        
-        # Evaluate initial value
-        try:
-            initial_value = condition_func()
-        except Exception as e:
-            print(f"Error evaluating initial condition {state.condition_function}: {e}")
-            initial_value = None
-        
-        # Set state.condition to initial value
-        state.condition = initial_value
-        
-        self.active_monitored_conditions[state_key] = {
-            'state': state,
-            'condition_func_name': state.condition_function,
-            'condition_func': condition_func,
-            'last_value': initial_value,
-            'monitor_scope': state.monitor_scope,
-            'procedure': state.procedure
-        }
-        
-        print(f"📊 Monitoring: {state.procedure} - {state.task_object} - {state.condition_function} = {initial_value}")
-    
-    def remove_from_monitoring(self, state_key):
-        """Stop monitoring a condition"""
-        if state_key in self.active_monitored_conditions:
-            monitor_info = self.active_monitored_conditions[state_key]
-            print(f"🛑 Stop monitoring: {monitor_info['procedure']} - {monitor_info['state'].task_object}")
-            del self.active_monitored_conditions[state_key]
-    
-    def cleanup_monitoring_for_scope(self, scope_type, current_state):
-        """Remove conditions from monitoring based on scope"""
-        to_remove = []
-        
-        for state_key, monitor_info in self.active_monitored_conditions.items():
-            monitor_scope = monitor_info['monitor_scope']
-            
-            if scope_type == 'next_task' and monitor_scope == 'next_task':
-                # Remove conditions that should only be monitored until next task
-                to_remove.append(state_key)
-            
-            elif scope_type == 'procedure_change':
-                # Remove conditions when procedure changes
-                if monitor_scope == 'end_of_procedure' and monitor_info['procedure'] != current_state.procedure:
-                    to_remove.append(state_key)
-        
-        for state_key in to_remove:
-            self.remove_from_monitoring(state_key)
-
     @QtCore.Slot()
     def run(self):
-        fsm = self.agent.fsm
-        loop_start_time = time.perf_counter()
-        
-        while not self.agent.is_interrupted:
-            # Performance monitoring
-            self.loop_count += 1
-            current_time = time.perf_counter()
-            
-            # Print performance report every 10 seconds
-            if current_time - self.last_performance_report >= 10.0:
-                #self.print_performance_report()
-                self.last_performance_report = current_time
-
-            # Check transitions with performance timing
-            transition_start = self.start_performance_timer("transition_check")
-            transition_found = False
-            
-            for t in fsm.transitions:
-                if t.from_state == fsm.current_state:
-                    # Time the condition check
-                    condition_start = self.start_performance_timer("condition_check")
-                    condition_result = t.condition()
-                    condition_time = self.stop_performance_timer("condition_check", condition_start)
-                    
-                    # Log slow conditions
-                    if condition_time > 0.1:  # 100ms threshold
-                        print(f"WARNING: Slow condition check for {t.from_state.procedure} {t.from_state.task_object} {t.from_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value}: {condition_time*1000:.2f}ms")
-                    
-                    if condition_result:
-                        # State transition
-                        transition_time = self.stop_performance_timer("transition_check", transition_start)
-                        print(f"State transition: {fsm.current_state.procedure} {fsm.current_state.task_object} {fsm.current_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value} (check took {transition_time*1000:.2f}ms)")
-                        
-                        # CONDITION MONITORING: Cleanup for 'next_task' scope
-                        self.cleanup_monitoring_for_scope('next_task', t.to_state)
-                        
-                        # CONDITION MONITORING: Check if procedure changed
-                        if self.current_procedure and self.current_procedure != t.to_state.procedure:
-                            self.cleanup_monitoring_for_scope('procedure_change', t.to_state)
-                        
-                        self.current_procedure = t.to_state.procedure
-                        
-                        # === Execute transition_action IMMEDIATELY (before state change, no delays) ===
-                        if hasattr(t, 'transition_action') and t.transition_action and not getattr(t, 'action_performed', False):
-                            print(f"⚡ Executing transition_action (immediate)")
-                            trans_action_start = self.start_performance_timer("transition_action")
-                            try:
-                                t.transition_action()
-                            except Exception as e:
-                                print(f"ERROR in transition_action: {e}")
-                                import traceback
-                                traceback.print_exc()
-                            trans_action_time = self.stop_performance_timer("transition_action", trans_action_start)
-                            print(f"  → transition_action took {trans_action_time*1000:.2f}ms")
-                        
-                        # Change state
-                        fsm.current_state = t.to_state
-                        self.state_changed.emit(fsm.current_state)  # Emit the State object instead of just procedure
-                        self.current_state = fsm.current_state
-                        
-                        # CONDITION MONITORING: Add new state to monitoring if it has continuous condition
-                        self.add_to_monitoring(fsm.current_state)
-                        
-                        # === Only handle delays if there's an action ===
-                        if t.action:
-                            # wait before action - wait for countdown timer to reach 0
-                            delay = self.get_delay_before_action(fsm.current_state)
-                            if delay > 0:
-                                # Clear the event before waiting
-                                self.agent.main_window.countdown_completion_event.clear()
-                                print(f"⏳ Waiting {delay}s before action (delay_before_action)")
-                                # Wait for the countdown timer to signal completion
-                                self.agent.main_window.countdown_completion_event.wait(timeout=delay + 2)  # +2s safety margin
-                            
-                            # Only emit signal if action is not being skipped
-                            if not self.skip_current_action:
-                                # Emit signal right before action fires (after countdown completes)
-                                self.action_about_to_fire.emit(fsm.current_state)
-                            
-                            # Check if action should be skipped (user cancelled)
-                            if self.skip_current_action:
-                                print(f"⏭️ Skipping action for {fsm.current_state.task_object} - user reclaimed task")
-                                self.skip_current_action = False  # Reset flag
-                                action_result = False  # No TTS to wait for
-                            else:
-                                print(f"🎬 Executing action (with delays)")
-                                action_start = self.start_performance_timer("action_execution")
-                                try:
-                                    action_result = t.action()
-                                except Exception as e:
-                                    print(f"ERROR in action: {e}")
-                                    import traceback
-                                    traceback.print_exc()
-                                    action_result = False
-                                action_time = self.stop_performance_timer("action_execution", action_start)
-                                print(f"  → action took {action_time*1000:.2f}ms")
-                            
-                            # If it was a speech action, wait for TTS to complete
-                            if action_result is True and self.agent.tts_completion_event:
-                                print(f"⏳ Waiting for TTS to complete...")
-                                wait_start = time.time()
-                                self.agent.tts_completion_event.wait(timeout=30)  # Block until TTS finishes (30s max)
-                                wait_time = time.time() - wait_start
-                                print(f"✅ TTS completed after {wait_time:.2f}s")
-                            
-                            # wait after action
-                            delay = self.get_delay_after_action(fsm.current_state)
-                            if delay and delay > 0:
-                                print(f"⏳ Waiting {delay}s after action (delay_after_action)")
-                                QtCore.QThread.msleep(int((delay + 0.2) * 1000)) # + 0.2 delay for UI
-                        
-                        # Reset action_performed flag for next use
-                        if hasattr(t, 'action_performed'):
-                            t.action_performed = False
-                        
-                        transition_found = True
-                        break
-            
-            if not transition_found:
-                self.stop_performance_timer("transition_check", transition_start)
-            
-            # CRITICAL FIX: Add a small sleep to prevent tight loop
-            # This allows other threads (like network updates) to run
-            QtCore.QThread.msleep(50)  # 50ms sleep = 20 checks per second instead of thousands
-            
-            # Alternative: Use processEvents to allow other operations
-            # QtCore.QCoreApplication.processEvents()
-            
-    def get_delay_before_action(self, state):
-        delay = getattr(state, "delay_before_action", 0)
-        if delay is None:
-            delay = 0
-        elif isinstance(delay, str):
-            if delay.lower() in ['is_acked', 'is_sensed']:
-                # Acknowledgment-based or condition-based waiting - return 0, will be handled by UI/conditions
-                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment/sensing before action")
-                delay = 0
-            else:
-                try:
-                    delay = float(delay)
-                except ValueError:
-                    delay = 0
-        if delay and delay > 0:
-            print(f"waiting for {delay} seconds before executing action for state ({state.procedure}, {state.task_object}, {state.value})")
-        return delay
-    
-    def get_delay_after_action(self, state):
-        delay = getattr(state, "delay_after_action", 0)
-        if delay is None:
-            delay = 0
-        elif isinstance(delay, str):
-            if delay.lower() in ['is_acked', 'is_sensed']:
-                # Acknowledgment-based or condition-based waiting - return 0, will be handled by UI/conditions
-                #print(f"State ({state.procedure}, {state.task_object}, {state.value}) requires acknowledgment/sensing after action")
-                delay = 0
-            else:
-                try:
-                    delay = float(delay)
-                except ValueError:
-                    delay = 0
-        if delay and delay > 0:
-            print(f"waiting for {delay} seconds after executing action for state ({state.procedure}, {state.task_object}, {state.value})")
-        return delay
+        """Qt Slot that runs the core worker"""
+        self.core_worker.run()
             
 # Agent Thread
 # ///////////////////////////////////////////////////////////////
