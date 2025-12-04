@@ -25,6 +25,7 @@ import threading
 import subprocess
 from pathlib import Path
 from Core.agent import ApprovalStatus, TarsAgent
+from Core.fsm_worker import FSMWorker as FSMWorkerCore  # Import the core FSM worker
 from Core.tts import format_callout, shutdown, register_speak_callback, register_finished_callback
 import time
 
@@ -179,6 +180,8 @@ class MainWindow(QMainWindow):
         # Countdown completion tracking - for synchronizing FSM with countdown timer
         self.countdown_completion_event = threading.Event()
         self.countdown_completion_event.set()  # Initially set (no countdown in progress)
+        # Pass countdown event to agent (FSMWorker will use it)
+        self.agent.countdown_completion_event = self.countdown_completion_event
 
         self.tts_speak_signal.connect(self.on_tts_speak)
         register_speak_callback(self.tts_callback)
