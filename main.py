@@ -268,13 +268,12 @@ class MainWindow(QMainWindow):
         widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet()))
         widgets = self.ui
         
-        # INITIALIZE GUI AGENT (Phase 4)
+        # INITIALIZE GUI AGENT (Phase 4 & 6)
         # ///////////////////////////////////////////////////////////////
         # GUI Agent wraps this MainWindow and bridges TARS ↔ GUI via Ingescape
-        # Temporarily disabled during development - will be re-enabled after testing
-        # from gui_agent import create_gui_agent
-        # self.gui_agent = create_gui_agent(self, device="wlp0s20f3", port=5670)
-        # print("✅ GUI Agent initialized and connected to TARS Agent")
+        from gui_agent import create_gui_agent
+        self.gui_agent = create_gui_agent(self, device="wlp0s20f3", port=5670)
+        print("✅ GUI Agent initialized and connected to TARS Agent")
         
     # End of init
     # /////////////////////////////////////////////////////////////
