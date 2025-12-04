@@ -80,6 +80,15 @@ def main():
     from Core.fsm_worker import FSMWorker as FSMWorkerCore
     import threading
     
+    # Set up threading events for FSM synchronization
+    countdown_event = threading.Event()
+    countdown_event.set()  # Initially set (no countdown in progress)
+    tars_agent.countdown_completion_event = countdown_event
+    
+    tts_event = threading.Event()
+    tts_event.set()  # Initially set (no TTS in progress)
+    tars_agent.tts_completion_event = tts_event
+    
     # Set up FSM worker callbacks to publish via Ingescape
     def on_state_changed(state):
         """Publish state change via Ingescape"""
