@@ -105,11 +105,11 @@ class TarsAgent:
         # Alert state tracking to prevent spam
         self.engine_spool_alert_sent = False
         
-        # TTS completion event - will be set by MainWindow
+        # TTS completion event - will be set by external coordinator
         self.tts_completion_event = None
         
-        # Reference to main window - will be set by MainWindow for countdown synchronization
-        self.main_window = None
+        # Countdown completion event - will be set by external coordinator
+        self.countdown_completion_event = None
         
         # Input-to-condition mapping for event-driven monitoring
         # Maps input names to condition function names that depend on them
@@ -1522,46 +1522,10 @@ class TarsAgent:
             new_value: New value of the input
             affected_condition_names: List of condition function names that depend on this input
         """
-        # Only check if main_window and FSM worker are available
-        if not self.main_window or not hasattr(self.main_window, 'fsm_worker'):
-            return
-        
-        fsm_worker = self.main_window.fsm_worker
-        
-        # Iterate through all actively monitored conditions
-        for state_key, monitor_info in list(fsm_worker.active_monitored_conditions.items()):
-            condition_func_name = monitor_info['condition_func_name']
-            
-            # Is this monitored condition affected by the input that just changed?
-            if condition_func_name in affected_condition_names:
-                # Re-evaluate the condition
-                condition_func = monitor_info['condition_func']
-                try:
-                    current_value = condition_func()  # Call it (e.g., is_gear_up())
-                except Exception as e:
-                    print(f"Error evaluating condition {condition_func_name}: {e}")
-                    continue
-                
-                last_value = monitor_info['last_value']
-                
-                # Has the condition changed?
-                if current_value != last_value:
-                    # VIOLATION or RESTORATION detected!
-                    monitor_info['last_value'] = current_value
-                    state = monitor_info['state']
-                    
-                    # Update state.condition attribute
-                    state.condition = current_value
-                    
-                    # Emit signal to UI thread
-                    if current_value is False:
-                        # Condition violated (was True, now False)
-                        print(f"⚠️  VIOLATION: {state.procedure} - {state.task_object} - condition '{condition_func_name}' no longer satisfied!")
-                        fsm_worker.condition_violated_signal.emit(state, condition_func_name)
-                    elif current_value is True:
-                        # Condition restored (was False, now True)
-                        print(f"✅ RESTORED: {state.procedure} - {state.task_object} - condition '{condition_func_name}' satisfied again!")
-                        fsm_worker.condition_restored_signal.emit(state, condition_func_name)
+        # Condition monitoring is now handled by FSMWorker
+        # This method is kept for backward compatibility but does nothing
+        # The FSMWorker independently monitors conditions
+        pass
 
     def on_start(self):
         print("Action: Starting FSM...")
@@ -1593,14 +1557,13 @@ class TarsAgent:
             if self.fsm:
                 success = self.fsm.force_next_state()
                 if success:
-                    # Notify UI of state change if main_window and fsm_worker exist
-                    if self.main_window and hasattr(self.main_window, 'fsm_worker'):
-                        try:
-                            self.main_window.fsm_worker.state_changed.emit(self.fsm.current_state)
-                            self.main_window.fsm_worker.current_state = self.fsm.current_state
-                            print(f"  → UI notified of state change")
-                        except Exception as e:
-                            print(f"ERROR notifying UI: {e}")
+                    # Publish state change via Ingescape (GUIAgent will receive it)
+                    try:
+                        state_data = encode_state_to_json(self.fsm.current_state)
+                        igs.output_set_string("state_changed", state_data)
+                        print(f"  → State change published via Ingescape")
+                    except Exception as e:
+                        print(f"ERROR publishing state change: {e}")
                 else:
                     print("⚠️  No next state available (end of FSM or no transitions from current state)")
             else:
@@ -1612,14 +1575,13 @@ class TarsAgent:
             if self.fsm:
                 success = self.fsm.force_previous_state()
                 if success:
-                    # Notify UI of state change if main_window and fsm_worker exist
-                    if self.main_window and hasattr(self.main_window, 'fsm_worker'):
-                        try:
-                            self.main_window.fsm_worker.state_changed.emit(self.fsm.current_state)
-                            self.main_window.fsm_worker.current_state = self.fsm.current_state
-                            print(f"  → UI notified of state change")
-                        except Exception as e:
-                            print(f"ERROR notifying UI: {e}")
+                    # Publish state change via Ingescape (GUIAgent will receive it)
+                    try:
+                        state_data = encode_state_to_json(self.fsm.current_state)
+                        igs.output_set_string("state_changed", state_data)
+                        print(f"  → State change published via Ingescape")
+                    except Exception as e:
+                        print(f"ERROR publishing state change: {e}")
                 else:
                     print("⚠️  No previous state available (at beginning)")
             else:

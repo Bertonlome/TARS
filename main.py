@@ -140,8 +140,8 @@ class MainWindow(QMainWindow):
         signal.signal(signal.SIGINT, self.agent.signal_handler)
         self.ui.tars_status_label.setText(f"{self.agent.agent_name} RUNNING")
         
-        # Give agent reference to main window for countdown synchronization
-        self.agent.main_window = self
+        # Phase 5: Removed main_window reference - all communication now through Ingescape
+        # self.agent.main_window = self  # REMOVED - coupling eliminated
         
         # Start the agent in a separate thread
         self.agent_thread = AgentThread(self.agent)
