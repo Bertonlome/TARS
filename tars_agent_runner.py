@@ -76,6 +76,29 @@ def main():
     
     print("✅ TARS Agent is running. Press Ctrl+C to exit.")
     
+    # Create FSMWorker to run the FSM
+    from Core.fsm_worker import FSMWorker as FSMWorkerCore
+    import threading
+    
+    # Set up FSM worker callbacks to publish via Ingescape
+    def on_state_changed(state):
+        """Publish state change via Ingescape"""
+        from Core.message_protocol import encode_state_to_json
+        try:
+            state_json = encode_state_to_json(state)
+            import ingescape as igs
+            igs.output_set_string("current_state", state_json)
+            print(f"📤 Published state change: {state.procedure} - {state.task_object}")
+        except Exception as e:
+            print(f"Error publishing state: {e}")
+    
+    # Start FSM worker in background thread  
+    fsm_worker = FSMWorkerCore(tars_agent)
+    fsm_worker.set_state_changed_callback(on_state_changed)
+    fsm_thread = threading.Thread(target=fsm_worker.run, daemon=True)
+    fsm_thread.start()
+    print("✅ FSM Worker started in background thread")
+    
     # Keep the process alive
     try:
         while not is_interrupted:

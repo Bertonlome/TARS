@@ -137,6 +137,13 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         
+        # Phase 6: Create lightweight agent stub for GUI data loading
+        # The real TARS Agent runs in subprocess, but GUI needs access to CSV data
+        # This stub DOES NOT run start() - it's just for loading states/procedures
+        self.agent = TarsAgent()
+        # Don't call agent.start() - we don't want duplicate Ingescape agents!
+        # Just keep it for CSV data access (self.agent.states, self.agent.procedures)
+        
         # Phase 6 FIX: Run TARS Agent as separate subprocess
         # This fixes Ingescape's "one agent per process" limitation
         self.tars_process = None

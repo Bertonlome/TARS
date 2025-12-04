@@ -171,9 +171,32 @@ class GUIAgent(QObject):
     
     def _on_state_changed(self, state_data: dict):
         """Handle state change from TARS (main thread)"""
-        # TODO: This will eventually replace update_state() in MainWindow
-        # For now, we can log it
         print(f"📊 State update received: {state_data.get('procedure')} - {state_data.get('task_object')}")
+        
+        # Reconstruct State object from JSON data
+        from Core.fsm import State
+        state = State(
+            procedure=state_data.get('procedure', ''),
+            classification=state_data.get('classification', ''),
+            type=state_data.get('type', ''),
+            category=state_data.get('category', ''),
+            task_object=state_data.get('task_object', ''),
+            value=state_data.get('value', ''),
+            human_role=state_data.get('human_role', ''),
+            autonomy_role=state_data.get('autonomy_role', ''),
+            information_requirement=state_data.get('information_requirement', ''),
+            interaction=state_data.get('interaction', ''),
+            delay_before_action=state_data.get('delay_before_action', 0),
+            delay_after_action=state_data.get('delay_after_action', 0),
+            callout=state_data.get('callout', ''),
+            condition=state_data.get('condition'),
+            condition_type=state_data.get('condition_type'),
+            condition_function=state_data.get('condition_function'),
+            monitor_scope=state_data.get('monitor_scope'),
+        )
+        
+        # Call MainWindow's update_state method
+        self.main_window.update_state(state)
     
     # ========================================================================
     # GUI → TARS: Connect UI actions to Ingescape outputs
