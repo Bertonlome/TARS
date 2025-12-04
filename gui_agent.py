@@ -1,0 +1,267 @@
+"""
+GUI Agent - Ingescape wrapper for MainWindow
+Bridges TARS Agent outputs to Qt UI updates and user actions to TARS inputs
+"""
+
+import sys
+import json
+from typing import Optional
+from PySide6.QtCore import QObject, Signal, QTimer
+from PySide6.QtWidgets import QApplication
+
+try:
+    import ingescape as igs
+except ImportError:
+    print("ERROR: ingescape module not found")
+    sys.exit(1)
+
+from Core.message_protocol import decode_json_to_dict
+from main import MainWindow
+
+
+class GUIAgent(QObject):
+    """
+    GUI Agent - Ingescape agent that wraps MainWindow
+    Subscribes to TARS outputs and translates them to UI updates
+    Publishes user actions as TARS inputs
+    """
+    
+    # Internal signals for thread-safe UI updates (Ingescape callbacks run in different thread)
+    _alert_signal = Signal(str, str)  # (message, color)
+    _clear_alert_signal = Signal()
+    _interaction_message_signal = Signal(str, str)  # (message, tars_input)
+    _state_changed_signal = Signal(dict)  # State dict from JSON
+    
+    def __init__(self, main_window: MainWindow, agent_name: str = "GUI Agent", 
+                 device: str = "wlp0s20f3", port: int = 5670):
+        super().__init__()
+        self.main_window = main_window
+        self.agent_name = agent_name
+        self.device = device
+        self.port = port
+        
+        # Connect internal signals to UI update methods
+        self._alert_signal.connect(self._on_alert)
+        self._clear_alert_signal.connect(self._on_clear_alert)
+        self._interaction_message_signal.connect(self._on_interaction_message)
+        self._state_changed_signal.connect(self._on_state_changed)
+        
+        # Connect MainWindow user action signals to TARS inputs
+        self._connect_ui_to_tars()
+        
+        # Initialize Ingescape agent
+        self._init_ingescape()
+    
+    def _init_ingescape(self):
+        """Initialize Ingescape agent with inputs/outputs"""
+        igs.agent_set_name(self.agent_name)
+        igs.definition_set_version("1.0")
+        igs.log_set_console(True)
+        igs.log_set_file(True, None)
+        igs.set_command_line(sys.executable + " " + " ".join(sys.argv))
+        
+        # Create inputs (subscribe to TARS outputs)
+        igs.input_create("current_state", igs.STRING_T, None)
+        igs.input_create("next_state", igs.STRING_T, None)
+        igs.input_create("previous_state", igs.STRING_T, None)
+        igs.input_create("countdown_current", igs.INTEGER_T, None)
+        igs.input_create("countdown_next", igs.INTEGER_T, None)
+        igs.input_create("countdown_max_current", igs.INTEGER_T, None)
+        igs.input_create("countdown_max_next", igs.INTEGER_T, None)
+        igs.input_create("alert", igs.STRING_T, None)
+        igs.input_create("alert_clear", igs.IMPULSION_T, None)
+        igs.input_create("condition_violated", igs.STRING_T, None)
+        igs.input_create("condition_restored", igs.STRING_T, None)
+        igs.input_create("tts_speaking", igs.BOOL_T, None)
+        igs.input_create("tts_text", igs.STRING_T, None)
+        igs.input_create("action_about_to_fire", igs.STRING_T, None)
+        igs.input_create("checklist_item_complete", igs.STRING_T, None)
+        igs.input_create("emergency_procedure_inject", igs.STRING_T, None)
+        igs.input_create("interaction_message", igs.STRING_T, None)
+        
+        # Observe inputs
+        igs.observe_input("alert", self._on_alert_input, None)
+        igs.observe_input("alert_clear", self._on_alert_clear_input, None)
+        igs.observe_input("interaction_message", self._on_interaction_message_input, None)
+        igs.observe_input("current_state", self._on_current_state_input, None)
+        
+        # Create outputs (send to TARS)
+        igs.output_create("task_approval", igs.BOOL_T, None)
+        igs.output_create("task_acknowledged", igs.IMPULSION_T, None)
+        igs.output_create("task_cancelled", igs.IMPULSION_T, None)
+        igs.output_create("allow_comm_atc", igs.INTEGER_T, None)
+        igs.output_create("allow_trim_rudder", igs.INTEGER_T, None)
+        igs.output_create("allow_engage_autopilot", igs.INTEGER_T, None)
+        igs.output_create("allow_declare_panpan", igs.INTEGER_T, None)
+        igs.output_create("allow_request_vectors", igs.INTEGER_T, None)
+        igs.output_create("start_procedure", igs.IMPULSION_T, None)
+        igs.output_create("stop_procedure", igs.IMPULSION_T, None)
+        igs.output_create("emergency_inject", igs.STRING_T, None)
+        igs.output_create("countdown_complete", igs.IMPULSION_T, None)
+        
+        print(f"✅ GUI Agent '{self.agent_name}' initialized with Ingescape I/O")
+    
+    def start(self):
+        """Start the GUI agent"""
+        print(f"🚀 Starting GUI Agent on {self.device}:{self.port}")
+        igs.start_with_device(self.device, self.port)
+        print(f"✅ GUI Agent started successfully")
+    
+    def stop(self):
+        """Stop the GUI agent"""
+        igs.stop()
+        print(f"🛑 GUI Agent stopped")
+    
+    # ========================================================================
+    # TARS → GUI: Ingescape input callbacks (run in Ingescape thread)
+    # ========================================================================
+    
+    def _on_alert_input(self, io_type, name, value_type, value, my_data):
+        """Handle alert message from TARS"""
+        try:
+            alert_data = json.loads(value)
+            message = alert_data.get("message", "")
+            color = alert_data.get("color", "red")
+            # Emit signal for thread-safe UI update
+            self._alert_signal.emit(message, color)
+        except Exception as e:
+            print(f"Error processing alert: {e}")
+    
+    def _on_alert_clear_input(self, io_type, name, value_type, value, my_data):
+        """Handle alert clear from TARS"""
+        self._clear_alert_signal.emit()
+    
+    def _on_interaction_message_input(self, io_type, name, value_type, value, my_data):
+        """Handle interaction panel message from TARS"""
+        try:
+            msg_data = json.loads(value)
+            message = msg_data.get("message", "")
+            tars_input = msg_data.get("tars_input", "")
+            self._interaction_message_signal.emit(message, tars_input)
+        except Exception as e:
+            print(f"Error processing interaction message: {e}")
+    
+    def _on_current_state_input(self, io_type, name, value_type, value, my_data):
+        """Handle current state update from TARS"""
+        try:
+            state_data = json.loads(value)
+            self._state_changed_signal.emit(state_data)
+        except Exception as e:
+            print(f"Error processing current state: {e}")
+    
+    # ========================================================================
+    # GUI Updates: Qt signal handlers (run in main thread)
+    # ========================================================================
+    
+    def _on_alert(self, message: str, color: str):
+        """Update UI with alert (main thread)"""
+        home_page = self.main_window.page_manager.get_page('home')
+        if home_page:
+            home_page.displayAlert(message, color)
+    
+    def _on_clear_alert(self):
+        """Clear alert in UI (main thread)"""
+        home_page = self.main_window.page_manager.get_page('home')
+        if home_page:
+            home_page.clearAlert()
+    
+    def _on_interaction_message(self, message: str, tars_input: str):
+        """Update interaction panel (main thread)"""
+        self.main_window.display_interaction_panel_message(message, tars_input)
+    
+    def _on_state_changed(self, state_data: dict):
+        """Handle state change from TARS (main thread)"""
+        # TODO: This will eventually replace update_state() in MainWindow
+        # For now, we can log it
+        print(f"📊 State update received: {state_data.get('procedure')} - {state_data.get('task_object')}")
+    
+    # ========================================================================
+    # GUI → TARS: Connect UI actions to Ingescape outputs
+    # ========================================================================
+    
+    def _connect_ui_to_tars(self):
+        """Connect MainWindow signals to TARS inputs via Ingescape"""
+        # Task completion
+        self.main_window.get_home_page().task_done_signal.connect(self._send_task_acknowledged)
+        self.main_window.get_home_page().task_cancel_signal.connect(self._send_task_cancelled)
+        self.main_window.get_home_page().task_allowed_signal.connect(self._send_task_allowed)
+        self.main_window.get_home_page().task_not_allowed_signal.connect(self._send_task_not_allowed)
+        self.main_window.get_home_page().countdown_zero_signal.connect(self._send_countdown_complete)
+    
+    def _send_task_acknowledged(self):
+        """Send task acknowledgment to TARS"""
+        igs.output_set_impulsion("task_acknowledged")
+        print("📤 Sent task_acknowledged to TARS")
+    
+    def _send_task_cancelled(self):
+        """Send task cancellation to TARS"""
+        igs.output_set_impulsion("task_cancelled")
+        print("📤 Sent task_cancelled to TARS")
+    
+    def _send_task_allowed(self):
+        """Send task approval to TARS"""
+        igs.output_set_bool("task_approval", True)
+        # Also send specific approvals (will be consolidated later)
+        igs.output_set_int("allow_comm_atc", 1)  # APPROVED
+        igs.output_set_int("allow_trim_rudder", 1)
+        igs.output_set_int("allow_engage_autopilot", 1)
+        igs.output_set_int("allow_declare_panpan", 1)
+        igs.output_set_int("allow_request_vectors", 1)
+        print("📤 Sent task_approval=TRUE to TARS")
+    
+    def _send_task_not_allowed(self):
+        """Send task denial to TARS"""
+        igs.output_set_bool("task_approval", False)
+        # Also send specific denials
+        igs.output_set_int("allow_comm_atc", 2)  # DENIED
+        igs.output_set_int("allow_trim_rudder", 2)
+        igs.output_set_int("allow_engage_autopilot", 2)
+        igs.output_set_int("allow_declare_panpan", 2)
+        igs.output_set_int("allow_request_vectors", 2)
+        print("📤 Sent task_approval=FALSE to TARS")
+    
+    def _send_countdown_complete(self):
+        """Send countdown completion to TARS"""
+        igs.output_set_impulsion("countdown_complete")
+        print("📤 Sent countdown_complete to TARS")
+
+
+def create_gui_agent(main_window: MainWindow, 
+                     device: str = "wlp0s20f3", 
+                     port: int = 5670) -> GUIAgent:
+    """
+    Factory function to create and start GUI agent
+    
+    Args:
+        main_window: MainWindow instance to wrap
+        device: Network device name
+        port: Ingescape port
+        
+    Returns:
+        Initialized and started GUIAgent
+    """
+    gui_agent = GUIAgent(main_window, device=device, port=port)
+    gui_agent.start()
+    return gui_agent
+
+
+if __name__ == "__main__":
+    """
+    Standalone test - can run GUI Agent independently
+    """
+    print("GUI Agent standalone mode - creating minimal window")
+    app = QApplication(sys.argv)
+    
+    # Import and create MainWindow
+    from main import MainWindow
+    window = MainWindow()
+    
+    # Create and start GUI agent
+    gui_agent = create_gui_agent(window)
+    
+    # Run Qt event loop
+    exit_code = app.exec()
+    
+    # Cleanup
+    gui_agent.stop()
+    sys.exit(exit_code)

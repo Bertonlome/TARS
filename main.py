@@ -267,6 +267,15 @@ class MainWindow(QMainWindow):
         # Page manager will handle initial page navigation
         widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet()))
         widgets = self.ui
+        
+        # INITIALIZE GUI AGENT (Phase 4)
+        # ///////////////////////////////////////////////////////////////
+        # GUI Agent wraps this MainWindow and bridges TARS ↔ GUI via Ingescape
+        # Temporarily disabled during development - will be re-enabled after testing
+        # from gui_agent import create_gui_agent
+        # self.gui_agent = create_gui_agent(self, device="wlp0s20f3", port=5670)
+        # print("✅ GUI Agent initialized and connected to TARS Agent")
+        
     # End of init
     # /////////////////////////////////////////////////////////////
     
@@ -283,11 +292,12 @@ class MainWindow(QMainWindow):
             home_page.task_not_allowed_signal.connect(self.handle_task_not_allowed)
             home_page.countdown_zero_signal.connect(self.handle_countdown_zero)
             
-            # Connect agent alert signals to home page
-            if hasattr(self, 'agent') and self.agent:
-                self.agent.alertRequested.connect(home_page.displayAlert)
-                self.agent.clearAlertRequested.connect(home_page.clearAlert)
-                self.agent.interactionPanelMessage.connect(self.display_interaction_panel_message)
+            # TODO Phase 4: Agent signals will be replaced by GUI Agent Ingescape subscriptions
+            # These connections are temporarily commented out during refactorization
+            # if hasattr(self, 'agent') and self.agent:
+            #     self.agent.alertRequested.connect(home_page.displayAlert)
+            #     self.agent.clearAlertRequested.connect(home_page.clearAlert)
+            #     self.agent.interactionPanelMessage.connect(self.display_interaction_panel_message)
     
     def display_interaction_panel_message(self, message: str, tars_input: str = ""):
         """Display message in interaction panel TARS input area"""
