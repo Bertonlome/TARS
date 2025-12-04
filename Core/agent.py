@@ -1551,7 +1551,30 @@ class TarsAgent:
         agent_object = my_data
         assert isinstance(agent_object, Echo)
         
-        if name == "next_step":
+        # GUI Agent → TARS Agent inputs (Phase 6)
+        if name == "task_acknowledged":
+            print("✅ Task acknowledged from GUI")
+            self.task_acked[0] = True
+            
+        elif name == "task_cancelled":
+            print("❌ Task cancelled by user - reclaiming authority")
+            # TODO: Implement task cancellation logic (pause FSM, revert state, etc.)
+            
+        elif name == "start_procedure":
+            print("▶️  Start procedure requested from GUI")
+            self.is_on_off[0] = True
+            
+        elif name == "stop_procedure":
+            print("⏸️  Stop procedure requested from GUI")
+            self.is_on_off[0] = False
+            
+        elif name == "countdown_complete":
+            print("⏱️  Countdown complete signal received from GUI")
+            if self.countdown_completion_event:
+                self.countdown_completion_event.set()
+        
+        # Dev mode inputs
+        elif name == "next_step":
             print("🔧 DEV MODE: Next step impulsion received")
             # Force FSM to next state
             if self.fsm:
@@ -1590,7 +1613,15 @@ class TarsAgent:
     def bool_input_callback(self, io_type, name, value_type, value, my_data):
         agent_object = my_data
         assert isinstance(agent_object, Echo)
-        if name == "On_Off":
+        
+        # GUI Agent → TARS Agent inputs (Phase 6)
+        if name == "task_approval":
+            print(f"{'✅ Task APPROVED' if value else '❌ Task DENIED'} by user")
+            # Update approval status
+            # TODO: Map to specific approval variables based on current task
+            
+        # Simulator inputs
+        elif name == "On_Off":
             self.is_on_off[0] = value
         elif name == "l_bottle_arm":
             agent_object.l_bottle_arm_i = value
@@ -1608,9 +1639,27 @@ class TarsAgent:
                 self.engine_failed_side = "Right"
 
     def integer_input_callback(self, io_type, name, value_type, value, my_data):
-        igs.info(f"Input {name} written to {value}")
         agent_object = my_data
         assert isinstance(agent_object, Echo)
+        
+        # GUI Agent → TARS Agent approval inputs (Phase 6)
+        if name == "allow_comm_atc":
+            print(f"ATC Communication approval: {value} (0=NOT_ANSWERED, 1=APPROVED, 2=DENIED)")
+            self.is_allowed_to_comm_atc[0] = ApprovalStatus(value)
+        elif name == "allow_trim_rudder":
+            print(f"Trim/Rudder approval: {value}")
+            self.is_allowed_trim_rudder[0] = ApprovalStatus(value)
+        elif name == "allow_engage_autopilot":
+            print(f"Autopilot engagement approval: {value}")
+            # TODO: Add self.is_allowed_engage_autopilot variable
+        elif name == "allow_declare_panpan":
+            print(f"PAN-PAN declaration approval: {value}")
+            # TODO: Add self.is_allowed_declare_panpan variable
+        elif name == "allow_request_vectors":
+            print(f"Request vectors approval: {value}")
+            self.is_requesting_vectors[0] = ApprovalStatus(value)
+        else:
+            igs.info(f"Input {name} written to {value}")
 
     def double_input_callback(self, io_type, name, value_type, value, my_data):
         #start_time = time.perf_counter()
@@ -1705,7 +1754,18 @@ class TarsAgent:
     def string_input_callback(self, io_type, name, value_type, value, my_data):
         agent_object = my_data
         assert isinstance(agent_object, Echo)
-        if name == "speech_input":
+        
+        # GUI Agent → TARS Agent string inputs (Phase 6)
+        if name == "emergency_inject":
+            print(f"🚨 Emergency procedure inject requested: {value}")
+            # TODO: Implement emergency procedure injection logic
+            
+        elif name == "speech_command":
+            print(f"🎤 Speech command received from GUI: {value}")
+            # Delegate to existing speech_input handler
+            self.string_input_callback(io_type, "speech_input", value_type, value, my_data)
+            
+        elif name == "speech_input":
             agent_object.speech_input_i = value
             
             # Match speech input to ALL matching commands
@@ -1888,6 +1948,21 @@ class TarsAgent:
         igs.input_create("latitude", igs.DOUBLE_T, None)  # Latitude
         igs.input_create("longitude", igs.DOUBLE_T, None)  # Longitude
 
+        # GUI Agent → TARS Agent inputs (Phase 6: from message_protocol.py)
+        igs.input_create("task_approval", igs.BOOL_T, None)  # User approved/denied current task
+        igs.input_create("task_acknowledged", igs.IMPULSION_T, None)  # User acknowledged task completion
+        igs.input_create("task_cancelled", igs.IMPULSION_T, None)  # User cancelled action (reclaim authority)
+        igs.input_create("allow_comm_atc", igs.INTEGER_T, None)  # Approval for ATC communication
+        igs.input_create("allow_trim_rudder", igs.INTEGER_T, None)  # Approval for trim/rudder adjustment
+        igs.input_create("allow_engage_autopilot", igs.INTEGER_T, None)  # Approval for autopilot engagement
+        igs.input_create("allow_declare_panpan", igs.INTEGER_T, None)  # Approval for PAN-PAN declaration
+        igs.input_create("allow_request_vectors", igs.INTEGER_T, None)  # Approval for requesting vectors
+        igs.input_create("start_procedure", igs.IMPULSION_T, None)  # Start FSM execution
+        igs.input_create("stop_procedure", igs.IMPULSION_T, None)  # Stop/pause FSM execution
+        igs.input_create("emergency_inject", igs.STRING_T, None)  # Emergency procedure name to inject
+        igs.input_create("countdown_complete", igs.IMPULSION_T, None)  # Countdown timer reached zero
+        igs.input_create("speech_command", igs.STRING_T, None)  # Voice command from STT
+
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("next_step", self.impulsion_input_callback, self.agent)
         igs.observe_input("previous_step", self.impulsion_input_callback, self.agent)
@@ -1937,6 +2012,21 @@ class TarsAgent:
         igs.observe_input("pitot_heat", self.bool_input_callback, self.agent)  # Pitot heat on/off
         igs.observe_input("latitude", self.double_input_callback, self.agent)  # Latitude
         igs.observe_input("longitude", self.double_input_callback, self.agent)  # Longitude
+
+        # GUI Agent → TARS Agent observers (Phase 6)
+        igs.observe_input("task_approval", self.bool_input_callback, self.agent)
+        igs.observe_input("task_acknowledged", self.impulsion_input_callback, self.agent)
+        igs.observe_input("task_cancelled", self.impulsion_input_callback, self.agent)
+        igs.observe_input("allow_comm_atc", self.integer_input_callback, self.agent)
+        igs.observe_input("allow_trim_rudder", self.integer_input_callback, self.agent)
+        igs.observe_input("allow_engage_autopilot", self.integer_input_callback, self.agent)
+        igs.observe_input("allow_declare_panpan", self.integer_input_callback, self.agent)
+        igs.observe_input("allow_request_vectors", self.integer_input_callback, self.agent)
+        igs.observe_input("start_procedure", self.impulsion_input_callback, self.agent)
+        igs.observe_input("stop_procedure", self.impulsion_input_callback, self.agent)
+        igs.observe_input("emergency_inject", self.string_input_callback, self.agent)
+        igs.observe_input("countdown_complete", self.impulsion_input_callback, self.agent)
+        igs.observe_input("speech_command", self.string_input_callback, self.agent)
 
         igs.log_set_console(True)
         igs.log_set_console_level(igs.LOG_INFO)
