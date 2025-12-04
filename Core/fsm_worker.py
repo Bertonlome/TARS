@@ -225,6 +225,24 @@ class FSMWorker:
                         fsm.current_state = t.to_state
                         self.current_state = fsm.current_state
                         
+                        # Reset acknowledgment and approval flags after successful transition
+                        # This prevents conditions from being stuck True across multiple states
+                        if hasattr(self.agent, 'task_acked'):
+                            self.agent.task_acked[0] = False
+                        
+                        # Reset all approval flags (they're consumed by the transition)
+                        if hasattr(self.agent, 'is_allowed_to_comm_atc'):
+                            from Core.agent import ApprovalStatus
+                            self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.NOT_ANSWERED
+                        if hasattr(self.agent, 'is_allowed_to_trim_rudder'):
+                            self.agent.is_allowed_to_trim_rudder[0] = ApprovalStatus.NOT_ANSWERED
+                        if hasattr(self.agent, 'is_allowed_to_declare_panpan'):
+                            self.agent.is_allowed_to_declare_panpan[0] = ApprovalStatus.NOT_ANSWERED
+                        if hasattr(self.agent, 'is_requesting_vectors'):
+                            self.agent.is_requesting_vectors[0] = ApprovalStatus.NOT_ANSWERED
+                        if hasattr(self.agent, 'is_allowed_to_engage_ap'):
+                            self.agent.is_allowed_to_engage_ap[0] = ApprovalStatus.NOT_ANSWERED
+                        
                         # Notify via callback instead of Qt Signal
                         if self._state_changed_callback:
                             self._state_changed_callback(fsm.current_state)

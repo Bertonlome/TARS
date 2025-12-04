@@ -31,6 +31,10 @@ class GUIAgent(QObject):
     _clear_alert_signal = Signal()
     _interaction_message_signal = Signal(str, str)  # (message, tars_input)
     _state_changed_signal = Signal(dict)  # State dict from JSON
+    _next_state_signal = Signal(dict)  # Next state dict from JSON
+    _previous_state_signal = Signal(dict)  # Previous state dict from JSON
+    _tts_speak_signal = Signal(str)  # TTS text being spoken
+    _tts_finished_signal = Signal(str)  # TTS finished speaking
     
     def __init__(self, main_window: MainWindow, agent_name: str = "GUI Agent", 
                  device: str = "wlp0s20f3", port: int = 5670):
@@ -45,6 +49,10 @@ class GUIAgent(QObject):
         self._clear_alert_signal.connect(self._on_clear_alert)
         self._interaction_message_signal.connect(self._on_interaction_message)
         self._state_changed_signal.connect(self._on_state_changed)
+        self._next_state_signal.connect(self._on_next_state_changed)
+        self._previous_state_signal.connect(self._on_previous_state_changed)
+        self._tts_speak_signal.connect(self.main_window.on_tts_speak)
+        self._tts_finished_signal.connect(self.main_window.on_tts_finished)
         
         # Connect MainWindow user action signals to TARS inputs
         self._connect_ui_to_tars()
@@ -80,10 +88,23 @@ class GUIAgent(QObject):
         igs.input_create("interaction_message", igs.STRING_T, None)
         
         # Observe inputs
+        igs.observe_input("current_state", self._on_current_state_input, None)
+        igs.observe_input("next_state", self._on_next_state_input, None)
+        igs.observe_input("previous_state", self._on_previous_state_input, None)
+        igs.observe_input("countdown_current", self._on_countdown_current_input, None)
+        igs.observe_input("countdown_next", self._on_countdown_next_input, None)
+        igs.observe_input("countdown_max_current", self._on_countdown_max_current_input, None)
+        igs.observe_input("countdown_max_next", self._on_countdown_max_next_input, None)
         igs.observe_input("alert", self._on_alert_input, None)
         igs.observe_input("alert_clear", self._on_alert_clear_input, None)
+        igs.observe_input("condition_violated", self._on_condition_violated_input, None)
+        igs.observe_input("condition_restored", self._on_condition_restored_input, None)
+        igs.observe_input("tts_speaking", self._on_tts_speaking_input, None)
+        igs.observe_input("tts_text", self._on_tts_text_input, None)
+        igs.observe_input("action_about_to_fire", self._on_action_about_to_fire_input, None)
+        igs.observe_input("checklist_item_complete", self._on_checklist_item_complete_input, None)
+        igs.observe_input("emergency_procedure_inject", self._on_emergency_procedure_inject_input, None)
         igs.observe_input("interaction_message", self._on_interaction_message_input, None)
-        igs.observe_input("current_state", self._on_current_state_input, None)
         
         # Create outputs (send to TARS)
         igs.output_create("task_approval", igs.BOOL_T, None)
@@ -149,6 +170,120 @@ class GUIAgent(QObject):
         except Exception as e:
             print(f"Error processing current state: {e}")
     
+    def _on_next_state_input(self, io_type, name, value_type, value, my_data):
+        """Handle next state update from TARS"""
+        try:
+            state_data = json.loads(value)
+            self._next_state_signal.emit(state_data)
+        except Exception as e:
+            print(f"Error processing next state: {e}")
+    
+    def _on_previous_state_input(self, io_type, name, value_type, value, my_data):
+        """Handle previous state update from TARS"""
+        try:
+            state_data = json.loads(value)
+            self._previous_state_signal.emit(state_data)
+        except Exception as e:
+            print(f"Error processing previous state: {e}")
+    
+    def _on_countdown_current_input(self, io_type, name, value_type, value, my_data):
+        """Handle countdown_current update from TARS"""
+        try:
+            # Value is already an integer from Ingescape
+            print(f"📊 Countdown current: {value}s")
+            # Could update a countdown display here if needed
+        except Exception as e:
+            print(f"Error processing countdown_current: {e}")
+    
+    def _on_countdown_next_input(self, io_type, name, value_type, value, my_data):
+        """Handle countdown_next update from TARS"""
+        try:
+            print(f"📊 Countdown next: {value}s")
+            # Could update next task countdown display here if needed
+        except Exception as e:
+            print(f"Error processing countdown_next: {e}")
+    
+    def _on_countdown_max_current_input(self, io_type, name, value_type, value, my_data):
+        """Handle countdown_max_current update from TARS"""
+        try:
+            # Used for progress calculation
+            pass
+        except Exception as e:
+            print(f"Error processing countdown_max_current: {e}")
+    
+    def _on_countdown_max_next_input(self, io_type, name, value_type, value, my_data):
+        """Handle countdown_max_next update from TARS"""
+        try:
+            # Used for progress calculation
+            pass
+        except Exception as e:
+            print(f"Error processing countdown_max_next: {e}")
+    
+    def _on_condition_violated_input(self, io_type, name, value_type, value, my_data):
+        """Handle condition violated notification from TARS"""
+        try:
+            condition_data = json.loads(value)
+            print(f"⚠️ Condition violated: {condition_data.get('condition_name')} for {condition_data.get('task_object')}")
+            # Could display warning in UI
+        except Exception as e:
+            print(f"Error processing condition_violated: {e}")
+    
+    def _on_condition_restored_input(self, io_type, name, value_type, value, my_data):
+        """Handle condition restored notification from TARS"""
+        try:
+            condition_data = json.loads(value)
+            print(f"✅ Condition restored: {condition_data.get('condition_name')} for {condition_data.get('task_object')}")
+            # Could clear warning in UI
+        except Exception as e:
+            print(f"Error processing condition_restored: {e}")
+    
+    def _on_tts_speaking_input(self, io_type, name, value_type, value, my_data):
+        """Handle TTS speaking status from TARS"""
+        try:
+            is_speaking = bool(value)
+            print(f"🔊 TTS speaking: {is_speaking}")
+            # State is tracked but visual update happens via tts_text
+        except Exception as e:
+            print(f"Error processing tts_speaking: {e}")
+    
+    def _on_tts_text_input(self, io_type, name, value_type, value, my_data):
+        """Handle TTS text from TARS"""
+        try:
+            if value:  # TTS started with text
+                print(f"🔊 TTS text: {value[:50]}...")
+                self._tts_speak_signal.emit(value)  # Show speaking animation + text
+            else:  # TTS finished (empty text)
+                self._tts_finished_signal.emit("")  # Hide speaking animation
+        except Exception as e:
+            print(f"Error processing tts_text: {e}")
+    
+    def _on_action_about_to_fire_input(self, io_type, name, value_type, value, my_data):
+        """Handle action about to fire notification from TARS"""
+        try:
+            state_data = json.loads(value)
+            print(f"⚡ Action about to fire: {state_data.get('task_object')}")
+            # Could show pre-action indicator in UI
+        except Exception as e:
+            print(f"Error processing action_about_to_fire: {e}")
+    
+    def _on_checklist_item_complete_input(self, io_type, name, value_type, value, my_data):
+        """Handle checklist item completion from TARS"""
+        try:
+            item_data = json.loads(value)
+            print(f"✅ Checklist item complete: {item_data.get('task_object')}")
+            # Could mark checklist item as complete in UI
+        except Exception as e:
+            print(f"Error processing checklist_item_complete: {e}")
+    
+    def _on_emergency_procedure_inject_input(self, io_type, name, value_type, value, my_data):
+        """Handle emergency procedure injection from TARS"""
+        try:
+            procedure_name = value
+            print(f"🚨 Emergency procedure inject: {procedure_name}")
+            # Could inject emergency procedure into timeline
+        except Exception as e:
+            print(f"Error processing emergency_procedure_inject: {e}")
+    
     # ========================================================================
     # GUI Updates: Qt signal handlers (run in main thread)
     # ========================================================================
@@ -197,6 +332,34 @@ class GUIAgent(QObject):
         
         # Call MainWindow's update_state method
         self.main_window.update_state(state)
+    
+    def _on_next_state_changed(self, state_data: dict):
+        """Handle next state update from TARS (main thread)"""
+        print(f"📊 Next state received: {state_data.get('procedure')} - {state_data.get('task_object')}")
+        
+        # Update next state labels in UI
+        next_procedure_text = state_data.get('procedure', '')
+        next_task_text = f"{state_data.get('task_object', '')}     {state_data.get('value', '')}"
+        
+        self.main_window.ui.n_g_label_2.setText(next_procedure_text)
+        self.main_window.ui.n_t_label_2.setText(next_task_text)
+        
+        # Store for later use (timeline, etc.)
+        self.main_window.next_state = state_data
+    
+    def _on_previous_state_changed(self, state_data: dict):
+        """Handle previous state update from TARS (main thread)"""
+        print(f"📊 Previous state received: {state_data.get('procedure')} - {state_data.get('task_object')}")
+        
+        # Update previous state labels in UI
+        previous_procedure_text = state_data.get('procedure', '')
+        previous_task_text = f"{state_data.get('task_object', '')}     {state_data.get('value', '')}"
+        
+        self.main_window.ui.p_g_2.setText(previous_procedure_text)
+        self.main_window.ui.p_t_2.setText(previous_task_text)
+        
+        # Store for later use
+        self.main_window.previous_state = state_data
     
     # ========================================================================
     # GUI → TARS: Connect UI actions to Ingescape outputs

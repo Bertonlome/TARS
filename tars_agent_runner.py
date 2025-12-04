@@ -89,21 +89,150 @@ def main():
     tts_event.set()  # Initially set (no TTS in progress)
     tars_agent.tts_completion_event = tts_event
     
+    # Set up TTS callbacks to publish speaking status via Ingescape
+    from Core import tts
+    
+    def on_tts_speak(text):
+        """Publish TTS speaking start via Ingescape"""
+        try:
+            import ingescape as igs
+            igs.output_set_bool("tts_speaking", True)
+            igs.output_set_string("tts_text", text)
+            print(f"📤 TTS started: {text[:50]}...")
+        except Exception as e:
+            print(f"Error publishing TTS start: {e}")
+    
+    def on_tts_finished(text):
+        """Publish TTS speaking end via Ingescape"""
+        try:
+            import ingescape as igs
+            igs.output_set_bool("tts_speaking", False)
+            igs.output_set_string("tts_text", "")
+            print(f"📤 TTS finished")
+            # Signal completion event for FSM
+            if tars_agent.tts_completion_event:
+                tars_agent.tts_completion_event.set()
+        except Exception as e:
+            print(f"Error publishing TTS finish: {e}")
+    
+    tts.register_speak_callback(on_tts_speak)
+    tts.register_finished_callback(on_tts_finished)
+    
     # Set up FSM worker callbacks to publish via Ingescape
     def on_state_changed(state):
         """Publish state change via Ingescape"""
         from Core.message_protocol import encode_state_to_json
+        import ingescape as igs
+        
+        try:
+            # Publish current state
+            state_json = encode_state_to_json(state)
+            igs.output_set_string("current_state", state_json)
+            print(f"📤 Published current_state: {state.procedure} - {state.task_object}")
+            
+            # Publish previous state (from FSM history)
+            if hasattr(tars_agent.fsm, 'state_history') and len(tars_agent.fsm.state_history) > 0:
+                previous_state = tars_agent.fsm.state_history[-1]
+                previous_json = encode_state_to_json(previous_state)
+                igs.output_set_string("previous_state", previous_json)
+                print(f"📤 Published previous_state: {previous_state.procedure} - {previous_state.task_object}")
+            
+            # Publish next state (find transition from current state)
+            next_state = None
+            for transition in tars_agent.fsm.transitions:
+                if transition.from_state == state:
+                    next_state = transition.to_state
+                    break
+            
+            if next_state:
+                next_json = encode_state_to_json(next_state)
+                igs.output_set_string("next_state", next_json)
+                print(f"📤 Published next_state: {next_state.procedure} - {next_state.task_object}")
+                
+                # Publish countdown values
+                # Current countdown: delay_before_action
+                try:
+                    current_delay = state.delay_before_action
+                    if current_delay and str(current_delay).replace('.','',1).isdigit():
+                        current_seconds = int(float(current_delay))
+                        igs.output_set_int("countdown_current", current_seconds)
+                        igs.output_set_int("countdown_max_current", current_seconds)
+                        print(f"📤 Published countdown_current: {current_seconds}s")
+                except (ValueError, TypeError, AttributeError):
+                    igs.output_set_int("countdown_current", 0)
+                    igs.output_set_int("countdown_max_current", 0)
+                
+                # Next countdown: current delay_after + next delay_before
+                try:
+                    current_delay_after = state.delay_after_action
+                    next_delay_before = next_state.delay_before_action
+                    
+                    # Calculate total if numeric
+                    current_after = int(float(current_delay_after)) if current_delay_after and str(current_delay_after).replace('.','',1).isdigit() else 0
+                    next_before = int(float(next_delay_before)) if next_delay_before and str(next_delay_before).replace('.','',1).isdigit() else 0
+                    total_next = current_after + next_before
+                    
+                    igs.output_set_int("countdown_next", total_next)
+                    igs.output_set_int("countdown_max_next", total_next)
+                    print(f"📤 Published countdown_next: {total_next}s")
+                except (ValueError, TypeError, AttributeError):
+                    igs.output_set_int("countdown_next", 0)
+                    igs.output_set_int("countdown_max_next", 0)
+            
+        except Exception as e:
+            print(f"Error publishing state: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def on_action_about_to_fire(state):
+        """Publish action about to fire notification via Ingescape"""
+        from Core.message_protocol import encode_state_to_json
         try:
             state_json = encode_state_to_json(state)
             import ingescape as igs
-            igs.output_set_string("current_state", state_json)
-            print(f"📤 Published state change: {state.procedure} - {state.task_object}")
+            igs.output_set_string("action_about_to_fire", state_json)
+            print(f"📤 Published action about to fire: {state.procedure} - {state.task_object}")
         except Exception as e:
-            print(f"Error publishing state: {e}")
+            print(f"Error publishing action about to fire: {e}")
+    
+    def on_condition_violated(state, condition_name):
+        """Publish condition violation via Ingescape"""
+        from Core.message_protocol import create_condition_message
+        try:
+            import ingescape as igs
+            condition_json = create_condition_message(
+                state.procedure,
+                state.task_object,
+                state.value,
+                condition_name
+            )
+            igs.output_set_string("condition_violated", condition_json)
+            print(f"📤 Published condition violated: {state.procedure} - {state.task_object} - {condition_name}")
+        except Exception as e:
+            print(f"Error publishing condition violated: {e}")
+    
+    def on_condition_restored(state, condition_name):
+        """Publish condition restoration via Ingescape"""
+        from Core.message_protocol import create_condition_message
+        try:
+            import ingescape as igs
+            condition_json = create_condition_message(
+                state.procedure,
+                state.task_object,
+                state.value,
+                condition_name
+            )
+            igs.output_set_string("condition_restored", condition_json)
+            print(f"📤 Published condition restored: {state.procedure} - {state.task_object} - {condition_name}")
+        except Exception as e:
+            print(f"Error publishing condition restored: {e}")
     
     # Start FSM worker in background thread  
     fsm_worker = FSMWorkerCore(tars_agent)
     fsm_worker.set_state_changed_callback(on_state_changed)
+    fsm_worker.set_action_about_to_fire_callback(on_action_about_to_fire)
+    fsm_worker.set_condition_violated_callback(on_condition_violated)
+    fsm_worker.set_condition_restored_callback(on_condition_restored)
     fsm_thread = threading.Thread(target=fsm_worker.run, daemon=True)
     fsm_thread.start()
     print("✅ FSM Worker started in background thread")

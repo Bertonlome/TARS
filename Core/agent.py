@@ -10,7 +10,7 @@ from Core.echo import *
 from Core.fsm import FiniteStateMachine, State, Transition
 from Core.tts import speak_wait, set_agent_reference
 from Core.speech_commands import match_command, match_all_commands
-from Core.message_protocol import encode_state_to_json, create_alert_message, create_condition_message
+from Core.message_protocol import encode_state_to_json, create_alert_message, create_condition_message, create_interaction_message
 import csv
 import json
 import time as time_module
@@ -1142,16 +1142,13 @@ class TarsAgent:
                 self.is_requesting_vectors[0] == ApprovalStatus.DENIED)
     
     def is_allowed_trim_rudder(self):
-        if self.is_allowed_to_trim_rudder[0] == ApprovalStatus.APPROVED:
-            self.is_allowed_to_trim_rudder[0] = ApprovalStatus.NOT_ANSWERED
-            return True
-        return False
+        """Check if trim rudder is allowed - doesn't reset flag (reset happens after state change)"""
+        return self.is_allowed_to_trim_rudder[0] == ApprovalStatus.APPROVED
     
     def is_acked(self):
-        if self.task_acked[0]:
-            self.task_acked[0] = False
-            return True
-        return False
+        # Don't reset the flag here - it should persist until state changes
+        # The flag will be reset by the FSM after successful transition
+        return self.task_acked[0]
     
     def is_cab_alt_ok(self):
         if self.agent.cabin_altitude_i is not None and self.agent.cabin_altitude_i < 8000:
@@ -1238,19 +1235,24 @@ class TarsAgent:
     def check_pitot_heat_send_signals(self):
         if self.agent.pitot_heat_i is not None:
             if self.agent.pitot_heat_i:
-                self.interactionPanelMessage.emit("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
+                msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
+                igs.output_set_string("interaction_message", msg)
             else:
-                self.interactionPanelMessage.emit("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
+                msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
+                igs.output_set_string("interaction_message", msg)
     
     def check_engine_spool_send_signal(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
             diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
             if diff > 5 and not self.engine_spool_alert_sent:
-                self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 mismatch detected!")
+                msg = create_interaction_message(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 mismatch detected!")
+                igs.output_set_string("interaction_message", msg)
                 self.on_speak_action("Engine spool mismatch")
-                self.alertRequested.emit("Engine N1 mismatch detected!", "red")
+                alert = create_alert_message("Engine N1 mismatch detected!", "red", "critical")
+                igs.output_set_string("alert", alert)
             elif diff <= 5:
-                self.interactionPanelMessage.emit(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 values are within normal limits.")
+                msg = create_interaction_message(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%\nN1 Difference: {diff:.1f}%", f"Engine N1 values are within normal limits.")
+                igs.output_set_string("interaction_message", msg)
                 self.on_speak_action("Engine spool normal")
     
     def is_n1_percent_above_90(self):
@@ -1390,12 +1392,14 @@ class TarsAgent:
             if self.agent.l_bottle_arm_i == 1:
                 return True
             elif self.agent.r_bottle_arm_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Right fire bottle activated instead of Left!")
+                msg = create_interaction_message("", "ALERT: Right fire bottle activated instead of Left!")
+                igs.output_set_string("interaction_message", msg)
         elif self.engine_failed_side == "Right":
             if self.agent.r_bottle_arm_i == 1:
                 return True
             elif self.agent.l_bottle_arm_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Left fire bottle activated instead of Right!")
+                msg = create_interaction_message("", "ALERT: Left fire bottle activated instead of Right!")
+                igs.output_set_string("interaction_message", msg)
         elif self.agent.l_bottle_arm_i == 1 or self.agent.r_bottle_arm_i == 1:
             return True
         return False
@@ -1405,14 +1409,17 @@ class TarsAgent:
             if self.agent.l_throttle_i == -1:
                 return True
             elif self.agent.r_throttle_i == -1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Right throttle lever moved to cutoff instead of Left!")
+                msg = create_interaction_message("", "ALERT: Right throttle lever moved to cutoff instead of Left!")
+                igs.output_set_string("interaction_message", msg)
         elif self.engine_failed_side == "Right":
             if self.agent.r_throttle_i == -1:
                 return True
             elif self.agent.l_throttle_i == -1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Left throttle lever moved to cutoff instead of Right!")
+                msg = create_interaction_message("", "ALERT: Left throttle lever moved to cutoff instead of Right!")
+                igs.output_set_string("interaction_message", msg)
         elif self.agent.r_throttle_i == -1 or self.agent.l_throttle_i == -1:
-            self.interactionPanelMessage.emit(f"", f"ALERT: Engine failed side not determined!")
+            msg = create_interaction_message("", "ALERT: Engine failed side not determined!")
+            igs.output_set_string("interaction_message", msg)
             return True
         return False
     
@@ -1421,14 +1428,17 @@ class TarsAgent:
             if self.agent.fuel_boost_l_i == 1:
                 return True
             elif self.agent.fuel_boost_r_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Right fuel boost pump activated instead of Left!")
+                msg = create_interaction_message("", "ALERT: Right fuel boost pump activated instead of Left!")
+                igs.output_set_string("interaction_message", msg)
         elif self.engine_failed_side == "Right":
             if self.agent.fuel_boost_r_i == 1:
                 return True
             elif self.agent.fuel_boost_l_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Left fuel boost pump activated instead of Right!")
+                msg = create_interaction_message("", "ALERT: Left fuel boost pump activated instead of Right!")
+                igs.output_set_string("interaction_message", msg)
         elif self.agent.fuel_boost_l_i == 1 or self.agent.fuel_boost_r_i == 1:
-            self.interactionPanelMessage.emit(f"", f"ALERT: Engine failed side not determined!")
+            msg = create_interaction_message("", "ALERT: Engine failed side not determined!")
+            igs.output_set_string("interaction_message", msg)
             return True
         return False
 
@@ -1437,12 +1447,14 @@ class TarsAgent:
             if self.agent.fuel_boost_l_i == 0:
                 return True
             elif self.agent.fuel_boost_r_i == 0:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Right fuel boost pump deactivated instead of Left!")
+                msg = create_interaction_message("", "ALERT: Right fuel boost pump deactivated instead of Left!")
+                igs.output_set_string("interaction_message", msg)
         elif self.engine_failed_side == "Right":
             if self.agent.fuel_boost_r_i == 0:
                 return True
             elif self.agent.fuel_boost_l_i == 0:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Left fuel boost pump deactivated instead of Right!")
+                msg = create_interaction_message("", "ALERT: Left fuel boost pump deactivated instead of Right!")
+                igs.output_set_string("interaction_message", msg)
         elif self.agent.fuel_boost_l_i == 0 and self.agent.fuel_boost_r_i == 0:
             return True
         return False
@@ -1463,12 +1475,14 @@ class TarsAgent:
             if self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0:
                 return True
             elif self.agent.r_throttle_i is not None and self.agent.r_throttle_i == 0:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Right throttle lever moved to idle instead of Left!")
+                msg = create_interaction_message("", "ALERT: Right throttle lever moved to idle instead of Left!")
+                igs.output_set_string("interaction_message", msg)
         elif self.engine_failed_side == "Right":
             if self.agent.r_throttle_i is not None and self.agent.r_throttle_i == 0:
                 return True
             elif self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Left throttle lever moved to idle instead of Right!")
+                msg = create_interaction_message("", "ALERT: Left throttle lever moved to idle instead of Right!")
+                igs.output_set_string("interaction_message", msg)
         elif self.agent.l_throttle_i is not None and self.agent.l_throttle_i == 0 or self.agent.r_throttle_i == 0:
             return True
         return False
@@ -1478,12 +1492,14 @@ class TarsAgent:
             if self.agent.l_gen_switch_i == 1:
                 return True
             elif self.agent.r_gen_switch_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Right generator switch turned off instead of Left!")
+                msg = create_interaction_message("", "ALERT: Right generator switch turned off instead of Left!")
+                igs.output_set_string("interaction_message", msg)
         elif self.engine_failed_side == "Right":
             if self.agent.r_gen_switch_i == 1:
                 return True
             elif self.agent.l_gen_switch_i == 1:
-                self.interactionPanelMessage.emit(f"", f"ALERT: Left generator switch turned off instead of Right!")
+                msg = create_interaction_message("", "ALERT: Left generator switch turned off instead of Right!")
+                igs.output_set_string("interaction_message", msg)
         elif self.agent.l_gen_switch_i == 1 or self.agent.r_gen_switch_i == 1:
             return True
         return False
@@ -1645,10 +1661,10 @@ class TarsAgent:
         # GUI Agent → TARS Agent approval inputs (Phase 6)
         if name == "allow_comm_atc":
             print(f"ATC Communication approval: {value} (0=NOT_ANSWERED, 1=APPROVED, 2=DENIED)")
-            self.is_allowed_to_comm_atc[0] = ApprovalStatus(value)
+            self.is_allowed_to_comm_atc[0] = value  # Value is already 0/1/2
         elif name == "allow_trim_rudder":
             print(f"Trim/Rudder approval: {value}")
-            self.is_allowed_trim_rudder[0] = ApprovalStatus(value)
+            self.is_allowed_trim_rudder[0] = value  # Value is already 0/1/2
         elif name == "allow_engage_autopilot":
             print(f"Autopilot engagement approval: {value}")
             # TODO: Add self.is_allowed_engage_autopilot variable
@@ -1657,7 +1673,7 @@ class TarsAgent:
             # TODO: Add self.is_allowed_declare_panpan variable
         elif name == "allow_request_vectors":
             print(f"Request vectors approval: {value}")
-            self.is_requesting_vectors[0] = ApprovalStatus(value)
+            self.is_requesting_vectors[0] = value  # Value is already 0/1/2
         else:
             igs.info(f"Input {name} written to {value}")
 
@@ -2054,14 +2070,16 @@ class TarsAgent:
             return  # Already armed
         igs.output_set_double("speed_mode", 1.0)  # Arm speed mode
         self.on_speak_action("Speed mode armed.")
-        self.interactionPanelMessage.emit("", "Speed mode armed.")
+        msg = create_interaction_message("", "Speed mode armed.")
+        igs.output_set_string("interaction_message", msg)
     
     def arm_heading_mode_send_signal(self):
         if self.heading_mode == 2:
             return  # Already armed
         igs.output_set_double("heading_mode", 1.0)  # Arm heading mode
         self.on_speak_action("Heading mode armed.")
-        self.interactionPanelMessage.emit("", "Heading mode armed.")
+        msg = create_interaction_message("", "Heading mode armed.")
+        igs.output_set_string("interaction_message", msg)
     
     def engage_autopilot_action(self):
         # Check if denied
@@ -2077,7 +2095,8 @@ class TarsAgent:
             igs.output_set_double("autopilot_master", 1.0)  # Engage autopilot
             time.sleep(1)  # Wait a moment
             self.on_speak_action("Autopilot engaged.")
-            self.interactionPanelMessage.emit("", "Autopilot engaged.")
+            msg = create_interaction_message("", "Autopilot engaged.")
+            igs.output_set_string("interaction_message", msg)
             self.is_allowed_engage_autopilot[0] = ApprovalStatus.NOT_ANSWERED  # Reset
     
     def trim_action(self):
@@ -2111,11 +2130,13 @@ class TarsAgent:
                     # Only trim if slip is negative (ball left) - need to push right
                     if current_slip < -1:  # Ball is to the left, need right rudder
                         print(f"Current rudder trim: {current_trim}, slip: {current_slip:.2f}, trimming right...")
-                        self.interactionPanelMessage.emit(f"Trimming right rudder for left engine failure.", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        msg = create_interaction_message(f"Trimming right rudder for left engine failure.", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_string("interaction_message", msg)
                         igs.output_set_double("trim_rudder", current_trim + 0.1)  # Trim right
                     elif current_slip > 1:  # Ball is to the right, overshot - need left rudder
                         print(f"Overshot! Current trim: {current_trim}, slip: {current_slip:.2f}, trimming left...")
-                        self.interactionPanelMessage.emit(f"Correcting overshoot", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        msg = create_interaction_message(f"Correcting overshoot", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_string("interaction_message", msg)
                         igs.output_set_double("trim_rudder", current_trim - 0.1)  # Trim left to correct
                     else:
                         print(f"Near center (slip: {current_slip:.2f}), waiting for rudder release...")
@@ -2146,11 +2167,13 @@ class TarsAgent:
                     # Only trim if slip is positive (ball right) - need to push left
                     if current_slip > 1:  # Ball is to the right, need left rudder
                         print(f"Current rudder trim: {current_trim}, slip: {current_slip:.2f}, trimming left...")
-                        self.interactionPanelMessage.emit(f"Trimming left rudder for right engine failure.", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        msg = create_interaction_message(f"Trimming left rudder for right engine failure.", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_string("interaction_message", msg)
                         igs.output_set_double("trim_rudder", current_trim - 0.1)  # Trim left
                     elif current_slip < -1:  # Ball is to the left, overshot - need right rudder
                         print(f"Overshot! Current trim: {current_trim}, slip: {current_slip:.2f}, trimming right...")
-                        self.interactionPanelMessage.emit(f"Correcting overshoot", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        msg = create_interaction_message(f"Correcting overshoot", f"Current trim: {current_trim:.2f}, Slip: {current_slip:.2f}")
+                        igs.output_set_string("interaction_message", msg)
                         igs.output_set_double("trim_rudder", current_trim + 0.1)  # Trim right to correct
                     else:
                         print(f"Near center (slip: {current_slip:.2f}), waiting for rudder release...")
@@ -2170,7 +2193,8 @@ class TarsAgent:
             igs.output_set_double("yaw_damper", 1.0)  # Engage yaw damper
             time.sleep(1)  # Wait a moment
             self.on_speak_action("Yaw damper engaged.")
-            self.interactionPanelMessage.emit("", "Yaw damper engaged.")
+            msg = create_interaction_message("", "Yaw damper engaged.")
+            igs.output_set_string("interaction_message", msg)
     
     def contact_atc_action(self, message=None):
         # Check if denied
@@ -2189,18 +2213,22 @@ class TarsAgent:
 
     def check_slip_skid_action(self):
         if not self.is_slip_skid_centered():
-            self.alertRequested.emit("Slip/Skid indicator is not centered!", "red")
+            from Core.message_protocol import create_alert_message
+            alert_json = create_alert_message("Slip/Skid indicator is not centered!", "red", "warning")
+            igs.output_set_string("alert", alert_json)
         else:
-            self.clearAlertRequested.emit()
+            igs.output_set_impulsion("alert_clear")
     
     def dummy_action(self):
         print(f"Dummy action executed for {self.fsm.current_state}.")
     
     def check_electrical_load_action(self):
         if not self.is_electrical_load_under_limit():
-            self.alertRequested.emit("Electrical load is above 300 amps", "red")
+            from Core.message_protocol import create_alert_message
+            alert_json = create_alert_message("Electrical load is above 300 amps", "red", "warning")
+            igs.output_set_string("alert", alert_json)
         else:
-            self.clearAlertRequested.emit()
+            igs.output_set_impulsion("alert_clear")
 
 # Example usage
 if __name__ == "__main__":

@@ -360,6 +360,24 @@ def create_condition_message(procedure: str, task_object: str, value: str, condi
     })
 
 
+def create_interaction_message(message: str, tars_input: str = "") -> str:
+    """
+    Create interaction panel message JSON
+    
+    Args:
+        message: Main message text
+        tars_input: Optional TARS reasoning/input (default empty)
+        
+    Returns:
+        JSON string
+    """
+    import json
+    return json.dumps({
+        "message": message,
+        "tars_input": tars_input,
+    })
+
+
 # ============================================================================
 # PROTOCOL SUMMARY
 # ============================================================================
