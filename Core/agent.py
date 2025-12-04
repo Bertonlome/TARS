@@ -10,10 +10,12 @@ from Core.echo import *
 from Core.fsm import FiniteStateMachine, State, Transition
 from Core.tts import speak_wait, set_agent_reference
 from Core.speech_commands import match_command, match_all_commands
+from Core.message_protocol import encode_state_to_json, create_alert_message, create_condition_message
 import csv
+import json
+import time as time_module
 
 from ingescape import output_create
-from PySide6.QtCore import QObject, Signal
 
 # Direct import for better IDE support
 try:
@@ -61,14 +63,13 @@ class ApprovalStatus:
     DENIED = 2
 
 # Agent Class
-class TarsAgent(QObject):
-    # Define signals
-    alertRequested = Signal(str, str)  # (message, color)
-    clearAlertRequested = Signal()  # Clear alert signal
-    interactionPanelMessage = Signal(str, str)  # Send message to interaction panel
+class TarsAgent:
+    """
+    TARS Agent - Pure Python implementation with no Qt dependencies
+    Communicates via Ingescape bus using message protocol
+    """
     
     def __init__(self, agent_name="TARS Agent", device=DEFAULT_DEVICE, port=5670, verbose=False):
-        super().__init__()  # Initialize QObject
         self.agent_name = agent_name
         self.device = device
         self.port = port
@@ -1162,34 +1163,35 @@ class TarsAgent(QObject):
     
     def check_cab_alt_send_signal(self):
         if self.agent.cabin_altitude_i is not None:
-            if self.agent.cabin_altitude_i >= 8000:
-                self.interactionPanelMessage.emit(f"Cabin Altitude: {self.agent.cabin_altitude_i:.0f} ft", f"Cabin Altitude above 8000 ft!")
-            else:
-                self.interactionPanelMessage.emit(f"Cabin Altitude: {self.agent.cabin_altitude_i:.0f} ft", f"Cabin Altitude is within normal limits. (OK - below 8000 ft)")
+            message = f"Cabin Altitude: {self.agent.cabin_altitude_i:.0f} ft"
+            tars_input = f"Cabin Altitude above 8000 ft!" if self.agent.cabin_altitude_i >= 8000 else f"Cabin Altitude is within normal limits. (OK - below 8000 ft)"
+            igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def check_1500_ft_send_signal(self):
         if self.agent.altitude_i is not None:
-            if self.agent.altitude_i >= 1500:
-                self.interactionPanelMessage.emit(f"Altitude: {self.agent.altitude_i:.0f} ft", f"Altitude above 1500 ft.")
-            else:
-                self.interactionPanelMessage.emit(f"Altitude: {self.agent.altitude_i:.0f} ft", f"Altitude below 1500 ft.")
+            message = f"Altitude: {self.agent.altitude_i:.0f} ft"
+            tars_input = f"Altitude above 1500 ft." if self.agent.altitude_i >= 1500 else f"Altitude below 1500 ft."
+            igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def check_v2_plus_10_send_signal(self):
         global V_TWO
         v2_plus_10 = V_TWO + 10
         if self.agent.airspeed_i is not None:
-            if self.agent.airspeed_i >= v2_plus_10:
-                self.interactionPanelMessage.emit(f"Airspeed: {self.agent.airspeed_i:.0f} kts", f"Airspeed above V2 + 10 kts ({v2_plus_10} kts).")
-            else:
-                self.interactionPanelMessage.emit(f"Airspeed: {self.agent.airspeed_i:.0f} kts", f"Airspeed below V2 + 10 kts ({v2_plus_10} kts).")
+            message = f"Airspeed: {self.agent.airspeed_i:.0f} kts"
+            tars_input = f"Airspeed above V2 + 10 kts ({v2_plus_10} kts)." if self.agent.airspeed_i >= v2_plus_10 else f"Airspeed below V2 + 10 kts ({v2_plus_10} kts)."
+            igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def check_gear_up_send_signal(self):
         if self.agent.landing_gear_pos_i is not None:
-            self.interactionPanelMessage.emit(f"Landing Gear Position: {self.agent.landing_gear_pos_i}", f"Landing gear position is {self.agent.landing_gear_pos_i}.")
+            message = f"Landing Gear Position: {self.agent.landing_gear_pos_i}"
+            tars_input = f"Landing gear position is {self.agent.landing_gear_pos_i}."
+            igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def check_flaps_retracted_send_signal(self):
         if self.agent.flap_handle_pos_i is not None:
-            self.interactionPanelMessage.emit(f"Flap Handle Position: {self.agent.flap_handle_pos_i}", f"Flap handle position is {self.agent.flap_handle_pos_i}.")
+            message = f"Flap Handle Position: {self.agent.flap_handle_pos_i}"
+            tars_input = f"Flap handle position is {self.agent.flap_handle_pos_i}."
+            igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def is_electrical_load_under_limit(self):
         if self.engine_failed_side == "Left":
@@ -1218,16 +1220,18 @@ class TarsAgent(QObject):
                 diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
                 if diff <= 5:  # Assuming a threshold of 5% for even spool
                     self.engine_spool_alert_sent = False
-                    self.clearAlertRequested.emit()
+                    igs.output_set_impulsion("alert_clear")
                     return True
                 else:
-                    self.alertRequested.emit("Engine N1 mismatch detected!", "red")
+                    igs.output_set_string("alert", create_alert_message("Engine N1 mismatch detected!", "red", "warning"))
                     self.engine_spool_alert_sent = True
         return False
     
     def check_pitch_send_signal(self):
         if self.agent.pitch_i is not None and self.agent.pitch_i <= PITCH_TEN_DEGREES:
-            self.interactionPanelMessage.emit(f"Pitch Angle: {self.agent.pitch_i:.1f}°", f"Pitch angle below {PITCH_TEN_DEGREES}°.")
+            message = f"Pitch Angle: {self.agent.pitch_i:.1f}°"
+            tars_input = f"Pitch angle below {PITCH_TEN_DEGREES}°."
+            igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
             self.on_speak_action(f"Pitch angle low")
             
     
@@ -1852,6 +1856,25 @@ class TarsAgent(QObject):
         igs.output_create("declare_mayday", igs.IMPULSION_T, None)  # Impulsion to declare mayday
         igs.output_create("declare_pan", igs.IMPULSION_T, None)  # Impulsion to declare pan
         igs.output_create("request_vectors", igs.IMPULSION_T, None)  # Impulsion to request vectors
+        
+        # Message Protocol Outputs (TARS → GUI)
+        igs.output_create("current_state", igs.STRING_T, None)  # JSON encoded current FSM state
+        igs.output_create("next_state", igs.STRING_T, None)  # JSON encoded next FSM state
+        igs.output_create("previous_state", igs.STRING_T, None)  # JSON encoded previous FSM state
+        igs.output_create("countdown_current", igs.INTEGER_T, None)  # Current countdown value in seconds
+        igs.output_create("countdown_next", igs.INTEGER_T, None)  # Next countdown value in seconds
+        igs.output_create("countdown_max_current", igs.INTEGER_T, None)  # Max current countdown
+        igs.output_create("countdown_max_next", igs.INTEGER_T, None)  # Max next countdown
+        igs.output_create("alert", igs.STRING_T, None)  # JSON alert message with color and severity
+        igs.output_create("alert_clear", igs.IMPULSION_T, None)  # Clear alert display
+        igs.output_create("condition_violated", igs.STRING_T, None)  # JSON condition violation
+        igs.output_create("condition_restored", igs.STRING_T, None)  # JSON condition restoration
+        igs.output_create("tts_speaking", igs.BOOL_T, None)  # True when TTS active
+        igs.output_create("tts_text", igs.STRING_T, None)  # Current TTS text
+        igs.output_create("action_about_to_fire", igs.STRING_T, None)  # JSON state before action fires
+        igs.output_create("checklist_item_complete", igs.STRING_T, None)  # JSON checklist completion
+        igs.output_create("emergency_procedure_inject", igs.STRING_T, None)  # Emergency procedure name
+        igs.output_create("interaction_message", igs.STRING_T, None)  # JSON interaction panel message
 
         igs.input_create("On_Off", igs.BOOL_T, None)
         igs.input_create("next_step", igs.IMPULSION_T, None)
