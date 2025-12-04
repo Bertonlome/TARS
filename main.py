@@ -137,16 +137,11 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         
-        self.agent = TarsAgent()
-        signal.signal(signal.SIGINT, self.agent.signal_handler)
-        self.ui.tars_status_label.setText(f"{self.agent.agent_name} RUNNING")
-        
-        # Phase 5: Removed main_window reference - all communication now through Ingescape
-        # self.agent.main_window = self  # REMOVED - coupling eliminated
-        
-        # Start the agent in a separate thread
-        self.agent_thread = AgentThread(self.agent)
-        self.agent_thread.start()
+        # Phase 6 FIX: Run TARS Agent as separate subprocess
+        # This fixes Ingescape's "one agent per process" limitation
+        self.tars_process = None
+        self.start_tars_subprocess()
+        self.ui.tars_status_label.setText("TARS Agent RUNNING")
         
         # Start STT (Speech-to-Text) subprocess
         self.stt_process = None
@@ -157,31 +152,20 @@ class MainWindow(QMainWindow):
         self.atc_process = None
         self.start_atc_subprocess()
         
-        # FSM Worker in a thread
-        self.fsm_thread = QtCore.QThread()
-        self.fsm_worker = FSMWorker(self.agent)
-        self.fsm_worker.moveToThread(self.fsm_thread)
-        self.fsm_worker.state_changed.connect(self.update_state)
-        self.fsm_worker.action_about_to_fire.connect(self.handle_action_about_to_fire)
-        self.fsm_worker.condition_violated_signal.connect(self.handle_condition_violation)
-        self.fsm_worker.condition_restored_signal.connect(self.handle_condition_restoration)
-        self.fsm_thread.started.connect(self.fsm_worker.run)
-        self.fsm_thread.start()
+        # Phase 6: FSM Worker and threading removed - TARS Agent now runs independently
+        # All FSM logic is handled by TARS Agent subprocess
+        # GUI receives state updates via Ingescape messages from GUIAgent
         self.current_state = None
         self.previous_state = None
         self.next_state = None
 
-        # TTS completion tracking - shared between agent and main window
+        # TTS completion tracking - for TTS callbacks
         self.tts_completion_event = threading.Event()
         self.tts_completion_event.set()  # Initially set (ready - no speech in progress)
-        # The event will be cleared when TTS starts speaking, set when it finishes
-        self.agent.set_tts_completion_event(self.tts_completion_event)
 
-        # Countdown completion tracking - for synchronizing FSM with countdown timer
+        # Countdown completion tracking - for countdown timer
         self.countdown_completion_event = threading.Event()
         self.countdown_completion_event.set()  # Initially set (no countdown in progress)
-        # Pass countdown event to agent (FSMWorker will use it)
-        self.agent.countdown_completion_event = self.countdown_completion_event
 
         self.tts_speak_signal.connect(self.on_tts_speak)
         register_speak_callback(self.tts_callback)
@@ -1013,6 +997,81 @@ class MainWindow(QMainWindow):
         monitor_thread = threading.Thread(target=monitor_stt, daemon=True)
         monitor_thread.start()
     
+    def start_tars_subprocess(self):
+        """Start the TARS Agent as a subprocess (separate Ingescape agent)"""
+        try:
+            # Get path to tars_agent_runner.py
+            project_root = Path(__file__).parent
+            tars_script = project_root / "tars_agent_runner.py"
+            
+            if not tars_script.exists():
+                print(f"⚠️  TARS Agent runner not found at {tars_script}")
+                return
+            
+            # Get Python interpreter from virtual environment
+            if sys.platform == "win32":
+                python_exe = project_root / ".venv" / "Scripts" / "python.exe"
+            else:
+                python_exe = project_root / ".venv" / "bin" / "python"
+            
+            if not python_exe.exists():
+                # Fallback to system Python
+                python_exe = sys.executable
+                print(f"⚠️  Virtual environment Python not found, using system Python: {python_exe}")
+            
+            # Start subprocess with unbuffered output
+            self.tars_process = subprocess.Popen(
+                [str(python_exe), "-u", str(tars_script)],  # -u for unbuffered output
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                text=True,
+                encoding='utf-8',
+                bufsize=1,
+                cwd=str(project_root)
+            )
+            
+            print(f"📡 TARS Agent subprocess started (PID: {self.tars_process.pid})")
+            
+            # Start monitoring thread to read output and check if process crashes
+            self.start_tars_monitor()
+            
+        except Exception as e:
+            print(f"❌ Failed to start TARS Agent subprocess: {e}")
+            import traceback
+            traceback.print_exc()
+            self.tars_process = None
+    
+    def start_tars_monitor(self):
+        """Start a background thread to monitor TARS subprocess output and health"""
+        def monitor_tars():
+            if not self.tars_process:
+                return
+            
+            print("📊 TARS monitor thread started")
+            try:
+                # Read output line by line
+                for line in iter(self.tars_process.stdout.readline, ''):
+                    if line:
+                        print(f"[TARS] {line.rstrip()}")
+                    
+                    # Check if process is still running
+                    if self.tars_process.poll() is not None:
+                        break
+                
+                # Process has exited
+                exit_code = self.tars_process.poll()
+                if exit_code != 0:
+                    print(f"⚠️  TARS Agent subprocess crashed with exit code {exit_code}")
+                else:
+                    print("✅ TARS Agent subprocess exited cleanly")
+                    
+            except Exception as e:
+                print(f"❌ Error monitoring TARS subprocess: {e}")
+        
+        # Start monitor thread
+        monitor_thread = threading.Thread(target=monitor_tars, daemon=True)
+        monitor_thread.start()
+
     def start_atc_subprocess(self):
         """Start the ATC (Air Traffic Control) agent as a subprocess"""
         try:
@@ -1092,6 +1151,25 @@ class MainWindow(QMainWindow):
         monitor_thread = threading.Thread(target=monitor_atc, daemon=True)
         monitor_thread.start()
     
+    def stop_tars_subprocess(self):
+        """Stop the TARS Agent subprocess gracefully"""
+        if self.tars_process:
+            try:
+                print("🛑 Stopping TARS Agent subprocess...")
+                self.tars_process.terminate()  # Send SIGTERM
+                try:
+                    self.tars_process.wait(timeout=5)  # Wait up to 5 seconds
+                    print("✅ TARS Agent subprocess stopped")
+                except subprocess.TimeoutExpired:
+                    print("⚠️  TARS Agent subprocess didn't stop gracefully, forcing...")
+                    self.tars_process.kill()  # Force kill
+                    self.tars_process.wait()
+                    print("✅ TARS Agent subprocess killed")
+            except Exception as e:
+                print(f"❌ Error stopping TARS Agent subprocess: {e}")
+            finally:
+                self.tars_process = None
+    
     def stop_atc_subprocess(self):
         """Stop the ATC subprocess gracefully"""
         if self.atc_process:
@@ -1134,18 +1212,14 @@ class MainWindow(QMainWindow):
         """Override close event to cleanup subprocess"""
         print("Closing application...")
         
+        # Stop TARS Agent subprocess
+        self.stop_tars_subprocess()
+        
         # Stop STT subprocess
         self.stop_stt_subprocess()
         
         # Stop ATC subprocess
         self.stop_atc_subprocess()
-        
-        # Stop agent
-        self.agent.is_interrupted = True
-        
-        # Stop FSM thread
-        self.fsm_thread.quit()
-        self.fsm_thread.wait()
         
         # Shutdown TTS
         shutdown()
