@@ -1776,6 +1776,34 @@ class TarsAgent:
             print(f"🚨 Emergency procedure inject requested: {value}")
             # TODO: Implement emergency procedure injection logic
             
+        elif name == "force_state_jump":
+            # User clicked on checklist or timeline - force jump to that state
+            import json
+            try:
+                state_info = json.loads(value)
+                procedure = state_info.get("procedure")
+                task_object = state_info.get("task_object")
+                value_str = state_info.get("value")
+                
+                print(f"🎯 Force state jump: {procedure} - {task_object} - {value_str}")
+                
+                # Find the matching state in TarsAgent.states (self.states, not agent_object)
+                target_state = None
+                task_key = (procedure, task_object, value_str)
+                if task_key in self.states:
+                    target_state = self.states[task_key]
+                
+                if target_state:
+                    print(f"✅ Jumping to state: {target_state.procedure} {target_state.task_object} {target_state.value}")
+                    self.fsm.current_state = target_state
+                    # Publish the new state
+                    from Core.message_protocol import encode_state_to_json
+                    igs.output_set_string("current_state", encode_state_to_json(target_state))
+                else:
+                    print(f"⚠️ State not found for: {task_key}")
+            except json.JSONDecodeError as e:
+                print(f"❌ Invalid JSON in force_state_jump: {e}")
+            
         elif name == "speech_command":
             print(f"🎤 Speech command received from GUI: {value}")
             # Delegate to existing speech_input handler
@@ -1976,6 +2004,7 @@ class TarsAgent:
         igs.input_create("start_procedure", igs.IMPULSION_T, None)  # Start FSM execution
         igs.input_create("stop_procedure", igs.IMPULSION_T, None)  # Stop/pause FSM execution
         igs.input_create("emergency_inject", igs.STRING_T, None)  # Emergency procedure name to inject
+        igs.input_create("force_state_jump", igs.STRING_T, None)  # Force jump to specific state (from UI clicks)
         igs.input_create("countdown_complete", igs.IMPULSION_T, None)  # Countdown timer reached zero
         igs.input_create("speech_command", igs.STRING_T, None)  # Voice command from STT
 
@@ -2041,6 +2070,7 @@ class TarsAgent:
         igs.observe_input("start_procedure", self.impulsion_input_callback, self.agent)
         igs.observe_input("stop_procedure", self.impulsion_input_callback, self.agent)
         igs.observe_input("emergency_inject", self.string_input_callback, self.agent)
+        igs.observe_input("force_state_jump", self.string_input_callback, self.agent)
         igs.observe_input("countdown_complete", self.impulsion_input_callback, self.agent)
         igs.observe_input("speech_command", self.string_input_callback, self.agent)
 

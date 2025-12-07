@@ -659,32 +659,12 @@ class HomePage(BasePage):
         """
         print(f"🖱️ Task clicked: {task_key}")
         
-        # Check if agent and FSM are available
-        if not hasattr(self.main_window, 'agent') or not self.main_window.agent:
-            print("⚠️ Agent not available")
-            return
-        
-        agent = self.main_window.agent
-        fsm = agent.fsm
-        
-        # Find the state object corresponding to this task key
-        target_state = None
-        for state_key, state in agent.states.items():
-            if state_key == task_key:
-                target_state = state
-                break
-        
-        if not target_state:
-            print(f"⚠️ Could not find state for task: {task_key}")
-            return
-        
-        # Force FSM to jump to this state
-        print(f"⚡ Forcing FSM to jump to state: {target_state.procedure} {target_state.task_object} {target_state.value}")
-        fsm.current_state = target_state
-        
-        # Emit state change signal to update UI
-        if hasattr(self.main_window, 'fsm_worker') and self.main_window.fsm_worker:
-            self.main_window.fsm_worker.state_changed.emit(target_state)
+        # Send force_state_jump via GUIAgent to TARS subprocess
+        if hasattr(self.main_window, 'gui_agent') and self.main_window.gui_agent:
+            procedure, task_object, value = task_key
+            self.main_window.gui_agent.send_force_state_jump(procedure, task_object, value)
+        else:
+            print("⚠️ GUI Agent not available")
     
     @QtCore.Slot(tuple)
     def on_checklist_item_clicked(self, task_key):
@@ -695,32 +675,12 @@ class HomePage(BasePage):
         """
         print(f"📋 Checklist item clicked: {task_key}")
         
-        # Check if agent and FSM are available
-        if not hasattr(self.main_window, 'agent') or not self.main_window.agent:
-            print("⚠️ Agent not available")
-            return
-        
-        agent = self.main_window.agent
-        fsm = agent.fsm
-        
-        # Find the state object corresponding to this task key
-        target_state = None
-        for state_key, state in agent.states.items():
-            if state_key == task_key:
-                target_state = state
-                break
-        
-        if not target_state:
-            print(f"⚠️ Could not find state for checklist item: {task_key}")
-            return
-        
-        # Force FSM to jump to this state
-        print(f"⚡ Forcing FSM to jump to state: {target_state.procedure} - {target_state.task_object} - {target_state.value}")
-        fsm.current_state = target_state
-        
-        # Emit state change signal to update UI
-        if hasattr(self.main_window, 'fsm_worker') and self.main_window.fsm_worker:
-            self.main_window.fsm_worker.state_changed.emit(target_state)
+        # Send force_state_jump via GUIAgent to TARS subprocess
+        if hasattr(self.main_window, 'gui_agent') and self.main_window.gui_agent:
+            procedure, task_object, value = task_key
+            self.main_window.gui_agent.send_force_state_jump(procedure, task_object, value)
+        else:
+            print("⚠️ GUI Agent not available")
     
     def get_current_timeline_widget(self):
         """Get the timeline widget for the current active procedure

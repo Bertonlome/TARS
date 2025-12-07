@@ -36,7 +36,7 @@ class GUIAgent(QObject):
     _tts_speak_signal = Signal(str)  # TTS text being spoken
     _tts_finished_signal = Signal(str)  # TTS finished speaking
     
-    def __init__(self, main_window: MainWindow, agent_name: str = "GUI Agent", 
+    def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670):
         super().__init__()
         self.main_window = main_window
@@ -118,6 +118,7 @@ class GUIAgent(QObject):
         igs.output_create("start_procedure", igs.IMPULSION_T, None)
         igs.output_create("stop_procedure", igs.IMPULSION_T, None)
         igs.output_create("emergency_inject", igs.STRING_T, None)
+        igs.output_create("force_state_jump", igs.STRING_T, None)
         igs.output_create("countdown_complete", igs.IMPULSION_T, None)
         
         print(f"✅ GUI Agent '{self.agent_name}' initialized with Ingescape I/O")
@@ -410,6 +411,17 @@ class GUIAgent(QObject):
         """Send countdown completion to TARS"""
         igs.output_set_impulsion("countdown_complete")
         print("📤 Sent countdown_complete to TARS")
+    
+    def send_force_state_jump(self, procedure: str, task_object: str, value: str):
+        """Force TARS FSM to jump to specific state (from UI clicks)"""
+        import json
+        state_json = json.dumps({
+            "procedure": procedure,
+            "task_object": task_object,
+            "value": value
+        })
+        igs.output_set_string("force_state_jump", state_json)
+        print(f"🎯 Sent force_state_jump to TARS: {procedure} - {task_object} - {value}")
 
 
 def create_gui_agent(main_window: MainWindow, 

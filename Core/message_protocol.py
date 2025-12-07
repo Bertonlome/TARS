@@ -233,6 +233,17 @@ TARS_INPUTS = {
         "description": "Emergency procedure name to inject (e.g., 'ENGINE FIRE L')",
     },
     
+    "force_state_jump": {
+        "type": "string",  # JSON encoded
+        "description": "Force FSM to jump to specific state (from checklist/timeline clicks)",
+        "format": {
+            "procedure": "str - Target procedure name",
+            "task_object": "str - Target task object",
+            "value": "str - Target value",
+        },
+        "example": '{"procedure": "BEFORE TAKEOFF", "task_object": "Pitot Heat", "value": "ON"}'
+    },
+    
     # Countdown Synchronization
     "countdown_complete": {
         "type": "impulsion",
