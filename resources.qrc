@@ -10,6 +10,7 @@
   </qresource>
   <qresource prefix="icons">
     
+    <file>images/icons/white_plane_icon.png</file>
     <file>images/icons/03-tidal-stream.svg</file>
     <file>images/icons/07-chart-styles.svg</file>
     <file>images/icons/ACDC-converter.svg</file>

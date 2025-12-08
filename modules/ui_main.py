@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'main.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.3
+## Created by: Qt User Interface Compiler version 6.10.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QAbstractScrollArea, QApplicat
     QSizePolicy, QSlider, QSpacerItem, QStackedWidget,
     QTabWidget, QTableWidget, QTableWidgetItem, QTextEdit,
     QToolBox, QVBoxLayout, QWidget)
+import resources_rc
 import resources_rc
 import resources_rc
 
@@ -670,6 +671,15 @@ class Ui_MainWindow(object):
         self.btn_home.setStyleSheet(u"background-image: url(:/icons/images/icons/home.svg);")
 
         self.verticalLayout_8.addWidget(self.btn_home)
+
+        self.btn_flight = QPushButton(self.topMenu)
+        self.btn_flight.setObjectName(u"btn_flight")
+        sizePolicy.setHeightForWidth(self.btn_flight.sizePolicy().hasHeightForWidth())
+        self.btn_flight.setSizePolicy(sizePolicy)
+        self.btn_flight.setMinimumSize(QSize(0, 40))
+        self.btn_flight.setStyleSheet(u"background-image: url(:/icons/images/icons/log-open-google.svg);")
+
+        self.verticalLayout_8.addWidget(self.btn_flight)
 
         self.btn_briefing = QPushButton(self.topMenu)
         self.btn_briefing.setObjectName(u"btn_briefing")
@@ -1578,6 +1588,347 @@ class Ui_MainWindow(object):
         self.verticalLayout_22.addLayout(self.bottom_horizontal_layout)
 
         self.stackedWidget.addWidget(self.home)
+        self.flight = QWidget()
+        self.flight.setObjectName(u"flight")
+        self.flight_vertical_layout = QVBoxLayout(self.flight)
+        self.flight_vertical_layout.setSpacing(0)
+        self.flight_vertical_layout.setObjectName(u"flight_vertical_layout")
+        self.flight_vertical_layout.setContentsMargins(0, 0, 0, 0)
+        self.flight_container = QWidget(self.flight)
+        self.flight_container.setObjectName(u"flight_container")
+        self.flight_container.setStyleSheet(u"QWidget#flight_container {\n"
+"border: 2px solid rgba(40, 44, 52, 255);\n"
+"border-radius: 10px;\n"
+"background-color: rgba(33, 37, 43, 255);\n"
+"}")
+        self.verticalLayout_28 = QVBoxLayout(self.flight_container)
+        self.verticalLayout_28.setObjectName(u"verticalLayout_28")
+        self.flight_container_2 = QWidget(self.flight_container)
+        self.flight_container_2.setObjectName(u"flight_container_2")
+        sizePolicy1.setHeightForWidth(self.flight_container_2.sizePolicy().hasHeightForWidth())
+        self.flight_container_2.setSizePolicy(sizePolicy1)
+        self.flight_container_2.setStyleSheet(u"QWidget#row_1_col_2_container{\n"
+"    border: 2px solid rgba(40, 44, 52, 255);\n"
+"    border-radius: 10px;\n"
+"	background-color: rgba(33, 37, 43, 255);\n"
+"};")
+        self.row_1_col_2_VBox_3 = QVBoxLayout(self.flight_container_2)
+        self.row_1_col_2_VBox_3.setObjectName(u"row_1_col_2_VBox_3")
+        self.alert_container_flight = QWidget(self.flight_container_2)
+        self.alert_container_flight.setObjectName(u"alert_container_flight")
+        self.alert_container_flight.setMaximumSize(QSize(16777215, 50))
+        self.alert_container_flight.setStyleSheet(u"QWidget#alert_container_flight {\n"
+"    border: 2px solid #36DF71;\n"
+"    border-radius: 5px;\n"
+"    background-color: rgba(33, 37, 43, 255);\n"
+"}\n"
+"")
+        self.alert_container_6 = QHBoxLayout(self.alert_container_flight)
+        self.alert_container_6.setObjectName(u"alert_container_6")
+        self.alert_container_6.setContentsMargins(20, -1, 75, -1)
+        self.alert_icon_flight = QLabel(self.alert_container_flight)
+        self.alert_icon_flight.setObjectName(u"alert_icon_flight")
+        self.alert_icon_flight.setPixmap(QPixmap(u":/icons/images/icons/alerts-active.svg"))
+
+        self.alert_container_6.addWidget(self.alert_icon_flight, 0, Qt.AlignmentFlag.AlignLeft)
+
+        self.alert_label_flight = QLabel(self.alert_container_flight)
+        self.alert_label_flight.setObjectName(u"alert_label_flight")
+        self.alert_label_flight.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.alert_container_6.addWidget(self.alert_label_flight)
+
+
+        self.row_1_col_2_VBox_3.addWidget(self.alert_container_flight)
+
+        self.previous_task_container_flight = QWidget(self.flight_container_2)
+        self.previous_task_container_flight.setObjectName(u"previous_task_container_flight")
+        self.previous_task_container_8 = QHBoxLayout(self.previous_task_container_flight)
+        self.previous_task_container_8.setObjectName(u"previous_task_container_8")
+        self.previous_task_container_8.setContentsMargins(50, -1, -1, -1)
+        self.horizontalSpacer_flight_2 = QSpacerItem(30, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+
+        self.previous_task_container_8.addItem(self.horizontalSpacer_flight_2)
+
+        self.previous_task_container_flight_2 = QWidget(self.previous_task_container_flight)
+        self.previous_task_container_flight_2.setObjectName(u"previous_task_container_flight_2")
+        self.previous_task_container_flight_2.setStyleSheet(u"QWidget#previous_task_container_flight_2{\n"
+"border: 2px solid rgba(0, 26, 56, 200);\n"
+"border-radius: 10px;\n"
+"background-color: rgba(0, 26, 56, 200);}")
+        self.horizontalLayout_17 = QHBoxLayout(self.previous_task_container_flight_2)
+        self.horizontalLayout_17.setObjectName(u"horizontalLayout_17")
+        self.p_t_prog_widget_flight = QLabel(self.previous_task_container_flight_2)
+        self.p_t_prog_widget_flight.setObjectName(u"p_t_prog_widget_flight")
+        self.p_t_prog_widget_flight.setMaximumSize(QSize(40, 40))
+        self.p_t_prog_widget_flight.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
+        self.p_t_prog_widget_flight.setScaledContents(True)
+
+        self.horizontalLayout_17.addWidget(self.p_t_prog_widget_flight)
+
+        self.previous_task_container_flight_3 = QWidget(self.previous_task_container_flight_2)
+        self.previous_task_container_flight_3.setObjectName(u"previous_task_container_flight_3")
+        sizePolicy4.setHeightForWidth(self.previous_task_container_flight_3.sizePolicy().hasHeightForWidth())
+        self.previous_task_container_flight_3.setSizePolicy(sizePolicy4)
+        self.previous_task_container_flight_3.setMaximumSize(QSize(600, 16777215))
+        self.p_t_container_3 = QVBoxLayout(self.previous_task_container_flight_3)
+        self.p_t_container_3.setObjectName(u"p_t_container_3")
+        self.p_t_flight = QLabel(self.previous_task_container_flight_3)
+        self.p_t_flight.setObjectName(u"p_t_flight")
+        self.p_t_flight.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
+        self.p_t_flight.setWordWrap(True)
+
+        self.p_t_container_3.addWidget(self.p_t_flight)
+
+        self.p_g_flight = QLabel(self.previous_task_container_flight_3)
+        self.p_g_flight.setObjectName(u"p_g_flight")
+        self.p_g_flight.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+        self.p_g_flight.setWordWrap(True)
+
+        self.p_t_container_3.addWidget(self.p_g_flight)
+
+
+        self.horizontalLayout_17.addWidget(self.previous_task_container_flight_3)
+
+
+        self.previous_task_container_8.addWidget(self.previous_task_container_flight_2)
+
+
+        self.row_1_col_2_VBox_3.addWidget(self.previous_task_container_flight)
+
+        self.current_task_container_flight = QWidget(self.flight_container_2)
+        self.current_task_container_flight.setObjectName(u"current_task_container_flight")
+        self.current_task_container_flight.setStyleSheet(u"QWidget#current_task_container_flight {\n"
+"    border: 2px solid rgba(19, 20, 23, 255);\n"
+"    border-radius: 10px;\n"
+"    background-color: rgba(19, 20, 23, 255);  /* The last value is alpha */\n"
+"}\n"
+"")
+        self.horizontalLayout_8 = QHBoxLayout(self.current_task_container_flight)
+        self.horizontalLayout_8.setObjectName(u"horizontalLayout_8")
+        self.interaction_container_flight = QWidget(self.current_task_container_flight)
+        self.interaction_container_flight.setObjectName(u"interaction_container_flight")
+        sizePolicy1.setHeightForWidth(self.interaction_container_flight.sizePolicy().hasHeightForWidth())
+        self.interaction_container_flight.setSizePolicy(sizePolicy1)
+        self.interaction_container_flight.setStyleSheet(u"QWidget#interaction_container_flight {\n"
+"    border: 2px solid rgba(40, 44, 52, 255);\n"
+"    border-radius: 10px;}")
+        self.verticalLayout_27 = QVBoxLayout(self.interaction_container_flight)
+        self.verticalLayout_27.setObjectName(u"verticalLayout_27")
+        self.interaction_panel_title_flight = QLabel(self.interaction_container_flight)
+        self.interaction_panel_title_flight.setObjectName(u"interaction_panel_title_flight")
+        self.interaction_panel_title_flight.setStyleSheet(u"font: 500 20pt \"JetBrains Mono\";")
+
+        self.verticalLayout_27.addWidget(self.interaction_panel_title_flight, 0, Qt.AlignmentFlag.AlignTop)
+
+        self.interaction_panel_text_flight = QLabel(self.interaction_container_flight)
+        self.interaction_panel_text_flight.setObjectName(u"interaction_panel_text_flight")
+        sizePolicy8.setHeightForWidth(self.interaction_panel_text_flight.sizePolicy().hasHeightForWidth())
+        self.interaction_panel_text_flight.setSizePolicy(sizePolicy8)
+        self.interaction_panel_text_flight.setMinimumSize(QSize(750, 0))
+        self.interaction_panel_text_flight.setMaximumSize(QSize(750, 16777215))
+        self.interaction_panel_text_flight.setStyleSheet(u"font: 300 14pt \"JetBrains Mono\";")
+        self.interaction_panel_text_flight.setWordWrap(True)
+        self.interaction_panel_text_flight.setMargin(25)
+
+        self.verticalLayout_27.addWidget(self.interaction_panel_text_flight, 0, Qt.AlignmentFlag.AlignHCenter|Qt.AlignmentFlag.AlignTop)
+
+        self.countdown_container = QWidget(self.interaction_container_flight)
+        self.countdown_container.setObjectName(u"countdown_container")
+        sizePolicy10 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+        sizePolicy10.setHorizontalStretch(2)
+        sizePolicy10.setVerticalStretch(0)
+        sizePolicy10.setHeightForWidth(self.countdown_container.sizePolicy().hasHeightForWidth())
+        self.countdown_container.setSizePolicy(sizePolicy10)
+        self.c_t_s_container_3 = QVBoxLayout(self.countdown_container)
+        self.c_t_s_container_3.setObjectName(u"c_t_s_container_3")
+        self.c_t_s_value_flight = QLabel(self.countdown_container)
+        self.c_t_s_value_flight.setObjectName(u"c_t_s_value_flight")
+        self.c_t_s_value_flight.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.c_t_s_container_3.addWidget(self.c_t_s_value_flight, 0, Qt.AlignmentFlag.AlignRight)
+
+        self.c_t_s_unit_flight = QLabel(self.countdown_container)
+        self.c_t_s_unit_flight.setObjectName(u"c_t_s_unit_flight")
+        self.c_t_s_unit_flight.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.c_t_s_container_3.addWidget(self.c_t_s_unit_flight, 0, Qt.AlignmentFlag.AlignRight)
+
+
+        self.verticalLayout_27.addWidget(self.countdown_container)
+
+        self.c_t_prog_widget_flight = QLabel(self.interaction_container_flight)
+        self.c_t_prog_widget_flight.setObjectName(u"c_t_prog_widget_flight")
+        self.c_t_prog_widget_flight.setMaximumSize(QSize(50, 50))
+        self.c_t_prog_widget_flight.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
+        self.c_t_prog_widget_flight.setScaledContents(True)
+
+        self.verticalLayout_27.addWidget(self.c_t_prog_widget_flight, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self.interaction_panel_tars_input_flight = QLabel(self.interaction_container_flight)
+        self.interaction_panel_tars_input_flight.setObjectName(u"interaction_panel_tars_input_flight")
+        sizePolicy9.setHeightForWidth(self.interaction_panel_tars_input_flight.sizePolicy().hasHeightForWidth())
+        self.interaction_panel_tars_input_flight.setSizePolicy(sizePolicy9)
+        self.interaction_panel_tars_input_flight.setMinimumSize(QSize(750, 150))
+        self.interaction_panel_tars_input_flight.setMaximumSize(QSize(750, 16777215))
+        self.interaction_panel_tars_input_flight.setStyleSheet(u"padding: 5px,5px;\n"
+"border: 4px solid rgba(19, 20, 23, 255);\n"
+"border-radius: 20px;\n"
+"font: 300 14pt \"JetBrains Mono\";\n"
+"color: #3399ff")
+        self.interaction_panel_tars_input_flight.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.interaction_panel_tars_input_flight.setWordWrap(True)
+
+        self.verticalLayout_27.addWidget(self.interaction_panel_tars_input_flight, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        self.int_panel_button_container_flight = QWidget(self.interaction_container_flight)
+        self.int_panel_button_container_flight.setObjectName(u"int_panel_button_container_flight")
+        self.int_panel_button_container_flight.setMinimumSize(QSize(0, 50))
+        self.horizontalLayout_23 = QHBoxLayout(self.int_panel_button_container_flight)
+        self.horizontalLayout_23.setObjectName(u"horizontalLayout_23")
+        self.horizontalLayout_23.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        self.int_panel_left_button_flight = QPushButton(self.int_panel_button_container_flight)
+        self.int_panel_left_button_flight.setObjectName(u"int_panel_left_button_flight")
+        self.int_panel_left_button_flight.setMinimumSize(QSize(0, 50))
+        self.int_panel_left_button_flight.setFont(font6)
+        self.int_panel_left_button_flight.setStyleSheet(u"QPushButton {\n"
+"        border: 2px solid rgba(221, 0, 20, 255);\n"
+"        border-radius: 5px;\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(33, 37, 43, 255), stop:1 rgba(40,40,50,255));\n"
+"        font: 600 16pt \"JetBrains Mono\";\n"
+"        padding: 6px 10px;\n"
+"    }\n"
+"    QPushButton:pressed {\n"
+"        /* darker, slightly inset 3D pressed look */\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(221, 0, 20, 255), stop:1 rgba(230,0,30,255));\n"
+"        border: 2px solid rgba(221, 0, 20, 255);\n"
+"        padding-top: 8px;    /* push content down to simulate depression */\n"
+"        padding-bottom: 4px;\n"
+"    }\n"
+"    QPushButton:focus {\n"
+"        outline: none;\n"
+"    }")
+        self.int_panel_left_button_flight.setIcon(icon4)
+
+        self.horizontalLayout_23.addWidget(self.int_panel_left_button_flight)
+
+        self.int_panel_right_button_flight = QPushButton(self.int_panel_button_container_flight)
+        self.int_panel_right_button_flight.setObjectName(u"int_panel_right_button_flight")
+        self.int_panel_right_button_flight.setMinimumSize(QSize(0, 50))
+        self.int_panel_right_button_flight.setStyleSheet(u"QPushButton {\n"
+"        border: 2px solid rgba(221, 221, 221, 255);\n"
+"        border-radius: 5px;\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(245,245,245,255), stop:1 rgba(221,221,221,255));\n"
+"        font: 600 16pt \"JetBrains Mono\";\n"
+"        color: rgba(33, 37, 43, 255);\n"
+"        padding: 6px 10px;\n"
+"    }\n"
+"    QPushButton:pressed {\n"
+"        /* darker, slightly inset 3D pressed look */\n"
+"        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
+"            stop:0 rgba(190,190,190,255), stop:1 rgba(150,150,150,255));\n"
+"        border: 2px solid rgba(140,140,140,255);\n"
+"        padding-top: 8px;    /* push content down to simulate depression */\n"
+"        padding-bottom: 4px;\n"
+"        color: rgba(20, 24, 28, 255);\n"
+"    }\n"
+"    QPushButton:focus {\n"
+"        outline: none;\n"
+"    }")
+
+        self.horizontalLayout_23.addWidget(self.int_panel_right_button_flight)
+
+
+        self.verticalLayout_27.addWidget(self.int_panel_button_container_flight)
+
+
+        self.horizontalLayout_8.addWidget(self.interaction_container_flight)
+
+
+        self.row_1_col_2_VBox_3.addWidget(self.current_task_container_flight)
+
+        self.next_task_container_flight = QWidget(self.flight_container_2)
+        self.next_task_container_flight.setObjectName(u"next_task_container_flight")
+        self.next_task_container_8 = QHBoxLayout(self.next_task_container_flight)
+        self.next_task_container_8.setObjectName(u"next_task_container_8")
+        self.next_task_container_8.setContentsMargins(50, -1, -1, -1)
+        self.horizontalSpacer_flight = QSpacerItem(30, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+
+        self.next_task_container_8.addItem(self.horizontalSpacer_flight)
+
+        self.next_task_container_flight_2 = QWidget(self.next_task_container_flight)
+        self.next_task_container_flight_2.setObjectName(u"next_task_container_flight_2")
+        self.next_task_container_flight_2.setStyleSheet(u"QWidget#next_task_container_flight_2{\n"
+"border: 2px solid rgba(0, 26, 56, 200);\n"
+"border-radius: 10px;\n"
+"background-color: rgba(0, 26, 56, 200);}")
+        self.horizontalLayout_18 = QHBoxLayout(self.next_task_container_flight_2)
+        self.horizontalLayout_18.setObjectName(u"horizontalLayout_18")
+        self.n_t_prog_widget_flight = QLabel(self.next_task_container_flight_2)
+        self.n_t_prog_widget_flight.setObjectName(u"n_t_prog_widget_flight")
+        self.n_t_prog_widget_flight.setMaximumSize(QSize(40, 40))
+        self.n_t_prog_widget_flight.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
+        self.n_t_prog_widget_flight.setScaledContents(True)
+
+        self.horizontalLayout_18.addWidget(self.n_t_prog_widget_flight)
+
+        self.next_task_container_flight_3 = QWidget(self.next_task_container_flight_2)
+        self.next_task_container_flight_3.setObjectName(u"next_task_container_flight_3")
+        sizePolicy4.setHeightForWidth(self.next_task_container_flight_3.sizePolicy().hasHeightForWidth())
+        self.next_task_container_flight_3.setSizePolicy(sizePolicy4)
+        self.next_task_container_flight_3.setMaximumSize(QSize(600, 16777215))
+        self.n_t_container_3 = QVBoxLayout(self.next_task_container_flight_3)
+        self.n_t_container_3.setObjectName(u"n_t_container_3")
+        self.n_t_label_flight = QLabel(self.next_task_container_flight_3)
+        self.n_t_label_flight.setObjectName(u"n_t_label_flight")
+        self.n_t_label_flight.setStyleSheet(u"font: 500 12pt \"JetBrains Mono\";")
+        self.n_t_label_flight.setWordWrap(True)
+
+        self.n_t_container_3.addWidget(self.n_t_label_flight)
+
+        self.n_g_label_flight = QLabel(self.next_task_container_flight_3)
+        self.n_g_label_flight.setObjectName(u"n_g_label_flight")
+        self.n_g_label_flight.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+        self.n_g_label_flight.setWordWrap(True)
+
+        self.n_t_container_3.addWidget(self.n_g_label_flight)
+
+
+        self.horizontalLayout_18.addWidget(self.next_task_container_flight_3)
+
+        self.n_t_s_container_flight = QVBoxLayout()
+        self.n_t_s_container_flight.setObjectName(u"n_t_s_container_flight")
+        self.n_t_s_value_flight = QLabel(self.next_task_container_flight_2)
+        self.n_t_s_value_flight.setObjectName(u"n_t_s_value_flight")
+        self.n_t_s_value_flight.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.n_t_s_container_flight.addWidget(self.n_t_s_value_flight, 0, Qt.AlignmentFlag.AlignRight)
+
+        self.n_t_s_unit_flight = QLabel(self.next_task_container_flight_2)
+        self.n_t_s_unit_flight.setObjectName(u"n_t_s_unit_flight")
+        self.n_t_s_unit_flight.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.n_t_s_container_flight.addWidget(self.n_t_s_unit_flight, 0, Qt.AlignmentFlag.AlignRight)
+
+
+        self.horizontalLayout_18.addLayout(self.n_t_s_container_flight)
+
+
+        self.next_task_container_8.addWidget(self.next_task_container_flight_2)
+
+
+        self.row_1_col_2_VBox_3.addWidget(self.next_task_container_flight)
+
+
+        self.verticalLayout_28.addWidget(self.flight_container_2)
+
+
+        self.flight_vertical_layout.addWidget(self.flight_container)
+
+        self.stackedWidget.addWidget(self.flight)
         self.widgets = QWidget()
         self.widgets.setObjectName(u"widgets")
         self.widgets.setStyleSheet(u"b")
@@ -1852,11 +2203,11 @@ class Ui_MainWindow(object):
         __qtablewidgetitem23 = QTableWidgetItem()
         self.tableWidget.setItem(0, 3, __qtablewidgetitem23)
         self.tableWidget.setObjectName(u"tableWidget")
-        sizePolicy10 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy10.setHorizontalStretch(0)
-        sizePolicy10.setVerticalStretch(0)
-        sizePolicy10.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
-        self.tableWidget.setSizePolicy(sizePolicy10)
+        sizePolicy11 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy11.setHorizontalStretch(0)
+        sizePolicy11.setVerticalStretch(0)
+        sizePolicy11.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
+        self.tableWidget.setSizePolicy(sizePolicy11)
         palette = QPalette()
         brush = QBrush(QColor(221, 221, 221, 255))
         brush.setStyle(Qt.BrushStyle.SolidPattern)
@@ -1937,15 +2288,17 @@ class Ui_MainWindow(object):
         self.flight_recap.setStyleSheet(u"border: 2px solid rgba(40, 44, 52, 255);\n"
 "    border-radius: 10px;\n"
 "	background-color: rgba(33, 37, 43, 255)")
+        self.flight_recap_layout = QVBoxLayout(self.flight_recap)
+        self.flight_recap_layout.setObjectName(u"flight_recap_layout")
         self.toolBox = QToolBox(self.flight_recap)
         self.toolBox.setObjectName(u"toolBox")
-        self.toolBox.setGeometry(QRect(0, 0, 1651, 971))
         self.page = QWidget()
         self.page.setObjectName(u"page")
-        self.page.setGeometry(QRect(0, 0, 1643, 837))
+        self.page.setGeometry(QRect(0, 0, 1210, 708))
+        self.page_layout = QVBoxLayout(self.page)
+        self.page_layout.setObjectName(u"page_layout")
         self.recap_container = QWidget(self.page)
         self.recap_container.setObjectName(u"recap_container")
-        self.recap_container.setGeometry(QRect(1, 0, 1651, 886))
         sizePolicy9.setHeightForWidth(self.recap_container.sizePolicy().hasHeightForWidth())
         self.recap_container.setSizePolicy(sizePolicy9)
         self.verticalLayout_21 = QVBoxLayout(self.recap_container)
@@ -1955,11 +2308,11 @@ class Ui_MainWindow(object):
         self.departure_container.setObjectName(u"departure_container")
         self.label = QLabel(self.recap_container)
         self.label.setObjectName(u"label")
-        sizePolicy11 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
-        sizePolicy11.setHorizontalStretch(0)
-        sizePolicy11.setVerticalStretch(0)
-        sizePolicy11.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
-        self.label.setSizePolicy(sizePolicy11)
+        sizePolicy12 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy12.setHorizontalStretch(0)
+        sizePolicy12.setVerticalStretch(0)
+        sizePolicy12.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
+        self.label.setSizePolicy(sizePolicy12)
         self.label.setStyleSheet(u"font-weight:700;")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -1969,11 +2322,11 @@ class Ui_MainWindow(object):
         self.horizontalLayout_22.setObjectName(u"horizontalLayout_22")
         self.label_10 = QLabel(self.recap_container)
         self.label_10.setObjectName(u"label_10")
-        sizePolicy12 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        sizePolicy12.setHorizontalStretch(0)
-        sizePolicy12.setVerticalStretch(0)
-        sizePolicy12.setHeightForWidth(self.label_10.sizePolicy().hasHeightForWidth())
-        self.label_10.setSizePolicy(sizePolicy12)
+        sizePolicy13 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        sizePolicy13.setHorizontalStretch(0)
+        sizePolicy13.setVerticalStretch(0)
+        sizePolicy13.setHeightForWidth(self.label_10.sizePolicy().hasHeightForWidth())
+        self.label_10.setSizePolicy(sizePolicy13)
         self.label_10.setMinimumSize(QSize(250, 0))
         self.label_10.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -1994,8 +2347,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_21.setObjectName(u"horizontalLayout_21")
         self.label_13 = QLabel(self.recap_container)
         self.label_13.setObjectName(u"label_13")
-        sizePolicy12.setHeightForWidth(self.label_13.sizePolicy().hasHeightForWidth())
-        self.label_13.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_13.sizePolicy().hasHeightForWidth())
+        self.label_13.setSizePolicy(sizePolicy13)
         self.label_13.setMinimumSize(QSize(250, 0))
         self.label_13.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2016,8 +2369,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_20.setObjectName(u"horizontalLayout_20")
         self.label_15 = QLabel(self.recap_container)
         self.label_15.setObjectName(u"label_15")
-        sizePolicy12.setHeightForWidth(self.label_15.sizePolicy().hasHeightForWidth())
-        self.label_15.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_15.sizePolicy().hasHeightForWidth())
+        self.label_15.setSizePolicy(sizePolicy13)
         self.label_15.setMinimumSize(QSize(250, 0))
         self.label_15.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2038,8 +2391,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_19.setObjectName(u"horizontalLayout_19")
         self.label_17 = QLabel(self.recap_container)
         self.label_17.setObjectName(u"label_17")
-        sizePolicy12.setHeightForWidth(self.label_17.sizePolicy().hasHeightForWidth())
-        self.label_17.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_17.sizePolicy().hasHeightForWidth())
+        self.label_17.setSizePolicy(sizePolicy13)
         self.label_17.setMinimumSize(QSize(250, 0))
         self.label_17.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2060,8 +2413,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_16.setObjectName(u"horizontalLayout_16")
         self.label_2 = QLabel(self.recap_container)
         self.label_2.setObjectName(u"label_2")
-        sizePolicy12.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
-        self.label_2.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
+        self.label_2.setSizePolicy(sizePolicy13)
         self.label_2.setMinimumSize(QSize(250, 0))
         self.label_2.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2094,8 +2447,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_31.setObjectName(u"horizontalLayout_31")
         self.label_34 = QLabel(self.recap_container)
         self.label_34.setObjectName(u"label_34")
-        sizePolicy12.setHeightForWidth(self.label_34.sizePolicy().hasHeightForWidth())
-        self.label_34.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_34.sizePolicy().hasHeightForWidth())
+        self.label_34.setSizePolicy(sizePolicy13)
         self.label_34.setMinimumSize(QSize(250, 0))
         self.label_34.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2116,8 +2469,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_30.setObjectName(u"horizontalLayout_30")
         self.label_35 = QLabel(self.recap_container)
         self.label_35.setObjectName(u"label_35")
-        sizePolicy12.setHeightForWidth(self.label_35.sizePolicy().hasHeightForWidth())
-        self.label_35.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_35.sizePolicy().hasHeightForWidth())
+        self.label_35.setSizePolicy(sizePolicy13)
         self.label_35.setMinimumSize(QSize(250, 0))
         self.label_35.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2138,8 +2491,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_29.setObjectName(u"horizontalLayout_29")
         self.label_32 = QLabel(self.recap_container)
         self.label_32.setObjectName(u"label_32")
-        sizePolicy12.setHeightForWidth(self.label_32.sizePolicy().hasHeightForWidth())
-        self.label_32.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_32.sizePolicy().hasHeightForWidth())
+        self.label_32.setSizePolicy(sizePolicy13)
         self.label_32.setMinimumSize(QSize(250, 0))
         self.label_32.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2160,8 +2513,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_28.setObjectName(u"horizontalLayout_28")
         self.label_37 = QLabel(self.recap_container)
         self.label_37.setObjectName(u"label_37")
-        sizePolicy12.setHeightForWidth(self.label_37.sizePolicy().hasHeightForWidth())
-        self.label_37.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_37.sizePolicy().hasHeightForWidth())
+        self.label_37.setSizePolicy(sizePolicy13)
         self.label_37.setMinimumSize(QSize(250, 0))
         self.label_37.setStyleSheet(u"font-size:20px; font-weight:500")
 
@@ -2268,28 +2621,29 @@ class Ui_MainWindow(object):
 
         self.verticalLayout_21.addLayout(self.takeoff_perf_container)
 
+
+        self.page_layout.addWidget(self.recap_container)
+
         self.toolBox.addItem(self.page, u"Itinerary")
         self.page_2 = QWidget()
         self.page_2.setObjectName(u"page_2")
-        self.page_2.setGeometry(QRect(0, 0, 1643, 837))
-        self.layoutWidget = QWidget(self.page_2)
-        self.layoutWidget.setObjectName(u"layoutWidget")
-        self.layoutWidget.setGeometry(QRect(10, 10, 1621, 311))
-        self.payload_container = QVBoxLayout(self.layoutWidget)
+        self.page_2.setGeometry(QRect(0, 0, 532, 597))
+        self.page_2_layout = QVBoxLayout(self.page_2)
+        self.page_2_layout.setObjectName(u"page_2_layout")
+        self.payload_container = QVBoxLayout()
         self.payload_container.setObjectName(u"payload_container")
-        self.payload_container.setContentsMargins(0, 0, 0, 0)
         self.horizontalLayout_35 = QHBoxLayout()
         self.horizontalLayout_35.setObjectName(u"horizontalLayout_35")
-        self.label_40 = QLabel(self.layoutWidget)
+        self.label_40 = QLabel(self.page_2)
         self.label_40.setObjectName(u"label_40")
-        sizePolicy12.setHeightForWidth(self.label_40.sizePolicy().hasHeightForWidth())
-        self.label_40.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_40.sizePolicy().hasHeightForWidth())
+        self.label_40.setSizePolicy(sizePolicy13)
         self.label_40.setMinimumSize(QSize(250, 0))
         self.label_40.setStyleSheet(u"font-size:20px; font-weight:500")
 
         self.horizontalLayout_35.addWidget(self.label_40)
 
-        self.label_39 = QLabel(self.layoutWidget)
+        self.label_39 = QLabel(self.page_2)
         self.label_39.setObjectName(u"label_39")
         sizePolicy1.setHeightForWidth(self.label_39.sizePolicy().hasHeightForWidth())
         self.label_39.setSizePolicy(sizePolicy1)
@@ -2302,16 +2656,16 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_34 = QHBoxLayout()
         self.horizontalLayout_34.setObjectName(u"horizontalLayout_34")
-        self.label_42 = QLabel(self.layoutWidget)
+        self.label_42 = QLabel(self.page_2)
         self.label_42.setObjectName(u"label_42")
-        sizePolicy12.setHeightForWidth(self.label_42.sizePolicy().hasHeightForWidth())
-        self.label_42.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_42.sizePolicy().hasHeightForWidth())
+        self.label_42.setSizePolicy(sizePolicy13)
         self.label_42.setMinimumSize(QSize(250, 0))
         self.label_42.setStyleSheet(u"font-size:20px; font-weight:500")
 
         self.horizontalLayout_34.addWidget(self.label_42)
 
-        self.label_41 = QLabel(self.layoutWidget)
+        self.label_41 = QLabel(self.page_2)
         self.label_41.setObjectName(u"label_41")
         sizePolicy1.setHeightForWidth(self.label_41.sizePolicy().hasHeightForWidth())
         self.label_41.setSizePolicy(sizePolicy1)
@@ -2324,16 +2678,16 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_33 = QHBoxLayout()
         self.horizontalLayout_33.setObjectName(u"horizontalLayout_33")
-        self.label_44 = QLabel(self.layoutWidget)
+        self.label_44 = QLabel(self.page_2)
         self.label_44.setObjectName(u"label_44")
-        sizePolicy12.setHeightForWidth(self.label_44.sizePolicy().hasHeightForWidth())
-        self.label_44.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_44.sizePolicy().hasHeightForWidth())
+        self.label_44.setSizePolicy(sizePolicy13)
         self.label_44.setMinimumSize(QSize(250, 0))
         self.label_44.setStyleSheet(u"font-size:20px; font-weight:500")
 
         self.horizontalLayout_33.addWidget(self.label_44)
 
-        self.label_43 = QLabel(self.layoutWidget)
+        self.label_43 = QLabel(self.page_2)
         self.label_43.setObjectName(u"label_43")
         sizePolicy1.setHeightForWidth(self.label_43.sizePolicy().hasHeightForWidth())
         self.label_43.setSizePolicy(sizePolicy1)
@@ -2346,16 +2700,16 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_32 = QHBoxLayout()
         self.horizontalLayout_32.setObjectName(u"horizontalLayout_32")
-        self.label_46 = QLabel(self.layoutWidget)
+        self.label_46 = QLabel(self.page_2)
         self.label_46.setObjectName(u"label_46")
-        sizePolicy12.setHeightForWidth(self.label_46.sizePolicy().hasHeightForWidth())
-        self.label_46.setSizePolicy(sizePolicy12)
+        sizePolicy13.setHeightForWidth(self.label_46.sizePolicy().hasHeightForWidth())
+        self.label_46.setSizePolicy(sizePolicy13)
         self.label_46.setMinimumSize(QSize(250, 0))
         self.label_46.setStyleSheet(u"font-size:20px; font-weight:500")
 
         self.horizontalLayout_32.addWidget(self.label_46)
 
-        self.label_45 = QLabel(self.layoutWidget)
+        self.label_45 = QLabel(self.page_2)
         self.label_45.setObjectName(u"label_45")
         sizePolicy1.setHeightForWidth(self.label_45.sizePolicy().hasHeightForWidth())
         self.label_45.setSizePolicy(sizePolicy1)
@@ -2366,24 +2720,49 @@ class Ui_MainWindow(object):
 
         self.payload_container.addLayout(self.horizontalLayout_32)
 
+
+        self.page_2_layout.addLayout(self.payload_container)
+
         self.label_4 = QLabel(self.page_2)
         self.label_4.setObjectName(u"label_4")
-        self.label_4.setGeometry(QRect(10, 340, 521, 431))
+        sizePolicy8.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
+        self.label_4.setSizePolicy(sizePolicy8)
         self.label_4.setPixmap(QPixmap(u":/images/images/images/mustang_weight.PNG"))
+        self.label_4.setScaledContents(True)
+
+        self.page_2_layout.addWidget(self.label_4)
+
         self.toolBox.addItem(self.page_2, u"Payload and weight")
         self.page_3 = QWidget()
         self.page_3.setObjectName(u"page_3")
+        self.page_3.setGeometry(QRect(0, 0, 2325, 1106))
+        self.page_3_layout = QVBoxLayout(self.page_3)
+        self.page_3_layout.setObjectName(u"page_3_layout")
         self.label_5 = QLabel(self.page_3)
         self.label_5.setObjectName(u"label_5")
-        self.label_5.setGeometry(QRect(0, 10, 741, 611))
+        sizePolicy14 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy14.setHorizontalStretch(0)
+        sizePolicy14.setVerticalStretch(2)
+        sizePolicy14.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
+        self.label_5.setSizePolicy(sizePolicy14)
         self.label_5.setPixmap(QPixmap(u":/images/images/images/flight_plan.PNG"))
-        self.label_5.setScaledContents(False)
+        self.label_5.setScaledContents(True)
+
+        self.page_3_layout.addWidget(self.label_5)
+
         self.label_6 = QLabel(self.page_3)
         self.label_6.setObjectName(u"label_6")
-        self.label_6.setGeometry(QRect(0, 630, 1611, 211))
+        sizePolicy8.setHeightForWidth(self.label_6.sizePolicy().hasHeightForWidth())
+        self.label_6.setSizePolicy(sizePolicy8)
         self.label_6.setPixmap(QPixmap(u":/images/images/images/flight_profile.PNG"))
         self.label_6.setScaledContents(True)
+
+        self.page_3_layout.addWidget(self.label_6)
+
         self.toolBox.addItem(self.page_3, u"Plan and profile")
+
+        self.flight_recap_layout.addWidget(self.toolBox)
+
         self.tabWidget.addTab(self.flight_recap, "")
         self.normal_operation_IA_page = QWidget()
         self.normal_operation_IA_page.setObjectName(u"normal_operation_IA_page")
@@ -2632,9 +3011,9 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.stackedWidget.setCurrentIndex(2)
+        self.stackedWidget.setCurrentIndex(1)
         self.stack_tab_container.setCurrentIndex(1)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
         self.toolBox.setCurrentIndex(0)
 
 
@@ -2647,6 +3026,7 @@ class Ui_MainWindow(object):
         self.titleLeftDescription.setText(QCoreApplication.translate("MainWindow", u"Human-Agent Interface", None))
         self.toggleButton.setText(QCoreApplication.translate("MainWindow", u"Hide", None))
         self.btn_home.setText(QCoreApplication.translate("MainWindow", u"Home", None))
+        self.btn_flight.setText(QCoreApplication.translate("MainWindow", u"flight", None))
         self.btn_briefing.setText(QCoreApplication.translate("MainWindow", u"Briefing", None))
         self.toggleLeftBox.setText(QCoreApplication.translate("MainWindow", u"Left Box", None))
         self.extraLabel.setText(QCoreApplication.translate("MainWindow", u"Left Box", None))
@@ -2724,6 +3104,27 @@ class Ui_MainWindow(object):
 "RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY", None))
         self.int_panel_left_button.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
         self.int_panel_right_button.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
+        self.alert_icon_flight.setText("")
+        self.alert_label_flight.setText("")
+        self.p_t_prog_widget_flight.setText("")
+        self.p_t_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.p_g_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.interaction_panel_title_flight.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
+        self.interaction_panel_text_flight.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
+        self.c_t_s_value_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.c_t_s_unit_flight.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
+        self.c_t_prog_widget_flight.setText("")
+        self.interaction_panel_tars_input_flight.setText(QCoreApplication.translate("MainWindow", u"WIND REPORT:\n"
+"\n"
+"METAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 \n"
+"RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY", None))
+        self.int_panel_left_button_flight.setText(QCoreApplication.translate("MainWindow", u"CANCEL EXECUTION", None))
+        self.int_panel_right_button_flight.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
+        self.n_t_prog_widget_flight.setText("")
+        self.n_t_label_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.n_g_label_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.n_t_s_value_flight.setText(QCoreApplication.translate("MainWindow", u"0", None))
+        self.n_t_s_unit_flight.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
         self.labelBoxBlenderInstalation.setText(QCoreApplication.translate("MainWindow", u"FILE BOX", None))
         self.lineEdit.setText("")
         self.lineEdit.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Type here", None))

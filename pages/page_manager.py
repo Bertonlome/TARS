@@ -5,6 +5,7 @@ Manages all page modules and navigation
 
 from pages.briefing_page import BriefingPage
 from pages.home_page import HomePage
+from pages.flight_page import FlightPage
 # Import other pages as you create them
 # from pages.widgets_page import WidgetsPage
 
@@ -33,7 +34,7 @@ class PageManager:
         self.pages['briefing'] = BriefingPage(self.widgets, self.main_window)
         
         # Add other pages as you create them
-        # self.pages['widgets'] = WidgetsPage(self.widgets, self.main_window)
+        self.pages['flight'] = FlightPage(self.widgets, self.main_window)
         
         #print(f"Initialized {len(self.pages)} pages")
         

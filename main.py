@@ -228,6 +228,7 @@ class MainWindow(QMainWindow):
         # LEFT MENUS
         widgets.btn_home.clicked.connect(self.navigateToPageButtonClick)
         widgets.btn_briefing.clicked.connect(self.navigateToPageButtonClick)
+        widgets.btn_flight.clicked.connect(self.navigateToPageButtonClick)
 
         # EXTRA LEFT BOX
         def openCloseLeftBox():
@@ -884,8 +885,8 @@ class MainWindow(QMainWindow):
             btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
 
         # SHOW NEW PAGE
-        if btnName == "btn_new":
-            widgets.stackedWidget.setCurrentWidget(widgets.new_page) # SET PAGE
+        if btnName == "btn_flight":
+            widgets.stackedWidget.setCurrentWidget(widgets.flight) # SET PAGE
             UIFunctions.resetStyle(self, btnName) # RESET ANOTHERS BUTTONS SELECTED
             btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet())) # SELECT MENU
     # //////////////////////////////////////////////////////////////
