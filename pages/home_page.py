@@ -5,7 +5,7 @@ Main landing page for the TARS GUI application
 
 from operator import index
 from tabnanny import check
-from pages.base_page import BasePage
+from pages.task_page_base import TaskPageBase
 from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel, QWidget, QVBoxLayout
 import warnings
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from modules.ui_main import Ui_MainWindow
     from main import MainWindow
 
-class HomePage(BasePage):
+class HomePage(TaskPageBase):
     def set_checklist_label_current(self, procedure_name, task_object, value):
         """Set the checklist button to 'current' (grey box) and scroll to it if needed"""
         button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
@@ -138,13 +138,6 @@ class HomePage(BasePage):
     Contains the main dashboard and status information
     """
     
-    # Signals for communicating with MainWindow
-    task_done_signal = QtCore.Signal()
-    task_cancel_signal = QtCore.Signal()
-    task_allowed_signal = QtCore.Signal()
-    task_not_allowed_signal = QtCore.Signal()
-    countdown_zero_signal = QtCore.Signal()  # Emitted when current countdown reaches 0
-    
     def __init__(self, widgets: 'Ui_MainWindow', main_window: 'MainWindow'):
         """
         Initialize the home page
@@ -156,37 +149,26 @@ class HomePage(BasePage):
         super().__init__(widgets, main_window)
         self.page_widget = widgets.home
         
+        # Set widget references for base class (home uses regular names, not _flight suffix)
+        self.current_task_container = widgets.current_task_container_3
+        self.interaction_panel_text = widgets.interaction_panel_text
+        self.interaction_panel_tars_input = widgets.interaction_panel_tars_input
+        self.int_panel_right_button = widgets.int_panel_right_button
+        self.int_panel_left_button = widgets.int_panel_left_button
+        self.check_radio_button = widgets.check_radio_button
+        self.cancel_task_button = widgets.cancel_task_button_2
+        
         # Explicitly declare widgets type for better IDE support
         self.widgets: 'Ui_MainWindow' = widgets
         self.main_window: 'MainWindow' = main_window
-        
-        # Initialize countdown timers
-        self.current_countdown_timer = QtCore.QTimer(self.main_window)
-        self.current_countdown_timer.setInterval(1000)
-        self.current_countdown_timer.timeout.connect(self.update_current_countdown)
-        self.current_countdown_value = 0
-        self.current_countdown_max = 0  # Track maximum value for progress calculation
-        
-        self.next_countdown_timer = QtCore.QTimer(self.main_window)
-        self.next_countdown_timer.setInterval(1000)
-        self.next_countdown_timer.timeout.connect(self.update_next_countdown)
-        self.next_countdown_value = 0
-        self.next_countdown_max = 0  # Track maximum value for progress calculation
-        
-        # Create circular countdown widgets (will replace the QLabel widgets)
-        self.current_circular_countdown = None
-        self.next_circular_countdown = None
         
         # Create task timeline widgets - one per procedure (stored in dict)
         self.task_timeline_widgets = {}  # Dict: procedure_name -> TaskTimelineWidget
         self.current_procedure = None  # Track current active procedure
         self.discovered_procedures = set()  # Track which procedures have been revealed
         
-    # Initialize glow effect timer
-        self._glow_timer = None
-        self._glow_steps = []
-        self._glow_index = 0
-        self._glow_active_widget = None  # Track which widget is currently glowing
+        # Initialize glow effect timer (inherited from base but needs tracking here)
+        # self._glow_timer, self._glow_steps, etc. already in TaskPageBase
 
         # Store checklist item labels for later access
         self.checklist_item_labels = {}  # Dict: procedure_name -> dict of (task_object, value) -> QLabel
@@ -230,18 +212,46 @@ class HomePage(BasePage):
         """
         Setup home page specific functionality
         """
-        # Connect task buttons to home page handlers
-        #self.widgets.task_done_button.clicked.connect(self.task_done_clicked)
-        self.widgets.int_panel_right_button.clicked.connect(self.task_done_clicked)
-        self.widgets.check_radio_button.clicked.connect(self.task_done_clicked)
-        self.widgets.cancel_task_button_2.clicked.connect(self.task_cancel_clicked)
-        self.widgets.int_panel_left_button.clicked.connect(self.task_cancel_clicked)
-        
         # Set object name for current task container
         self.widgets.current_task_container_3.setObjectName("currentTaskContainer")
         
         # Replace text labels with circular countdown widgets
         self._setup_circular_countdowns()
+        
+        # Connect task buttons (from base class)
+        self.connect_task_buttons()
+        
+        # Apply radio button styling
+        radio_style = """
+        QRadioButton {
+            padding: 5px 5px;
+            padding-left: 10px;
+            padding-right: 10px;
+            border: 2px solid rgba(221,221,221,255);
+            border-radius: 5px;
+            background-color: rgba(33, 37, 43, 255);
+            font: 600 16pt "JetBrains Mono";
+            color: white;
+        }
+        QRadioButton::indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 10px;
+            border: 3px solid rgb(52, 59, 72);
+            background: rgb(44, 49, 60);
+        }
+        QRadioButton::indicator:hover {
+            border: 3px solid rgb(58, 66, 81);
+        }
+        QRadioButton::indicator:checked {
+            background: #35de71;
+            border: 3px solid rgb(52, 59, 72);
+        }
+        QRadioButton:checked {
+            border: 2px solid #35de71;
+        }
+        """
+        self.widgets.check_radio_button.setStyleSheet(radio_style)
         
         # Setup task timeline widget
         self._setup_task_timeline()
@@ -290,35 +300,15 @@ class HomePage(BasePage):
 
     def _setup_circular_countdowns(self):
         """Replace the QLabel countdown displays with circular countdown widgets"""
-        # Current task countdown
-        # Hide the original label and unit text
-        self.widgets.c_t_s_value_2.hide()
-        self.widgets.c_t_s_unit_2.hide()
-        
-        # Create and add circular countdown widget
-        self.current_circular_countdown = CircularCountdown()
-        self.current_circular_countdown.set_colors(
-            progress_color="#55aaff",  # Blue
-            background_color="#343b48",
-            text_color="#d2d2d2"
+        # Use base class method to setup countdown widgets
+        self.setup_countdown_widgets(
+            current_container=self.widgets.c_t_s_container_2,
+            next_container=self.widgets.n_t_s_container_2,
+            current_value_label=self.widgets.c_t_s_value_2,
+            current_unit_label=self.widgets.c_t_s_unit_2,
+            next_value_label=self.widgets.n_t_s_value_2,
+            next_unit_label=self.widgets.n_t_s_unit_2
         )
-        # Add to the container layout
-        self.widgets.c_t_s_container_2.addWidget(self.current_circular_countdown)
-        
-        # Next task countdown
-        # Hide the original label and unit text
-        self.widgets.n_t_s_value_2.hide()
-        self.widgets.n_t_s_unit_2.hide()
-        
-        # Create and add circular countdown widget
-        self.next_circular_countdown = CircularCountdown()
-        self.next_circular_countdown.set_colors(
-            progress_color="#55aaff",  # Blue
-            background_color="#343b48",
-            text_color="#d2d2d2"
-        )
-        # Add to the container layout
-        self.widgets.n_t_s_container_2.addWidget(self.next_circular_countdown)
     
     def _setup_task_timeline(self):
         """Setup the task timeline widget with tabs for each procedure"""

@@ -3109,7 +3109,7 @@ class Ui_MainWindow(object):
         self.p_t_prog_widget_flight.setText("")
         self.p_t_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.p_g_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.interaction_panel_title_flight.setText(QCoreApplication.translate("MainWindow", u"Interaction Panel", None))
+        self.interaction_panel_title_flight.setText(QCoreApplication.translate("MainWindow", u"Current task", None))
         self.interaction_panel_text_flight.setText(QCoreApplication.translate("MainWindow", u"There is no interaction available for the ongoing task", None))
         self.c_t_s_value_flight.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.c_t_s_unit_flight.setText(QCoreApplication.translate("MainWindow", u"seconds", None))

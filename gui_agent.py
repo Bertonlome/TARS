@@ -294,16 +294,33 @@ class GUIAgent(QObject):
         home_page = self.main_window.page_manager.get_page('home')
         if home_page:
             home_page.displayAlert(message, color)
+        
+        flight_page = self.main_window.page_manager.get_page('flight')
+        if flight_page:
+            flight_page.displayAlert(message, color)
     
     def _on_clear_alert(self):
         """Clear alert in UI (main thread)"""
         home_page = self.main_window.page_manager.get_page('home')
         if home_page:
             home_page.clearAlert()
+        
+        flight_page = self.main_window.page_manager.get_page('flight')
+        if flight_page:
+            flight_page.clearAlert()
     
     def _on_interaction_message(self, message: str, tars_input: str):
         """Update interaction panel (main thread)"""
+        # Update home page interaction panel
         self.main_window.display_interaction_panel_message(message, tars_input)
+        
+        # Update flight page interaction panel
+        self.main_window.ui.interaction_panel_text_flight.setText(message)
+        if tars_input:
+            self.main_window.ui.interaction_panel_tars_input_flight.setText(tars_input)
+            self.main_window.ui.interaction_panel_tars_input_flight.show()
+        else:
+            self.main_window.ui.interaction_panel_tars_input_flight.hide()
     
     def _on_state_changed(self, state_data: dict):
         """Handle state change from TARS (main thread)"""
@@ -338,12 +355,16 @@ class GUIAgent(QObject):
         """Handle next state update from TARS (main thread)"""
         print(f"📊 Next state received: {state_data.get('procedure')} - {state_data.get('task_object')}")
         
-        # Update next state labels in UI
+        # Update next state labels in UI (home page)
         next_procedure_text = state_data.get('procedure', '')
         next_task_text = f"{state_data.get('task_object', '')}     {state_data.get('value', '')}"
         
         self.main_window.ui.n_g_label_2.setText(next_procedure_text)
         self.main_window.ui.n_t_label_2.setText(next_task_text)
+        
+        # Update flight page labels
+        self.main_window.ui.n_g_label_flight.setText(next_procedure_text)
+        self.main_window.ui.n_t_label_flight.setText(next_task_text)
         
         # Store for later use (timeline, etc.)
         self.main_window.next_state = state_data
@@ -352,12 +373,16 @@ class GUIAgent(QObject):
         """Handle previous state update from TARS (main thread)"""
         print(f"📊 Previous state received: {state_data.get('procedure')} - {state_data.get('task_object')}")
         
-        # Update previous state labels in UI
+        # Update previous state labels in UI (home page)
         previous_procedure_text = state_data.get('procedure', '')
         previous_task_text = f"{state_data.get('task_object', '')}     {state_data.get('value', '')}"
         
         self.main_window.ui.p_g_2.setText(previous_procedure_text)
         self.main_window.ui.p_t_2.setText(previous_task_text)
+        
+        # Update flight page labels
+        self.main_window.ui.p_g_flight.setText(previous_procedure_text)
+        self.main_window.ui.p_t_flight.setText(previous_task_text)
         
         # Store for later use
         self.main_window.previous_state = state_data
@@ -368,12 +393,21 @@ class GUIAgent(QObject):
     
     def _connect_ui_to_tars(self):
         """Connect MainWindow signals to TARS inputs via Ingescape"""
-        # Task completion
+        # Task completion - HomePage
         self.main_window.get_home_page().task_done_signal.connect(self._send_task_acknowledged)
         self.main_window.get_home_page().task_cancel_signal.connect(self._send_task_cancelled)
         self.main_window.get_home_page().task_allowed_signal.connect(self._send_task_allowed)
         self.main_window.get_home_page().task_not_allowed_signal.connect(self._send_task_not_allowed)
         self.main_window.get_home_page().countdown_zero_signal.connect(self._send_countdown_complete)
+        
+        # Task completion - FlightPage (same signals)
+        flight_page = self.main_window.page_manager.get_page('flight')
+        if flight_page:
+            flight_page.task_done_signal.connect(self._send_task_acknowledged)
+            flight_page.task_cancel_signal.connect(self._send_task_cancelled)
+            flight_page.task_allowed_signal.connect(self._send_task_allowed)
+            flight_page.task_not_allowed_signal.connect(self._send_task_not_allowed)
+            flight_page.countdown_zero_signal.connect(self._send_countdown_complete)
     
     def _send_task_acknowledged(self):
         """Send task acknowledgment to TARS"""
