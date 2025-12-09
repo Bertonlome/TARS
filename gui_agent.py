@@ -116,6 +116,8 @@ class GUIAgent(QObject):
         igs.output_create("emergency_inject", igs.STRING_T, None)
         igs.output_create("force_state_jump", igs.STRING_T, None)
         igs.output_create("countdown_complete", igs.IMPULSION_T, None)
+        igs.output_create("next_step", igs.IMPULSION_T, None)  # Jump to next state (dev mode)
+        igs.output_create("previous_step", igs.IMPULSION_T, None)  # Jump to previous state (dev mode)
         
         print(f"✅ GUI Agent '{self.agent_name}' initialized with Ingescape I/O")
     
@@ -394,6 +396,8 @@ class GUIAgent(QObject):
         self.main_window.get_home_page().task_allowed_signal.connect(self._send_task_allowed)
         self.main_window.get_home_page().task_not_allowed_signal.connect(self._send_task_not_allowed)
         self.main_window.get_home_page().countdown_zero_signal.connect(self._send_countdown_complete)
+        self.main_window.get_home_page().next_step_signal.connect(self._send_next_step)
+        self.main_window.get_home_page().previous_step_signal.connect(self._send_previous_step)
         
         # Task completion - FlightPage (same signals)
         flight_page = self.main_window.page_manager.get_page('flight')
@@ -404,6 +408,8 @@ class GUIAgent(QObject):
             flight_page.task_allowed_signal.connect(self._send_task_allowed)
             flight_page.task_not_allowed_signal.connect(self._send_task_not_allowed)
             flight_page.countdown_zero_signal.connect(self._send_countdown_complete)
+            flight_page.next_step_signal.connect(self._send_next_step)
+            flight_page.previous_step_signal.connect(self._send_previous_step)
     
     def _send_task_acknowledged(self):
         """Send task acknowledgment to TARS"""
@@ -439,6 +445,16 @@ class GUIAgent(QObject):
         """Send countdown completion to TARS"""
         igs.output_set_impulsion("countdown_complete")
         print("📤 Sent countdown_complete to TARS")
+    
+    def _send_next_step(self):
+        """Send next_step impulsion to TARS (dev mode navigation)"""
+        igs.output_set_impulsion("next_step")
+        print("⏭️ Sent next_step to TARS (jump to next state)")
+    
+    def _send_previous_step(self):
+        """Send previous_step impulsion to TARS (dev mode navigation)"""
+        igs.output_set_impulsion("previous_step")
+        print("⏮️ Sent previous_step to TARS (jump to previous state)")
     
     def send_force_state_jump(self, procedure: str, task_object: str, value: str):
         """Force TARS FSM to jump to specific state (from UI clicks)"""

@@ -27,6 +27,8 @@ class TaskPageBase(BasePage):
     task_allowed_signal = QtCore.Signal()
     task_not_allowed_signal = QtCore.Signal()
     countdown_zero_signal = QtCore.Signal()
+    next_step_signal = QtCore.Signal()  # Signal to jump to next state
+    previous_step_signal = QtCore.Signal()  # Signal to jump to previous state
     
     def __init__(self, widgets: 'Ui_MainWindow', main_window: 'MainWindow'):
         super().__init__(widgets, main_window)

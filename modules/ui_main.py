@@ -1140,7 +1140,12 @@ class Ui_MainWindow(object):
         self.previous_task_container_6.setStyleSheet(u"QWidget#previous_task_container_6{\n"
 "border: 2px solid rgba(0, 26, 56, 200);\n"
 "border-radius: 10px;\n"
-"background-color: rgba(0, 26, 56, 200);}")
+"background-color: rgba(0, 26, 56, 200);\n"
+"}\n"
+"QWidget#previous_task_container_6:hover {\n"
+"border: 2px solid rgba(51, 153, 255, 180);\n"
+"background-color: rgba(0, 40, 80, 220);\n"
+"}")
         self.horizontalLayout_10 = QHBoxLayout(self.previous_task_container_6)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.p_t_prog_widget_2 = QLabel(self.previous_task_container_6)
@@ -1300,7 +1305,12 @@ class Ui_MainWindow(object):
         self.next_task_container_6.setStyleSheet(u"QWidget#next_task_container_6{\n"
 "border: 2px solid rgba(0, 26, 56, 200);\n"
 "border-radius: 10px;\n"
-"background-color: rgba(0, 26, 56, 200);}")
+"background-color: rgba(0, 26, 56, 200);\n"
+"}\n"
+"QWidget#next_task_container_6:hover {\n"
+"border: 2px solid rgba(51, 153, 255, 180);\n"
+"background-color: rgba(0, 40, 80, 220);\n"
+"}")
         self.horizontalLayout_13 = QHBoxLayout(self.next_task_container_6)
         self.horizontalLayout_13.setObjectName(u"horizontalLayout_13")
         self.n_t_prog_widget_2 = QLabel(self.next_task_container_6)
@@ -1663,7 +1673,12 @@ class Ui_MainWindow(object):
         self.previous_task_container_flight_2.setStyleSheet(u"QWidget#previous_task_container_flight_2{\n"
 "border: 2px solid rgba(0, 26, 56, 200);\n"
 "border-radius: 10px;\n"
-"background-color: rgba(0, 26, 56, 200);}")
+"background-color: rgba(0, 26, 56, 200);\n"
+"}\n"
+"QWidget#previous_task_container_flight_2:hover {\n"
+"border: 2px solid rgba(51, 153, 255, 180);\n"
+"background-color: rgba(0, 40, 80, 220);\n"
+"}")
         self.horizontalLayout_17 = QHBoxLayout(self.previous_task_container_flight_2)
         self.horizontalLayout_17.setObjectName(u"horizontalLayout_17")
         self.p_t_tars_icon_flight = QLabel(self.previous_task_container_flight_2)
@@ -1761,7 +1776,7 @@ class Ui_MainWindow(object):
         self.icon_and_countdown_container.setObjectName(u"icon_and_countdown_container")
         self.c_t_tars_icon_flight = QLabel(self.interaction_container_flight)
         self.c_t_tars_icon_flight.setObjectName(u"c_t_tars_icon_flight")
-        self.c_t_tars_icon_flight.setMaximumSize(QSize(150, 150))
+        self.c_t_tars_icon_flight.setMaximumSize(QSize(125, 125))
         self.c_t_tars_icon_flight.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
         self.c_t_tars_icon_flight.setScaledContents(True)
 
@@ -1793,7 +1808,7 @@ class Ui_MainWindow(object):
 
         self.c_t_human_pilot_icon_flight = QLabel(self.interaction_container_flight)
         self.c_t_human_pilot_icon_flight.setObjectName(u"c_t_human_pilot_icon_flight")
-        self.c_t_human_pilot_icon_flight.setMaximumSize(QSize(150, 150))
+        self.c_t_human_pilot_icon_flight.setMaximumSize(QSize(125, 125))
         self.c_t_human_pilot_icon_flight.setPixmap(QPixmap(u":/images/images/images/human_pilot_icon.png"))
         self.c_t_human_pilot_icon_flight.setScaledContents(True)
 
@@ -1806,7 +1821,7 @@ class Ui_MainWindow(object):
         self.tars_output_container.setObjectName(u"tars_output_container")
         self.tars_output_container.setMinimumSize(QSize(20, 20))
         self.tars_output_container.setStyleSheet(u"QWidget#tars_output_container{\n"
-"border: 10px solid rgba(0, 0, 0, 200);\n"
+"border: 5px solid rgba(0, 0, 0, 200);\n"
 "border-radius: 20px;}")
         self.tars_output_container_layout = QVBoxLayout(self.tars_output_container)
         self.tars_output_container_layout.setObjectName(u"tars_output_container_layout")
@@ -1915,7 +1930,12 @@ class Ui_MainWindow(object):
         self.next_task_container_flight_2.setStyleSheet(u"QWidget#next_task_container_flight_2{\n"
 "border: 2px solid rgba(0, 26, 56, 200);\n"
 "border-radius: 10px;\n"
-"background-color: rgba(0, 26, 56, 200);}")
+"background-color: rgba(0, 26, 56, 200);\n"
+"}\n"
+"QWidget#next_task_container_flight_2:hover {\n"
+"border: 2px solid rgba(51, 153, 255, 180);\n"
+"background-color: rgba(0, 40, 80, 220);\n"
+"}")
         self.horizontalLayout_18 = QHBoxLayout(self.next_task_container_flight_2)
         self.horizontalLayout_18.setObjectName(u"horizontalLayout_18")
         self.n_t_tars_icon_flight = QLabel(self.next_task_container_flight_2)
@@ -3068,7 +3088,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.stackedWidget.setCurrentIndex(1)
+        self.stackedWidget.setCurrentIndex(0)
         self.stack_tab_container.setCurrentIndex(1)
         self.tabWidget.setCurrentIndex(1)
         self.toolBox.setCurrentIndex(0)

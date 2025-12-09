@@ -61,6 +61,9 @@ class FlightPage(TaskPageBase):
             next_unit_label=self.next_unit_label
         )
         
+        # Make previous/next task containers clickable
+        self._setup_clickable_task_containers()
+        
         # Connect task buttons (right button = done, left button = cancel)
         self.connect_task_buttons()
         
@@ -131,6 +134,45 @@ class FlightPage(TaskPageBase):
             self.widgets.int_panel_left_button_flight.setText("OVERRIDE")
         else:
             self.widgets.int_panel_left_button_flight.setText("CANCEL")
+    
+    def _setup_clickable_task_containers(self):
+        """Make previous and next task containers clickable for navigation"""
+        # Get the containers
+        previous_container = self.widgets.previous_task_container_flight_2
+        next_container = self.widgets.next_task_container_flight_2
+        
+        # Install event filters
+        previous_container.installEventFilter(self)
+        next_container.installEventFilter(self)
+        
+        # Store references for event handling
+        self._previous_task_container = previous_container
+        self._next_task_container = next_container
+        
+        # Add hover cursor
+        from PySide6.QtCore import Qt
+        previous_container.setCursor(Qt.PointingHandCursor)
+        next_container.setCursor(Qt.PointingHandCursor)
+        
+        print("✅ [FlightPage] Previous/Next task containers are now clickable")
+    
+    def eventFilter(self, obj, event):
+        """Handle events for clickable task containers"""
+        from PySide6.QtCore import QEvent, Qt
+        
+        # Check if it's a mouse press on one of our containers
+        if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+            if obj == self._previous_task_container:
+                print("⬅️ [FlightPage] Previous task container clicked")
+                self.previous_step_signal.emit()
+                return True
+            elif obj == self._next_task_container:
+                print("➡️ [FlightPage] Next task container clicked")
+                self.next_step_signal.emit()
+                return True
+        
+        # Pass event to parent
+        return super().eventFilter(obj, event)
     
     def show_button(self, button, color):
         """Show button with specified color styling"""

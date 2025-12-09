@@ -701,7 +701,7 @@ class MainWindow(QMainWindow):
             flight_page.next_countdown_timer.stop()
             self.ui.n_t_s_value_2.setText("N/A")
 
-        # Update UI labels
+        # Update UI labels (home page)
         self.ui.p_g_2.setText(previous_procedure_text)
         self.ui.p_t_2.setText(previous_task_text)
         self.ui.c_g_2.setText(current_procedure_text)
@@ -709,6 +709,12 @@ class MainWindow(QMainWindow):
         self.ui.n_g_label_2.setText(next_procedure_text)
         self.ui.n_t_label_2.setText(next_task_text)
         self.ui.alert_label_2.setText(f"{current_procedure_text}")
+        
+        # Update UI labels (flight page)
+        self.ui.p_g_flight.setText(previous_procedure_text)
+        self.ui.p_t_flight.setText(previous_task_text)
+        self.ui.n_g_label_flight.setText(next_procedure_text)
+        self.ui.n_t_label_flight.setText(next_task_text)
         self.ui.alert_label_flight.setText(f"{current_procedure_text}")
         
         # Handle previous task autonomy role display (home page)
