@@ -191,32 +191,6 @@ TARS_INPUTS = {
         "description": "User cancelled current action (reclaim authority)",
     },
     
-    # Specific Approvals (will be consolidated to task_approval eventually)
-    "allow_comm_atc": {
-        "type": "integer",  # ApprovalStatus enum
-        "description": "0=NOT_ANSWERED, 1=APPROVED, 2=DENIED - Allow TARS to communicate with ATC",
-    },
-    
-    "allow_trim_rudder": {
-        "type": "integer",  # ApprovalStatus enum
-        "description": "0=NOT_ANSWERED, 1=APPROVED, 2=DENIED - Allow TARS to adjust trim/rudder",
-    },
-    
-    "allow_engage_autopilot": {
-        "type": "integer",  # ApprovalStatus enum
-        "description": "0=NOT_ANSWERED, 1=APPROVED, 2=DENIED - Allow TARS to engage autopilot",
-    },
-    
-    "allow_declare_panpan": {
-        "type": "integer",  # ApprovalStatus enum
-        "description": "0=NOT_ANSWERED, 1=APPROVED, 2=DENIED - Allow TARS to declare PAN-PAN",
-    },
-    
-    "allow_request_vectors": {
-        "type": "integer",  # ApprovalStatus enum
-        "description": "0=NOT_ANSWERED, 1=APPROVED, 2=DENIED - Allow TARS to request vectors",
-    },
-    
     # FSM Control
     "start_procedure": {
         "type": "impulsion",
@@ -376,16 +350,19 @@ def create_interaction_message(message: str, tars_input: str = "") -> str:
     Create interaction panel message JSON
     
     Args:
-        message: Main message text
-        tars_input: Optional TARS reasoning/input (default empty)
+        message: Main message text (empty string = None, preserves existing UI text)
+        tars_input: Optional TARS reasoning/input (empty string = None, preserves existing UI text)
         
     Returns:
         JSON string
+        
+    Note:
+        Empty strings are converted to None to signal "no update" to GUI
     """
     import json
     return json.dumps({
-        "message": message,
-        "tars_input": tars_input,
+        "message": message if message else None,
+        "tars_input": tars_input if tars_input else None,
     })
 
 

@@ -708,6 +708,10 @@ class HomePage(TaskPageBase):
     # ///////////////////////////////////////////////////////////////
     def update_current_countdown(self):
         """Update current task countdown display"""
+        # Check if task was cancelled - ignore timer events if so
+        if self._task_cancelled:
+            return
+        
         if self.current_countdown_value > 0:
             self.current_countdown_value -= 1
             # Update both the old label (for compatibility) and the circular widget
@@ -731,8 +735,9 @@ class HomePage(TaskPageBase):
                     # Start connection animation immediately after task completion
                     timeline_widget._active_connection_index = timeline_widget._current_task_index
                     timeline_widget.set_connection_progress(0.0)
-                # Emit signal that countdown reached 0
-                self.countdown_zero_signal.emit()
+                # Only emit signal if task was not cancelled
+                if not self._task_cancelled:
+                    self.countdown_zero_signal.emit()
         else:
             self.widgets.c_t_s_value_2.setText("0")
             if self.current_circular_countdown:
@@ -774,6 +779,10 @@ class HomePage(TaskPageBase):
     
     def start_current_countdown(self, seconds):
         """Start countdown for current task"""
+        # Reset cancellation flag and button mode for new countdown
+        self._task_cancelled = False
+        self._reset_cancel_button_to_normal()
+        
         self.current_countdown_value = seconds
         self.current_countdown_max = seconds  # Store max for progress calculation
         if self.current_circular_countdown:
@@ -801,6 +810,10 @@ class HomePage(TaskPageBase):
     
     def handle_human_task(self):
         """Handle task when performer is human (no countdown needed)"""
+        # Reset cancellation flag and button mode - human tasks don't have countdown to cancel
+        self._task_cancelled = False
+        self._reset_cancel_button_to_normal()
+        
         # Stop any running countdown
         self.current_countdown_timer.stop()
         self.current_countdown_value = 0
@@ -859,31 +872,51 @@ class HomePage(TaskPageBase):
         self.task_not_allowed_signal.emit()
 
     def task_cancel_clicked(self):
-        """Handle task cancel button click"""
-
-        self.start_glow_effect(self.widgets.current_task_container_3, "red")
+        """Handle task cancel/override button click - behavior depends on button mode"""
         
-        # Stop the countdown timer and update UI
-        self.current_countdown_timer.stop()
-        self.current_countdown_value = 0
-        if self.current_circular_countdown:
-            self.current_circular_countdown.hide()
-        self.widgets.c_t_s_unit_2.show()
-        self.widgets.c_t_s_value_2.show()
-        self.widgets.c_t_s_value_2.setText("N/A")
-        
-        # Complete the task border animation in timeline widget
-        timeline_widget = self.get_current_timeline_widget()
-        if timeline_widget:
-            # Set border progress to 100% (completed)
-            timeline_widget._target_task_progress = 1.0
-            timeline_widget._current_task_progress = 1.0
-            # Mark task as complete and start connection animation
-            timeline_widget.complete_current_task()
-            timeline_widget.update()
-        
-        # Emit signal to inhibit current action
-        self.task_cancel_signal.emit()
+        if self._button_in_override_mode:
+            # Button is in OVERRIDE mode - force transition to next state
+            self.start_glow_effect(self.widgets.current_task_container_3, "green")
+            self.task_override_signal.emit()
+        else:
+            # Button is in CANCEL mode - cancel the current task
+            self.start_glow_effect(self.widgets.current_task_container_3, "red")
+            
+            # Mark task as cancelled
+            self._task_cancelled = True
+            
+            # Stop the countdown timer and update UI
+            self.current_countdown_timer.stop()
+            self.current_countdown_value = 0
+            if self.current_circular_countdown:
+                self.current_circular_countdown.hide()
+            self.widgets.c_t_s_unit_2.show()
+            self.widgets.c_t_s_value_2.show()
+            self.widgets.c_t_s_value_2.setText("N/A")
+            
+            # Complete the task border animation in timeline widget
+            timeline_widget = self.get_current_timeline_widget()
+            if timeline_widget:
+                # Set border progress to 100% (completed)
+                timeline_widget._target_task_progress = 1.0
+                timeline_widget._current_task_progress = 1.0
+                # Mark task as complete and start connection animation
+                timeline_widget.complete_current_task()
+                timeline_widget.update()
+            
+            # Emit signal to inhibit current action
+            self.task_cancel_signal.emit()
+            
+            # Switch button to OVERRIDE mode
+            self._button_in_override_mode = True
+            self._update_cancel_button_text()
+    
+    def _update_cancel_button_text(self):
+        """Update cancel button text based on current mode (override from TaskPageBase)"""
+        if self._button_in_override_mode:
+            self.cancel_task_button.setText("OVERRIDE")
+        else:
+            self.cancel_task_button.setText("CANCEL")
     
     # VISUAL EFFECTS
     # ///////////////////////////////////////////////////////////////

@@ -95,11 +95,8 @@ class TarsAgent:
         self.task_acked = [False]
         #conditions
         self.is_on_off = [False]
-        self.is_allowed_to_comm_atc = [ApprovalStatus.NOT_ANSWERED]
-        self.is_requesting_vectors = [ApprovalStatus.NOT_ANSWERED]
-        self.is_allowed_trim_rudder = [ApprovalStatus.NOT_ANSWERED] # 0 = not answered, 1 = allowed, 2 = denied
-        self.is_allowed_engage_autopilot = [ApprovalStatus.NOT_ANSWERED] # 0 = not answered, 1 = allowed, 2 = denied
-        self.is_allowed_to_declare_panpan = [ApprovalStatus.NOT_ANSWERED] # 0 = not answered, 1 = allowed, 2 = denied
+        # Single approval state for current pending task
+        self.task_approval_status = [ApprovalStatus.NOT_ANSWERED]  # 0 = not answered, 1 = approved, 2 = denied
         self.engine_failed_side = "None"
 
         # Alert state tracking to prevent spam
@@ -305,7 +302,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
-            lambda: self.is_pitch_maintained and not self.is_alarm(), 
+            lambda: self.is_pitch_above_threshold and not self.is_alarm(), 
             self.check_slip_skid_action))
         
         self.fsm.add_transition(Transition(
@@ -394,7 +391,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "LANDING GEAR", "UP")], 
-            self.is_pitch_maintained, 
+            self.is_pitch_above_threshold, 
             lambda: self.dummy_action(),
             transition_action=lambda: self.on_speak_action("Landing gear is extended") if not self.is_gear_up() and self.states[("ENG FAILURE DURING TAKEOFF", "LANDING GEAR", "UP")].autonomy_role == "supporter" else self.dummy_action()))
         
@@ -415,7 +412,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "TRIM")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")], 
-            lambda: self.is_slip_skid_centered() or self.is_acked() or self.is_allowed_trim_rudder[0] == ApprovalStatus.DENIED,
+            lambda: self.is_slip_skid_centered() or self.is_acked() or self.task_approval_status[0] == ApprovalStatus.DENIED,
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
         
@@ -478,14 +475,14 @@ class TarsAgent:
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
             self.allow_transition, 
             lambda: self.engage_autopilot_action() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action(),
-            transition_action= lambda: (setattr(self, 'is_allowed_engage_autopilot', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].callout)) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action()))
+            transition_action= lambda: (setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].callout)) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")],
             self.allow_transition,
             self.check_1500_ft_send_signal,
-            transition_action= lambda: setattr(self, 'is_allowed_engage_autopilot', [ApprovalStatus.NOT_ANSWERED])))
+            transition_action= lambda: setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED])))
         
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")], 
@@ -520,22 +517,22 @@ class TarsAgent:
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
             self.is_v_enr, 
             action=lambda: self.dummy_action(),
-            transition_action= lambda: (setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action("Do you want me to announce emergency to ATC on one one niner point niner? Answer Approve or Deny")) if self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action()))
+            transition_action= lambda: (setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action("Do you want me to announce emergency to ATC on one one niner point niner? Answer Approve or Deny")) if self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
-            self.is_allowed_comm, 
+            self.is_allowed, 
             self.dummy_action,
-            transition_action=lambda: (self.contact_atc_action("mayday"), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
+            transition_action=lambda: (self.contact_atc_action("mayday"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
         # If not allowed to communicate, skip directly to readback
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
-            self.is_denied_comm, 
+            self.is_denied, 
             lambda: self.dummy_action(),
-            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
+            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
@@ -621,22 +618,22 @@ class TarsAgent:
             self.states[("DECLARE PANPAN", "ATC", "CONTACT")],
             self.allow_transition, 
             action= lambda: self.dummy_action(),
-            transition_action=lambda: (setattr(self, 'is_allowed_to_declare_panpan', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "CONTACT")].callout) if self.states[("DECLARE PANPAN", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action())))
+            transition_action=lambda: (setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]), self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "CONTACT")].callout) if self.states[("DECLARE PANPAN", "ATC", "CONTACT")].autonomy_role == "performer" else self.dummy_action())))
 
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "CONTACT")],
             self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")], 
-            self.is_allowed_panpan, 
+            self.is_allowed, 
             action= lambda: self.dummy_action(),
-            transition_action=lambda: (self.contact_atc_action("panpan"), setattr(self, 'is_allowed_to_declare_panpan', [ApprovalStatus.NOT_ANSWERED])) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].autonomy_role == "performer" else self.dummy_action()))
+            transition_action=lambda: (self.contact_atc_action("panpan"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED])) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].autonomy_role == "performer" else self.dummy_action()))
         
         # if PANPAN not accepted, skip to AFTER TAKEOFF
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "CONTACT")],
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")],
-            self.is_denied_panpan,
+            self.is_denied,
             self.dummy_action,
-            transition_action=lambda: (self.dummy_action(), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_allowed_to_declare_panpan', [ApprovalStatus.NOT_ANSWERED]))[0]))
+            transition_action=lambda: (self.dummy_action(), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
         # If TARS not allowed, skip to READBACK
         self.fsm.add_transition(Transition(
@@ -644,7 +641,7 @@ class TarsAgent:
             self.states[("DECLARE PANPAN", "ATC", "READBACK")],
             self.allow_transition,
             self.dummy_action,
-            transition_action=lambda: (self.dummy_action(), setattr(self, 'is_allowed_to_comm_atc', [ApprovalStatus.NOT_ANSWERED]), setattr(self, 'is_requesting_vectors', [ApprovalStatus.NOT_ANSWERED]))[0]))
+            transition_action=lambda: (self.dummy_action(), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0]))
         
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
@@ -662,7 +659,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "READBACK")],
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")],
-            lambda: self.is_acked() and not self.is_allowed_comm_and_vector(),
+            lambda: self.is_acked() and not self.is_allowed(),
             self.dummy_action))
 
         # Continue to AFTER TAKEOFF from DECLARE PANPAN
@@ -1115,35 +1112,13 @@ class TarsAgent:
         """Always returns True - timing is managed by main.py using delay_before_action and delay_after_action"""
         return True
 
-    def is_allowed_panpan(self):
-        """Check if PANPAN declaration is allowed - doesn't reset flag (reset happens after action)"""
-        return self.is_allowed_to_declare_panpan[0] == ApprovalStatus.APPROVED
+    def is_allowed(self):
+        """Check if current task is approved"""
+        return self.task_approval_status[0] == ApprovalStatus.APPROVED
     
-    def is_denied_panpan(self):
-        """Check if PANPAN declaration is denied"""
-        return self.is_allowed_to_declare_panpan[0] == ApprovalStatus.DENIED
-    
-    def is_allowed_comm(self):
-        """Check if communication is allowed - doesn't reset flag (reset happens after action)"""
-        return self.is_allowed_to_comm_atc[0] == ApprovalStatus.APPROVED
-    
-    def is_denied_comm(self):
-        """Check if communication is denied"""
-        return self.is_allowed_to_comm_atc[0] == ApprovalStatus.DENIED
-    
-    def is_allowed_comm_and_vector(self):
-        """Check if both communication and vectors are allowed - doesn't reset flags"""
-        return (self.is_allowed_to_comm_atc[0] == ApprovalStatus.APPROVED and 
-                self.is_requesting_vectors[0] == ApprovalStatus.APPROVED)
-    
-    def is_denied_comm_or_vector(self):
-        """Check if either communication or vectors are denied"""
-        return (self.is_allowed_to_comm_atc[0] == ApprovalStatus.DENIED or 
-                self.is_requesting_vectors[0] == ApprovalStatus.DENIED)
-    
-    def is_allowed_trim_rudder(self):
-        """Check if trim rudder is allowed - doesn't reset flag (reset happens after state change)"""
-        return self.is_allowed_to_trim_rudder[0] == ApprovalStatus.APPROVED
+    def is_denied(self):
+        """Check if current task is denied"""
+        return self.task_approval_status[0] == ApprovalStatus.DENIED
     
     def is_acked(self):
         # Don't reset the flag here - it should persist until state changes
@@ -1293,7 +1268,7 @@ class TarsAgent:
             return True
         return False
     
-    def is_pitch_maintained(self):
+    def is_pitch_above_threshold(self):
         if self.agent.pitch_i is not None and self.agent.pitch_i >= PITCH_ANGLE_THRESHOLD:
             return True
         return False
@@ -1574,7 +1549,9 @@ class TarsAgent:
             
         elif name == "task_cancelled":
             print("❌ Task cancelled by user - reclaiming authority")
-            # TODO: Implement task cancellation logic (pause FSM, revert state, etc.)
+            # Cancel the current action in FSM worker
+            if hasattr(self, 'fsm_worker') and self.fsm_worker:
+                self.fsm_worker.cancel_current_action()
             
         elif name == "start_procedure":
             print("▶️  Start procedure requested from GUI")
@@ -1599,7 +1576,7 @@ class TarsAgent:
                     # Publish state change via Ingescape (GUIAgent will receive it)
                     try:
                         state_data = encode_state_to_json(self.fsm.current_state)
-                        igs.output_set_string("state_changed", state_data)
+                        igs.output_set_string("current_state", state_data)
                         print(f"  → State change published via Ingescape")
                     except Exception as e:
                         print(f"ERROR publishing state change: {e}")
@@ -1617,7 +1594,7 @@ class TarsAgent:
                     # Publish state change via Ingescape (GUIAgent will receive it)
                     try:
                         state_data = encode_state_to_json(self.fsm.current_state)
-                        igs.output_set_string("state_changed", state_data)
+                        igs.output_set_string("current_state", state_data)
                         print(f"  → State change published via Ingescape")
                     except Exception as e:
                         print(f"ERROR publishing state change: {e}")
@@ -1632,9 +1609,9 @@ class TarsAgent:
         
         # GUI Agent → TARS Agent inputs (Phase 6)
         if name == "task_approval":
+            approval_status = ApprovalStatus.APPROVED if value else ApprovalStatus.DENIED
+            self.task_approval_status[0] = approval_status
             print(f"{'✅ Task APPROVED' if value else '❌ Task DENIED'} by user")
-            # Update approval status
-            # TODO: Map to specific approval variables based on current task
             
         # Simulator inputs
         elif name == "On_Off":
@@ -1658,24 +1635,8 @@ class TarsAgent:
         agent_object = my_data
         assert isinstance(agent_object, Echo)
         
-        # GUI Agent → TARS Agent approval inputs (Phase 6)
-        if name == "allow_comm_atc":
-            print(f"ATC Communication approval: {value} (0=NOT_ANSWERED, 1=APPROVED, 2=DENIED)")
-            self.is_allowed_to_comm_atc[0] = value  # Value is already 0/1/2
-        elif name == "allow_trim_rudder":
-            print(f"Trim/Rudder approval: {value}")
-            self.is_allowed_trim_rudder[0] = value  # Value is already 0/1/2
-        elif name == "allow_engage_autopilot":
-            print(f"Autopilot engagement approval: {value}")
-            # TODO: Add self.is_allowed_engage_autopilot variable
-        elif name == "allow_declare_panpan":
-            print(f"PAN-PAN declaration approval: {value}")
-            # TODO: Add self.is_allowed_declare_panpan variable
-        elif name == "allow_request_vectors":
-            print(f"Request vectors approval: {value}")
-            self.is_requesting_vectors[0] = value  # Value is already 0/1/2
-        else:
-            igs.info(f"Input {name} written to {value}")
+        # No specific approval inputs needed - task_approval handles all approvals
+        igs.info(f"Input {name} written to {value}")
 
     def double_input_callback(self, io_type, name, value_type, value, my_data):
         #start_time = time.perf_counter()
@@ -1804,11 +1765,6 @@ class TarsAgent:
             except json.JSONDecodeError as e:
                 print(f"❌ Invalid JSON in force_state_jump: {e}")
             
-        elif name == "speech_command":
-            print(f"🎤 Speech command received from GUI: {value}")
-            # Delegate to existing speech_input handler
-            self.string_input_callback(io_type, "speech_input", value_type, value, my_data)
-            
         elif name == "speech_input":
             agent_object.speech_input_i = value
             
@@ -1829,22 +1785,14 @@ class TarsAgent:
                         self.impulsion_input_callback(igs.INPUT_T, "previous_step", igs.IMPULSION_T, True, agent_object)
                         
                     elif cmd.action == "approve":
-                        # Set approval flag for pending requests
-                        self.is_allowed_to_comm_atc[0] = ApprovalStatus.APPROVED
-                        self.is_requesting_vectors[0] = ApprovalStatus.APPROVED
-                        self.is_allowed_trim_rudder[0] = ApprovalStatus.APPROVED
-                        self.is_allowed_engage_autopilot[0] = ApprovalStatus.APPROVED
-                        self.is_allowed_to_declare_panpan[0] = ApprovalStatus.APPROVED
+                        # Set approval flag for pending task
+                        self.task_approval_status[0] = ApprovalStatus.APPROVED
                         self.on_speak_action("Action approved.")
                         print("✅ Approval granted")
                         
                     elif cmd.action == "deny":
-                        # Set denial flag for pending requests
-                        self.is_allowed_to_comm_atc[0] = ApprovalStatus.DENIED
-                        self.is_requesting_vectors[0] = ApprovalStatus.DENIED
-                        self.is_allowed_trim_rudder[0] = ApprovalStatus.DENIED
-                        self.is_allowed_engage_autopilot[0] = ApprovalStatus.DENIED
-                        self.is_allowed_to_declare_panpan[0] = ApprovalStatus.DENIED
+                        # Set denial flag for pending task
+                        self.task_approval_status[0] = ApprovalStatus.DENIED
                         print("❌ Request denied")
                         self.on_speak_action("Action denied.")
                         
@@ -1996,17 +1944,11 @@ class TarsAgent:
         igs.input_create("task_approval", igs.BOOL_T, None)  # User approved/denied current task
         igs.input_create("task_acknowledged", igs.IMPULSION_T, None)  # User acknowledged task completion
         igs.input_create("task_cancelled", igs.IMPULSION_T, None)  # User cancelled action (reclaim authority)
-        igs.input_create("allow_comm_atc", igs.INTEGER_T, None)  # Approval for ATC communication
-        igs.input_create("allow_trim_rudder", igs.INTEGER_T, None)  # Approval for trim/rudder adjustment
-        igs.input_create("allow_engage_autopilot", igs.INTEGER_T, None)  # Approval for autopilot engagement
-        igs.input_create("allow_declare_panpan", igs.INTEGER_T, None)  # Approval for PAN-PAN declaration
-        igs.input_create("allow_request_vectors", igs.INTEGER_T, None)  # Approval for requesting vectors
         igs.input_create("start_procedure", igs.IMPULSION_T, None)  # Start FSM execution
         igs.input_create("stop_procedure", igs.IMPULSION_T, None)  # Stop/pause FSM execution
         igs.input_create("emergency_inject", igs.STRING_T, None)  # Emergency procedure name to inject
         igs.input_create("force_state_jump", igs.STRING_T, None)  # Force jump to specific state (from UI clicks)
         igs.input_create("countdown_complete", igs.IMPULSION_T, None)  # Countdown timer reached zero
-        igs.input_create("speech_command", igs.STRING_T, None)  # Voice command from STT
 
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("next_step", self.impulsion_input_callback, self.agent)
@@ -2062,17 +2004,11 @@ class TarsAgent:
         igs.observe_input("task_approval", self.bool_input_callback, self.agent)
         igs.observe_input("task_acknowledged", self.impulsion_input_callback, self.agent)
         igs.observe_input("task_cancelled", self.impulsion_input_callback, self.agent)
-        igs.observe_input("allow_comm_atc", self.integer_input_callback, self.agent)
-        igs.observe_input("allow_trim_rudder", self.integer_input_callback, self.agent)
-        igs.observe_input("allow_engage_autopilot", self.integer_input_callback, self.agent)
-        igs.observe_input("allow_declare_panpan", self.integer_input_callback, self.agent)
-        igs.observe_input("allow_request_vectors", self.integer_input_callback, self.agent)
         igs.observe_input("start_procedure", self.impulsion_input_callback, self.agent)
         igs.observe_input("stop_procedure", self.impulsion_input_callback, self.agent)
         igs.observe_input("emergency_inject", self.string_input_callback, self.agent)
         igs.observe_input("force_state_jump", self.string_input_callback, self.agent)
         igs.observe_input("countdown_complete", self.impulsion_input_callback, self.agent)
-        igs.observe_input("speech_command", self.string_input_callback, self.agent)
 
         igs.log_set_console(True)
         igs.log_set_console_level(igs.LOG_INFO)
@@ -2113,8 +2049,8 @@ class TarsAgent:
     
     def engage_autopilot_action(self):
         # Check if denied
-        if self.is_allowed_engage_autopilot[0] == ApprovalStatus.DENIED or self.is_allowed_engage_autopilot[0] == ApprovalStatus.NOT_ANSWERED:
-            self.is_allowed_engage_autopilot[0] = ApprovalStatus.NOT_ANSWERED  # Reset
+        if self.task_approval_status[0] == ApprovalStatus.DENIED or self.task_approval_status[0] == ApprovalStatus.NOT_ANSWERED:
+            self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset
             return
         # Approved - proceed with autopilot engagement
         if self.flight_director_mode == 2:
@@ -2127,18 +2063,18 @@ class TarsAgent:
             self.on_speak_action("Autopilot engaged.")
             msg = create_interaction_message("", "Autopilot engaged.")
             igs.output_set_string("interaction_message", msg)
-            self.is_allowed_engage_autopilot[0] = ApprovalStatus.NOT_ANSWERED  # Reset
+            self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset
     
     def trim_action(self):
         # Check if denied
-        if self.is_allowed_trim_rudder[0] == ApprovalStatus.DENIED or self.is_allowed_trim_rudder[0] == ApprovalStatus.NOT_ANSWERED:
-            self.is_allowed_trim_rudder[0] = ApprovalStatus.NOT_ANSWERED  # Reset
+        if self.task_approval_status[0] == ApprovalStatus.DENIED or self.task_approval_status[0] == ApprovalStatus.NOT_ANSWERED:
+            self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset
             return
         # Approved - proceed with trim
         if self.engine_failed_side == "Left":
             self.on_speak_action("Trimming right rudder for left engine failure.")
             stable_start_time = None
-            while self.is_allowed_trim_rudder[0] == ApprovalStatus.APPROVED:
+            while self.task_approval_status[0] == ApprovalStatus.APPROVED:
                 current_trim = self.agent.trim_rudder_i if self.agent.trim_rudder_i is not None else 0.0
                 current_slip = self.agent.slip_i if self.agent.slip_i is not None else 0.0
                 
@@ -2175,7 +2111,7 @@ class TarsAgent:
         elif self.engine_failed_side == "Right":
             self.on_speak_action("Trimming left rudder for right engine failure.")
             stable_start_time = None
-            while self.is_allowed_trim_rudder[0] == ApprovalStatus.APPROVED:
+            while self.task_approval_status[0] == ApprovalStatus.APPROVED:
                 current_trim = self.agent.trim_rudder_i if self.agent.trim_rudder_i is not None else 0.0
                 current_slip = self.agent.slip_i if self.agent.slip_i is not None else 0.0
                 
@@ -2210,7 +2146,7 @@ class TarsAgent:
                 
                 time.sleep(0.5)
         self.on_speak_action("Rudder trim complete")
-        self.is_allowed_trim_rudder[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
+        self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
     
     def engage_yaw_damper_action(self):
         if self.is_alarm():
@@ -2228,8 +2164,8 @@ class TarsAgent:
     
     def contact_atc_action(self, message=None):
         # Check if denied
-        if self.is_allowed_to_comm_atc[0] == ApprovalStatus.DENIED or self.is_allowed_to_comm_atc[0] == ApprovalStatus.NOT_ANSWERED:
-            self.is_allowed_to_comm_atc[0] = ApprovalStatus.NOT_ANSWERED  # Reset
+        if self.task_approval_status[0] == ApprovalStatus.DENIED or self.task_approval_status[0] == ApprovalStatus.NOT_ANSWERED:
+            self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset
             return
         # Approved - proceed with contacting ATC
         print(f"Contacting ATC with message: {message}")
@@ -2239,7 +2175,7 @@ class TarsAgent:
         elif message == "panpan":
             self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].callout) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN")].autonomy_role == "performer" else self.dummy_action()
             igs.output_set_impulsion("request_vectors")
-        self.is_allowed_to_comm_atc[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
+        self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
 
     def check_slip_skid_action(self):
         if not self.is_slip_skid_centered():

@@ -7,8 +7,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1775</width>
-    <height>1141</height>
+    <width>1807</width>
+    <height>1152</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -2758,6 +2758,12 @@ background-color: rgba(33, 37, 43, 255);
                              </item>
                              <item>
                               <widget class="QWidget" name="previous_task_container_flight" native="true">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
                                <layout class="QHBoxLayout" name="previous_task_container_8">
                                 <property name="leftMargin">
                                  <number>50</number>
@@ -2780,6 +2786,18 @@ background-color: rgba(33, 37, 43, 255);
                                 </item>
                                 <item>
                                  <widget class="QWidget" name="previous_task_container_flight_2" native="true">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="maximumSize">
+                                   <size>
+                                    <width>16777215</width>
+                                    <height>100</height>
+                                   </size>
+                                  </property>
                                   <property name="styleSheet">
                                    <string notr="true">QWidget#previous_task_container_flight_2{
 border: 2px solid rgba(0, 26, 56, 200);
@@ -2787,12 +2805,12 @@ border-radius: 10px;
 background-color: rgba(0, 26, 56, 200);}</string>
                                   </property>
                                   <layout class="QHBoxLayout" name="horizontalLayout_17">
-                                   <item>
-                                    <widget class="QLabel" name="p_t_prog_widget_flight">
+                                   <item alignment="Qt::AlignmentFlag::AlignLeft">
+                                    <widget class="QLabel" name="p_t_tars_icon_flight">
                                      <property name="maximumSize">
                                       <size>
-                                       <width>40</width>
-                                       <height>40</height>
+                                       <width>75</width>
+                                       <height>75</height>
                                       </size>
                                      </property>
                                      <property name="text">
@@ -2806,7 +2824,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                      </property>
                                     </widget>
                                    </item>
-                                   <item>
+                                   <item alignment="Qt::AlignmentFlag::AlignLeft">
                                     <widget class="QWidget" name="previous_task_container_flight_3" native="true">
                                      <property name="sizePolicy">
                                       <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
@@ -2821,7 +2839,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                       </size>
                                      </property>
                                      <layout class="QVBoxLayout" name="p_t_container_3">
-                                      <item>
+                                      <item alignment="Qt::AlignmentFlag::AlignLeft">
                                        <widget class="QLabel" name="p_t_flight">
                                         <property name="styleSheet">
                                          <string notr="true">font: 500 12pt &quot;JetBrains Mono&quot;;</string>
@@ -2834,7 +2852,7 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                         </property>
                                        </widget>
                                       </item>
-                                      <item>
+                                      <item alignment="Qt::AlignmentFlag::AlignLeft">
                                        <widget class="QLabel" name="p_g_flight">
                                         <property name="styleSheet">
                                          <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
@@ -2850,6 +2868,25 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                      </layout>
                                     </widget>
                                    </item>
+                                   <item>
+                                    <widget class="QLabel" name="p_t_human_pilot_icon_flight">
+                                     <property name="maximumSize">
+                                      <size>
+                                       <width>75</width>
+                                       <height>75</height>
+                                      </size>
+                                     </property>
+                                     <property name="text">
+                                      <string/>
+                                     </property>
+                                     <property name="pixmap">
+                                      <pixmap resource="resources.qrc">:/images/images/images/human_pilot_icon.png</pixmap>
+                                     </property>
+                                     <property name="scaledContents">
+                                      <bool>true</bool>
+                                     </property>
+                                    </widget>
+                                   </item>
                                   </layout>
                                  </widget>
                                 </item>
@@ -2858,6 +2895,12 @@ background-color: rgba(0, 26, 56, 200);}</string>
                              </item>
                              <item>
                               <widget class="QWidget" name="current_task_container_flight" native="true">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
                                <property name="styleSheet">
                                 <string notr="true">QWidget#current_task_container_flight {
     border: 2px solid rgba(19, 20, 23, 255);
@@ -2895,19 +2938,19 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                     <widget class="QLabel" name="interaction_panel_text_flight">
                                      <property name="sizePolicy">
                                       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                                       <horstretch>0</horstretch>
-                                       <verstretch>1</verstretch>
+                                       <horstretch>3</horstretch>
+                                       <verstretch>3</verstretch>
                                       </sizepolicy>
                                      </property>
                                      <property name="minimumSize">
                                       <size>
-                                       <width>750</width>
+                                       <width>0</width>
                                        <height>0</height>
                                       </size>
                                      </property>
                                      <property name="maximumSize">
                                       <size>
-                                       <width>750</width>
+                                       <width>1500</width>
                                        <height>16777215</height>
                                       </size>
                                      </property>
@@ -2926,95 +2969,130 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                     </widget>
                                    </item>
                                    <item>
-                                    <widget class="QWidget" name="countdown_container" native="true">
-                                     <property name="sizePolicy">
-                                      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                                       <horstretch>2</horstretch>
-                                       <verstretch>0</verstretch>
-                                      </sizepolicy>
+                                    <layout class="QHBoxLayout" name="icon_and_countdown_container">
+                                     <item>
+                                      <widget class="QLabel" name="c_t_tars_icon_flight">
+                                       <property name="maximumSize">
+                                        <size>
+                                         <width>125</width>
+                                         <height>125</height>
+                                        </size>
+                                       </property>
+                                       <property name="text">
+                                        <string/>
+                                       </property>
+                                       <property name="pixmap">
+                                        <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                       </property>
+                                       <property name="scaledContents">
+                                        <bool>true</bool>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="QWidget" name="countdown_container" native="true">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                         <horstretch>2</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <layout class="QVBoxLayout" name="c_t_s_container_3">
+                                        <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                                         <widget class="QLabel" name="c_t_s_value_flight">
+                                          <property name="styleSheet">
+                                           <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
+                                          </property>
+                                          <property name="text">
+                                           <string>TextLabel</string>
+                                          </property>
+                                         </widget>
+                                        </item>
+                                        <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                                         <widget class="QLabel" name="c_t_s_unit_flight">
+                                          <property name="styleSheet">
+                                           <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
+                                          </property>
+                                          <property name="text">
+                                           <string>seconds</string>
+                                          </property>
+                                         </widget>
+                                        </item>
+                                       </layout>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="QLabel" name="c_t_human_pilot_icon_flight">
+                                       <property name="maximumSize">
+                                        <size>
+                                         <width>125</width>
+                                         <height>125</height>
+                                        </size>
+                                       </property>
+                                       <property name="text">
+                                        <string/>
+                                       </property>
+                                       <property name="pixmap">
+                                        <pixmap resource="resources.qrc">:/images/images/images/human_pilot_icon.png</pixmap>
+                                       </property>
+                                       <property name="scaledContents">
+                                        <bool>true</bool>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                    </layout>
+                                   </item>
+                                   <item>
+                                    <widget class="QWidget" name="tars_output_container" native="true">
+                                     <property name="minimumSize">
+                                      <size>
+                                       <width>20</width>
+                                       <height>20</height>
+                                      </size>
                                      </property>
-                                     <layout class="QVBoxLayout" name="c_t_s_container_3">
-                                      <item alignment="Qt::AlignmentFlag::AlignRight">
-                                       <widget class="QLabel" name="c_t_s_value_flight">
+                                     <property name="styleSheet">
+                                      <string notr="true">QWidget#tars_output_container{
+border: 5px solid rgba(0, 0, 0, 200);
+border-radius: 20px;}</string>
+                                     </property>
+                                     <layout class="QVBoxLayout" name="tars_output_container_layout">
+                                      <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                                       <widget class="QLabel" name="interaction_panel_tars_input_flight">
+                                        <property name="sizePolicy">
+                                         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                                          <horstretch>3</horstretch>
+                                          <verstretch>3</verstretch>
+                                         </sizepolicy>
+                                        </property>
+                                        <property name="minimumSize">
+                                         <size>
+                                          <width>0</width>
+                                          <height>200</height>
+                                         </size>
+                                        </property>
+                                        <property name="maximumSize">
+                                         <size>
+                                          <width>1500</width>
+                                          <height>200</height>
+                                         </size>
+                                        </property>
                                         <property name="styleSheet">
-                                         <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
+                                         <string notr="true">padding: 5px,5px;
+font: 300 14pt &quot;JetBrains Mono&quot;;
+color: #3399ff</string>
                                         </property>
                                         <property name="text">
-                                         <string>TextLabel</string>
+                                         <string>TARS OUTPUT</string>
                                         </property>
-                                       </widget>
-                                      </item>
-                                      <item alignment="Qt::AlignmentFlag::AlignRight">
-                                       <widget class="QLabel" name="c_t_s_unit_flight">
-                                        <property name="styleSheet">
-                                         <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
+                                        <property name="alignment">
+                                         <set>Qt::AlignmentFlag::AlignCenter</set>
                                         </property>
-                                        <property name="text">
-                                         <string>seconds</string>
+                                        <property name="wordWrap">
+                                         <bool>true</bool>
                                         </property>
                                        </widget>
                                       </item>
                                      </layout>
-                                    </widget>
-                                   </item>
-                                   <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                    <widget class="QLabel" name="c_t_prog_widget_flight">
-                                     <property name="maximumSize">
-                                      <size>
-                                       <width>50</width>
-                                       <height>50</height>
-                                      </size>
-                                     </property>
-                                     <property name="text">
-                                      <string/>
-                                     </property>
-                                     <property name="pixmap">
-                                      <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
-                                     </property>
-                                     <property name="scaledContents">
-                                      <bool>true</bool>
-                                     </property>
-                                    </widget>
-                                   </item>
-                                   <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                    <widget class="QLabel" name="interaction_panel_tars_input_flight">
-                                     <property name="sizePolicy">
-                                      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                                       <horstretch>1</horstretch>
-                                       <verstretch>1</verstretch>
-                                      </sizepolicy>
-                                     </property>
-                                     <property name="minimumSize">
-                                      <size>
-                                       <width>750</width>
-                                       <height>150</height>
-                                      </size>
-                                     </property>
-                                     <property name="maximumSize">
-                                      <size>
-                                       <width>750</width>
-                                       <height>16777215</height>
-                                      </size>
-                                     </property>
-                                     <property name="styleSheet">
-                                      <string notr="true">padding: 5px,5px;
-border: 4px solid rgba(19, 20, 23, 255);
-border-radius: 20px;
-font: 300 14pt &quot;JetBrains Mono&quot;;
-color: #3399ff</string>
-                                     </property>
-                                     <property name="text">
-                                      <string>WIND REPORT:
-
-METAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 
-RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
-                                     </property>
-                                     <property name="alignment">
-                                      <set>Qt::AlignmentFlag::AlignCenter</set>
-                                     </property>
-                                     <property name="wordWrap">
-                                      <bool>true</bool>
-                                     </property>
                                     </widget>
                                    </item>
                                    <item>
@@ -3122,6 +3200,12 @@ RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
                              </item>
                              <item>
                               <widget class="QWidget" name="next_task_container_flight" native="true">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
                                <layout class="QHBoxLayout" name="next_task_container_8">
                                 <property name="leftMargin">
                                  <number>50</number>
@@ -3144,6 +3228,18 @@ RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
                                 </item>
                                 <item>
                                  <widget class="QWidget" name="next_task_container_flight_2" native="true">
+                                  <property name="sizePolicy">
+                                   <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                   </sizepolicy>
+                                  </property>
+                                  <property name="maximumSize">
+                                   <size>
+                                    <width>16777215</width>
+                                    <height>100</height>
+                                   </size>
+                                  </property>
                                   <property name="styleSheet">
                                    <string notr="true">QWidget#next_task_container_flight_2{
 border: 2px solid rgba(0, 26, 56, 200);
@@ -3152,11 +3248,11 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                   </property>
                                   <layout class="QHBoxLayout" name="horizontalLayout_18">
                                    <item>
-                                    <widget class="QLabel" name="n_t_prog_widget_flight">
+                                    <widget class="QLabel" name="n_t_tars_icon_flight">
                                      <property name="maximumSize">
                                       <size>
-                                       <width>40</width>
-                                       <height>40</height>
+                                       <width>75</width>
+                                       <height>75</height>
                                       </size>
                                      </property>
                                      <property name="text">
@@ -3237,6 +3333,31 @@ background-color: rgba(0, 26, 56, 200);}</string>
                                       </widget>
                                      </item>
                                     </layout>
+                                   </item>
+                                   <item>
+                                    <widget class="QLabel" name="n_t_human_pilot_icon_flight">
+                                     <property name="minimumSize">
+                                      <size>
+                                       <width>75</width>
+                                       <height>75</height>
+                                      </size>
+                                     </property>
+                                     <property name="maximumSize">
+                                      <size>
+                                       <width>75</width>
+                                       <height>75</height>
+                                      </size>
+                                     </property>
+                                     <property name="text">
+                                      <string/>
+                                     </property>
+                                     <property name="pixmap">
+                                      <pixmap resource="resources.qrc">:/images/images/images/human_pilot_icon.png</pixmap>
+                                     </property>
+                                     <property name="scaledContents">
+                                      <bool>true</bool>
+                                     </property>
+                                    </widget>
                                    </item>
                                   </layout>
                                  </widget>

@@ -13,26 +13,8 @@
 [ ] Add a reclaim vs offload button
 [x] Add tars input composante de vent de travers sur checkwind
 [ ] How to set/ensure the frequencies for panpan/mayday call?
-[ ] The tars input should be boxed to look more like an output
+[x] The tars input should be boxed to look more like an output
 [ ] Remove aviate tasks such as brakes hold.
-[ ] Create a version with only the interaction panel, as a new page
-[ ] Agentify the interface
+[x] Create a version with only the interaction panel, as a new page
+[x] Agentify the interface
 [ ] Add NLP for ATC
-
-
-this is the behaviour of the FSM for one example 
-
-        self.fsm.add_transition(Transition(
-            self.states[("TAKEOFF", "FADEC bug", "CHECK TO")], 
-            self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")], 
-            self.is_fadec_bug_to, 
-            lambda: self.on_speak_action(self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")].callout) if self.states[("TAKEOFF", "\"Thrust set\"", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
-        
-        self.fsm.add_transition(Transition(
-            self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")], 
-            self.states[("TAKEOFF", "\"Thrust set\"", "ANNOUNCE")], 
-            self.is_engine_spool_even, 
-            self.dummy_action))
-
-this means there is a transition for FADEC bug CHECK TO --> to Engine Spool CHECK EVEN
-when entering Engine spool check even State the fsm will wait delay_before_action then fire the lambda whatever the condition, it is an entering state function

@@ -43,6 +43,9 @@ class FSMWorker:
         # Control flags
         self.should_stop = False
         
+        # Track task_acked state for detecting check button presses
+        self.last_task_acked_state = False
+        
         # Callbacks for UI updates (replaces Qt Signals)
         self._state_changed_callback: Optional[Callable] = None
         self._action_about_to_fire_callback: Optional[Callable] = None
@@ -94,7 +97,6 @@ class FSMWorker:
     def cancel_current_action(self):
         """Cancel/skip the current action execution"""
         self.skip_current_action = True
-        print(f"Current action inhibited - user reclaimed task")
     
     def stop(self):
         """Stop the FSM worker loop"""
@@ -230,18 +232,10 @@ class FSMWorker:
                         if hasattr(self.agent, 'task_acked'):
                             self.agent.task_acked[0] = False
                         
-                        # Reset all approval flags (they're consumed by the transition)
-                        if hasattr(self.agent, 'is_allowed_to_comm_atc'):
+                        # Reset single approval flag (consumed by the transition)
+                        if hasattr(self.agent, 'task_approval_status'):
                             from Core.agent import ApprovalStatus
-                            self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.NOT_ANSWERED
-                        if hasattr(self.agent, 'is_allowed_to_trim_rudder'):
-                            self.agent.is_allowed_to_trim_rudder[0] = ApprovalStatus.NOT_ANSWERED
-                        if hasattr(self.agent, 'is_allowed_to_declare_panpan'):
-                            self.agent.is_allowed_to_declare_panpan[0] = ApprovalStatus.NOT_ANSWERED
-                        if hasattr(self.agent, 'is_requesting_vectors'):
-                            self.agent.is_requesting_vectors[0] = ApprovalStatus.NOT_ANSWERED
-                        if hasattr(self.agent, 'is_allowed_to_engage_ap'):
-                            self.agent.is_allowed_to_engage_ap[0] = ApprovalStatus.NOT_ANSWERED
+                            self.agent.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED
                         
                         # Notify via callback instead of Qt Signal
                         if self._state_changed_callback:
@@ -310,10 +304,76 @@ class FSMWorker:
             
             if not transition_found:
                 self.stop_performance_timer("transition_check", transition_start)
+                
+                # Check if user just pressed "check" but conditions not satisfied
+                current_acked = self.agent.task_acked[0] if hasattr(self.agent, 'task_acked') else False
+                
+                if current_acked and not self.last_task_acked_state:
+                    # User just pressed check! But we didn't transition - conditions not satisfied
+                    self._handle_failed_acknowledgment(fsm.current_state)
+                
+                self.last_task_acked_state = current_acked
             
             # Small sleep to prevent tight loop (allows other operations to run)
             time.sleep(0.05)  # 50ms sleep = 20 checks per second
             
+    def _handle_failed_acknowledgment(self, current_state):
+        """
+        Called when user presses check but transition condition is not satisfied.
+        Analyzes the transition condition and sends feedback to user.
+        """
+        fsm = self.agent.fsm
+        
+        # Find the expected transition from current state
+        expected_transition = None
+        for t in fsm.transitions:
+            if t.from_state == current_state:
+                expected_transition = t
+                break
+        
+        if not expected_transition:
+            return  # No transition defined, nothing to check
+        
+        # Check if to_state has a condition_function defined
+        to_state = expected_transition.to_state
+        
+        try:
+            if to_state.condition_function:
+                # Try to evaluate the condition function
+                condition_func = getattr(self.agent, to_state.condition_function, None)
+                if condition_func:
+                    try:
+                        condition_result = condition_func()
+                        if not condition_result:
+                            # Found it! The condition function is not satisfied
+                            # Format condition name nicely for user
+                            condition_name = to_state.condition_function.replace('is_', '').replace('_', ' ')
+                            message = f"Cannot proceed: {condition_name} not satisfied yet."
+                            self._send_interaction_message(message)
+                            print(f"ℹ️  User checked but condition '{to_state.condition_function}' = False")
+                            return
+                    except Exception as e:
+                        print(f"Error evaluating condition {to_state.condition_function}: {e}")
+            
+            # Generic message if we can't determine specific condition
+            message = "Task acknowledged, but transition conditions not yet satisfied. Please verify requirements."
+            self._send_interaction_message(message)
+            print(f"ℹ️  User checked but conditions not satisfied for transition")
+            
+        except Exception as e:
+            print(f"Error in _handle_failed_acknowledgment: {e}")
+    
+    def _send_interaction_message(self, message: str):
+        """Send interaction message to GUI via Ingescape"""
+        try:
+            from Core.message_protocol import create_interaction_message
+            import ingescape as igs
+            
+            msg = create_interaction_message("", message)
+            igs.output_set_string("interaction_message", msg)
+        except Exception as e:
+            print(f"Error sending interaction message: {e}")
+    
     def get_delay_before_action(self, state) -> float:
         """Get delay before action from state"""
         delay = getattr(state, "delay_before_action", 0)

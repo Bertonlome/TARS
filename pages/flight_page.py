@@ -124,3 +124,33 @@ class FlightPage(TaskPageBase):
             }
         """)
         self.widgets.alert_label_flight.setText("")
+    
+    def _update_cancel_button_text(self):
+        """Update cancel button text based on current mode (override from TaskPageBase)"""
+        if self._button_in_override_mode:
+            self.widgets.int_panel_left_button_flight.setText("OVERRIDE")
+        else:
+            self.widgets.int_panel_left_button_flight.setText("CANCEL")
+    
+    def show_button(self, button, color):
+        """Show button with specified color styling"""
+        button.show()
+    
+    def hide_label(self, label):
+        """Hide a label with opacity effect"""
+        from PySide6.QtWidgets import QGraphicsOpacityEffect
+        opacity_effect = label.graphicsEffect()
+        if not isinstance(opacity_effect, QGraphicsOpacityEffect):
+            opacity_effect = QGraphicsOpacityEffect(label)
+            label.setGraphicsEffect(opacity_effect)
+        opacity_effect.setOpacity(0.0)
+    
+    def show_label(self, label):
+        """Show a label with opacity effect"""
+        from PySide6.QtWidgets import QGraphicsOpacityEffect
+        opacity_effect = label.graphicsEffect()
+        if not isinstance(opacity_effect, QGraphicsOpacityEffect):
+            opacity_effect = QGraphicsOpacityEffect(label)
+            label.setGraphicsEffect(opacity_effect)
+        opacity_effect.setOpacity(0.99)
+        label.show()

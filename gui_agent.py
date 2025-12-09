@@ -110,11 +110,7 @@ class GUIAgent(QObject):
         igs.output_create("task_approval", igs.BOOL_T, None)
         igs.output_create("task_acknowledged", igs.IMPULSION_T, None)
         igs.output_create("task_cancelled", igs.IMPULSION_T, None)
-        igs.output_create("allow_comm_atc", igs.INTEGER_T, None)
-        igs.output_create("allow_trim_rudder", igs.INTEGER_T, None)
-        igs.output_create("allow_engage_autopilot", igs.INTEGER_T, None)
-        igs.output_create("allow_declare_panpan", igs.INTEGER_T, None)
-        igs.output_create("allow_request_vectors", igs.INTEGER_T, None)
+        igs.output_create("task_override", igs.IMPULSION_T, None)  # Force next state transition
         igs.output_create("start_procedure", igs.IMPULSION_T, None)
         igs.output_create("stop_procedure", igs.IMPULSION_T, None)
         igs.output_create("emergency_inject", igs.STRING_T, None)
@@ -157,8 +153,13 @@ class GUIAgent(QObject):
         """Handle interaction panel message from TARS"""
         try:
             msg_data = json.loads(value)
+            # None means "don't update" (preserve existing text)
             message = msg_data.get("message", "")
             tars_input = msg_data.get("tars_input", "")
+            # Convert None to empty string for signal (Qt doesn't handle None well)
+            # But empty string will be treated as "no update" in handler
+            message = "" if message is None else message
+            tars_input = "" if tars_input is None else tars_input
             self._interaction_message_signal.emit(message, tars_input)
         except Exception as e:
             print(f"Error processing interaction message: {e}")
@@ -311,16 +312,9 @@ class GUIAgent(QObject):
     
     def _on_interaction_message(self, message: str, tars_input: str):
         """Update interaction panel (main thread)"""
-        # Update home page interaction panel
-        self.main_window.display_interaction_panel_message(message, tars_input)
-        
-        # Update flight page interaction panel
-        self.main_window.ui.interaction_panel_text_flight.setText(message)
-        if tars_input:
-            self.main_window.ui.interaction_panel_tars_input_flight.setText(tars_input)
-            self.main_window.ui.interaction_panel_tars_input_flight.show()
-        else:
-            self.main_window.ui.interaction_panel_tars_input_flight.hide()
+        # Update both home and flight pages using helper methods
+        self.main_window.set_interaction_text(message)
+        self.main_window.set_interaction_tars_input(tars_input, show=bool(tars_input))
     
     def _on_state_changed(self, state_data: dict):
         """Handle state change from TARS (main thread)"""
@@ -396,6 +390,7 @@ class GUIAgent(QObject):
         # Task completion - HomePage
         self.main_window.get_home_page().task_done_signal.connect(self._send_task_acknowledged)
         self.main_window.get_home_page().task_cancel_signal.connect(self._send_task_cancelled)
+        self.main_window.get_home_page().task_override_signal.connect(self._send_task_override)
         self.main_window.get_home_page().task_allowed_signal.connect(self._send_task_allowed)
         self.main_window.get_home_page().task_not_allowed_signal.connect(self._send_task_not_allowed)
         self.main_window.get_home_page().countdown_zero_signal.connect(self._send_countdown_complete)
@@ -405,6 +400,7 @@ class GUIAgent(QObject):
         if flight_page:
             flight_page.task_done_signal.connect(self._send_task_acknowledged)
             flight_page.task_cancel_signal.connect(self._send_task_cancelled)
+            flight_page.task_override_signal.connect(self._send_task_override)
             flight_page.task_allowed_signal.connect(self._send_task_allowed)
             flight_page.task_not_allowed_signal.connect(self._send_task_not_allowed)
             flight_page.countdown_zero_signal.connect(self._send_countdown_complete)
@@ -419,26 +415,24 @@ class GUIAgent(QObject):
         igs.output_set_impulsion("task_cancelled")
         print("📤 Sent task_cancelled to TARS")
     
+    def _send_task_override(self):
+        """Send task override (force next state) to TARS"""
+        igs.output_set_impulsion("task_override")
+        print("⚡ Sent task_override to TARS (force next state)")
+    
+    def _send_task_override(self):
+        """Send task override (force next state) to TARS"""
+        igs.output_set_impulsion("task_override")
+        print("⚡ Sent task_override to TARS (force next state)")
+    
     def _send_task_allowed(self):
         """Send task approval to TARS"""
         igs.output_set_bool("task_approval", True)
-        # Also send specific approvals (will be consolidated later)
-        igs.output_set_int("allow_comm_atc", 1)  # APPROVED
-        igs.output_set_int("allow_trim_rudder", 1)
-        igs.output_set_int("allow_engage_autopilot", 1)
-        igs.output_set_int("allow_declare_panpan", 1)
-        igs.output_set_int("allow_request_vectors", 1)
         print("📤 Sent task_approval=TRUE to TARS")
     
     def _send_task_not_allowed(self):
         """Send task denial to TARS"""
         igs.output_set_bool("task_approval", False)
-        # Also send specific denials
-        igs.output_set_int("allow_comm_atc", 2)  # DENIED
-        igs.output_set_int("allow_trim_rudder", 2)
-        igs.output_set_int("allow_engage_autopilot", 2)
-        igs.output_set_int("allow_declare_panpan", 2)
-        igs.output_set_int("allow_request_vectors", 2)
         print("📤 Sent task_approval=FALSE to TARS")
     
     def _send_countdown_complete(self):

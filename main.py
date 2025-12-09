@@ -153,7 +153,7 @@ class MainWindow(QMainWindow):
         # Start STT (Speech-to-Text) subprocess
         self.stt_process = None
         self.stt_monitor_timer = None
-        #self.start_stt_subprocess()
+        self.start_stt_subprocess()
         
         # Start ATC (Air Traffic Control) subprocess
         self.atc_process = None
@@ -310,19 +310,23 @@ class MainWindow(QMainWindow):
     
     def set_interaction_text(self, text: str):
         """Set interaction panel text on both home and flight pages"""
-        self.ui.interaction_panel_text.setText(text)
-        self.ui.interaction_panel_text_flight.setText(text)
+        # Empty string from protocol means "no update" - preserve existing text
+        if text:  # Only update if not empty
+            self.ui.interaction_panel_text.setText(text)
+            self.ui.interaction_panel_text_flight.setText(text)
     
     def set_interaction_tars_input(self, text: str, show: bool = True):
         """Set TARS input text on both home and flight pages"""
-        self.ui.interaction_panel_tars_input.setText(text)
-        self.ui.interaction_panel_tars_input_flight.setText(text)
-        if show:
+        # Empty string from protocol means "no update" - preserve existing text
+        if text:  # Only update if not empty
+            self.ui.interaction_panel_tars_input.setText(text)
+            self.ui.interaction_panel_tars_input_flight.setText(text)
+        if show and text:  # Only show if there's actual text
             self.ui.interaction_panel_tars_input.show()
-            self.ui.interaction_panel_tars_input_flight.show()
-        else:
+            #self.ui.interaction_panel_tars_input_flight.show()
+        elif not text:  # Hide if empty (explicit clear)
             self.ui.interaction_panel_tars_input.hide()
-            self.ui.interaction_panel_tars_input_flight.hide()
+            #self.ui.interaction_panel_tars_input_flight.hide()
     
     def handle_task_done(self):
         """
@@ -337,31 +341,35 @@ class MainWindow(QMainWindow):
         """
         Handle task cancel signal from HomePage  
         """
-        # Signal FSM to continue (don't wait for countdown)
-        # Note: GUI agent already sends task_cancelled via Ingescape
-        print("⚠️ Task cancelled by user - inhibiting action")
+        # Stop countdowns on ALL pages and set their cancellation flags
+        home_page = self.get_home_page()
+        flight_page = self.get_flight_page()
+        
+        if home_page:
+            home_page._task_cancelled = True
+            home_page.current_countdown_timer.stop()
+        
+        if flight_page:
+            flight_page._task_cancelled = True
+            flight_page.current_countdown_timer.stop()
+        
+        # Note: task_cancelled signal is sent to TARS via Ingescape (gui_agent.py)
+        # TARS agent will call fsm_worker.cancel_current_action() when it receives the signal
+        
         self.countdown_completion_event.set()
 
     def handle_task_allowed(self):
         """
         Handle task allowed signal from HomePage  
         """
-        self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.APPROVED
-        self.agent.is_requesting_vectors[0] = ApprovalStatus.APPROVED
-        self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.APPROVED
-        self.agent.is_allowed_engage_autopilot[0] = ApprovalStatus.APPROVED
-        self.agent.is_allowed_to_declare_panpan[0] = ApprovalStatus.APPROVED
+        self.agent.task_approval_status[0] = ApprovalStatus.APPROVED
         self.countdown_completion_event.set()
     
     def handle_task_not_allowed(self):
         """
         Handle task not allowed signal from HomePage  
         """
-        self.agent.is_allowed_to_comm_atc[0] = ApprovalStatus.DENIED
-        self.agent.is_requesting_vectors[0] = ApprovalStatus.DENIED
-        self.agent.is_allowed_trim_rudder[0] = ApprovalStatus.DENIED
-        self.agent.is_allowed_engage_autopilot[0] = ApprovalStatus.DENIED
-        self.agent.is_allowed_to_declare_panpan[0] = ApprovalStatus.DENIED
+        self.agent.task_approval_status[0] = ApprovalStatus.DENIED
         self.countdown_completion_event.set()
     
     def handle_countdown_zero(self):
@@ -581,7 +589,7 @@ class MainWindow(QMainWindow):
 
         # Hide TARS input on both pages
         self.ui.interaction_panel_tars_input.hide()
-        self.ui.interaction_panel_tars_input_flight.hide()
+        #self.ui.interaction_panel_tars_input_flight.hide()
         
         # For current task counter (uses delay_before_action)
         # Check if this task has numeric delays that need countdown
@@ -703,7 +711,7 @@ class MainWindow(QMainWindow):
         self.ui.alert_label_2.setText(f"{current_procedure_text}")
         self.ui.alert_label_flight.setText(f"{current_procedure_text}")
         
-        # Handle previous task autonomy role display
+        # Handle previous task autonomy role display (home page)
         if previous_state_obj is not None:
             if previous_state_obj.autonomy_role != "performer":
                 self.get_home_page().hide_label(self.ui.p_t_prog_widget_2)
@@ -712,10 +720,25 @@ class MainWindow(QMainWindow):
         else:
             self.ui.p_t_prog_widget_2.hide()
         
+        # Handle previous task autonomy role display (flight page)
+        if previous_state_obj is not None:
+            if previous_state_obj.autonomy_role == "performer":
+                # TARS is performer - show TARS icon, hide human icon
+                self.ui.p_t_tars_icon_flight.show()
+                self.ui.p_t_human_pilot_icon_flight.hide()
+            else:
+                # Human is performer - show human icon, hide TARS icon
+                self.ui.p_t_human_pilot_icon_flight.show()
+                self.ui.p_t_tars_icon_flight.hide()
+        else:
+            # No previous task - hide both icons
+            self.ui.p_t_tars_icon_flight.hide()
+            self.ui.p_t_human_pilot_icon_flight.hide()
+        
         self.remove_glow(self.ui.current_task_container_3)
         
 
-        # Handle current task autonomy role display and buttons
+        # Handle current task autonomy role display and buttons (home page)
         if current_state_obj.autonomy_role != "performer":
             self.get_home_page().hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
@@ -725,8 +748,18 @@ class MainWindow(QMainWindow):
             # Only reset button style if it's currently hidden (new task starting)
             if not self.ui.cancel_task_button_2.isVisible():
                 self.get_home_page().show_button(self.ui.cancel_task_button_2, "red")
+        
+        # Handle current task autonomy role display (flight page)
+        if current_state_obj.autonomy_role == "performer":
+            # TARS is performer - show TARS icon, hide human icon
+            self.ui.c_t_tars_icon_flight.show()
+            self.ui.c_t_human_pilot_icon_flight.hide()
+        else:
+            # Human is performer - show human icon, hide TARS icon
+            self.ui.c_t_human_pilot_icon_flight.show()
+            self.ui.c_t_tars_icon_flight.hide()
 
-        # Handle next task autonomy role display
+        # Handle next task autonomy role display (home page)
         if next_state_obj is not None:
             if next_state_obj.autonomy_role != "performer":
                 self.get_home_page().hide_label(self.ui.n_t_prog_widget_2)
@@ -734,6 +767,21 @@ class MainWindow(QMainWindow):
                 self.get_home_page().show_label(self.ui.n_t_prog_widget_2)
         else:
             self.ui.n_t_prog_widget_2.hide()
+        
+        # Handle next task autonomy role display (flight page)
+        if next_state_obj is not None:
+            if next_state_obj.autonomy_role == "performer":
+                # TARS is performer - show TARS icon, hide human icon
+                self.ui.n_t_tars_icon_flight.show()
+                self.ui.n_t_human_pilot_icon_flight.hide()
+            else:
+                # Human is performer - show human icon, hide TARS icon
+                self.ui.n_t_human_pilot_icon_flight.show()
+                self.ui.n_t_tars_icon_flight.hide()
+        else:
+            # No next task - hide both icons
+            self.ui.n_t_tars_icon_flight.hide()
+            self.ui.n_t_human_pilot_icon_flight.hide()
         
         # Setup Electronic Checklist Panel
         current_tab_text = self.ui.ecl_tab_container.tabText(self.ui.ecl_tab_container.currentIndex())
@@ -754,15 +802,21 @@ class MainWindow(QMainWindow):
             self.set_interaction_text(self.format_checklist_line(current_state_obj.task_object, current_state_obj.value))
             #if not self.ui.int_panel_right_button.isVisible() :
             self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+            self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
             if current_state_obj.autonomy_role == "performer":
                 self.ui.int_panel_right_button.setText("CHECK")
+                self.ui.int_panel_right_button_flight.setText("CHECK")
             else:
                 self.ui.int_panel_right_button.setText("CHECK")
+                self.ui.int_panel_right_button_flight.setText("CHECK")
             self.ui.int_panel_left_button.hide()
+            self.ui.int_panel_left_button_flight.hide()
         else :
             self.set_interaction_text(current_state_obj.task_object + "    " + current_state_obj.value)
             self.ui.int_panel_right_button.hide()
+            #self.ui.int_panel_right_button_flight.hide()
             self.ui.int_panel_left_button.hide()
+            self.ui.int_panel_left_button_flight.hide()
     
         # Handle interaction panel based on current state's interaction attribute
         if current_state_obj.interaction is not None and current_state_obj.interaction != "":
@@ -787,9 +841,13 @@ class MainWindow(QMainWindow):
                     self.set_interaction_text("WIND REPORT:\n\nMETAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 \nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY")
                     self.set_interaction_tars_input("WIND 090° / 04 kt\nCrosswind Component: 02 kt from the right < Max Crosswind (25 knots)\nHeadwind Component: 3.5 kt")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "grey")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "grey")
                     self.ui.int_panel_left_button.setText("EDIT")
+                    self.ui.int_panel_left_button_flight.setText("EDIT")
                     self.ui.int_panel_right_button.setText("CHECK")
+                    self.ui.int_panel_right_button_flight.setText("CHECK")
                 case "alt_preset_as_cleared":
                     self.set_interaction_text("Select altitude AS CLEARED BY ATC")
                 case "eng_failure_aft_v1_memo_items":
@@ -806,29 +864,45 @@ class MainWindow(QMainWindow):
                 case "prompt_start_checklist":
                     self.set_interaction_text(f"{current_state_obj.callout}?")
                     self.ui.int_panel_right_button.setText("START")
+                    self.ui.int_panel_right_button_flight.setText("START")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("CANCEL")
+                    self.ui.int_panel_left_button_flight.setText("CANCEL")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
                 case "prompt_next_checklist":
                     self.set_interaction_text(f"{current_state_obj.value}?")
                     self.ui.int_panel_right_button.setText("NEXT")
+                    self.ui.int_panel_right_button_flight.setText("NEXT")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("CANCEL")
+                    self.ui.int_panel_left_button_flight.setText("CANCEL")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
                 case "allow_trim_rudder":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Allow TARS to adjust trim/rudder settings?")
                     self.ui.int_panel_right_button.setText("APPROVE")
+                    self.ui.int_panel_right_button_flight.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
+                    self.ui.int_panel_left_button_flight.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
                 case "allow_engage_ap":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Allow TARS to engage the autopilot?")
                     self.ui.int_panel_right_button.setText("APPROVE")
+                    self.ui.int_panel_right_button_flight.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
+                    self.ui.int_panel_left_button_flight.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
                 case "show_v_enr":
                     self.set_interaction_text(f"Set speed to VEnr = {self.agent.V_ENR} knots")
                 case "allow_comm":
@@ -837,18 +911,26 @@ class MainWindow(QMainWindow):
                     formatted_callout = format_callout(current_state_obj.callout)
                     self.set_interaction_tars_input(formatted_callout)
                     self.ui.int_panel_right_button.setText("APPROVE")
+                    self.ui.int_panel_right_button_flight.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
+                    self.ui.int_panel_left_button_flight.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
                 case "prompt_announce_panpan":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Do you want me to announce announce PAN-PAN and request vectors to ATC on 119.9?")
                     formatted_callout = format_callout(current_state_obj.callout)
                     self.set_interaction_tars_input(formatted_callout)
                     self.ui.int_panel_right_button.setText("APPROVE")
+                    self.ui.int_panel_right_button_flight.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
+                    self.ui.int_panel_left_button_flight.setText("DENY")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
                 case "display_trim_rudder":
                     self.set_interaction_text(f"Current trim : {self.agent.trim_rudder} %")
                 case "display_alarm":
@@ -856,19 +938,27 @@ class MainWindow(QMainWindow):
                 case "display_engage_autopilot":
                     self.set_interaction_text("Engage Autopilot: ")
                     if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
                     self.ui.int_panel_right_button.setText("APPROVE")
+                    self.ui.int_panel_right_button_flight.setText("APPROVE")
                     self.ui.int_panel_left_button.setText("DENY")
+                    self.ui.int_panel_left_button_flight.setText("DENY")
                 case "immediate_action_item":
                     self.set_interaction_text(f"Immediate action item : \n1. Throttle {self.agent.engine_failed_side} engine throttle IDLE\n- IF LIGHT REMAINS ON (15 SECONDS)\nIlluminated ENGINE FIRE Switch LIFT COVER AND PUSH")
                 case "display_checklist_emer_eng_fire_continue":
                     self.set_interaction_text("Emergency Fire Checklist: ")
                     if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible(): self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_right_button.setText("START CHECKLIST")
+                    self.ui.int_panel_right_button_flight.setText("START CHECKLIST")
                 case "display_checklist_aft_takeoff_continue":
                     self.set_interaction_text("After takeoff Checklist: ")
                     if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible(): self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_right_button.setText("START CHECKLIST")
+                    self.ui.int_panel_right_button_flight.setText("START CHECKLIST")
                 case "display_checklist_aft_takeoff":
                     self.set_interaction_text("After takeoff Checklist: ")
                 case "yaw_damper_as_desired":
@@ -883,7 +973,9 @@ class MainWindow(QMainWindow):
                 case "display_checklist_eng_fail_proc_continue":
                     self.set_interaction_text("Engine Failure Procedure")
                     if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible(): self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_right_button.setText("START CHECKLIST")
+                    self.ui.int_panel_right_button_flight.setText("START CHECKLIST")
                 case "display_checklist_eng_fail_proc":
                     self.set_interaction_text("Engine Failure Procedure")
                 case "caution_text_readout":

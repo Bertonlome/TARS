@@ -233,6 +233,10 @@ def main():
     fsm_worker.set_action_about_to_fire_callback(on_action_about_to_fire)
     fsm_worker.set_condition_violated_callback(on_condition_violated)
     fsm_worker.set_condition_restored_callback(on_condition_restored)
+    
+    # Store fsm_worker reference on agent for task cancellation
+    tars_agent.fsm_worker = fsm_worker
+    
     fsm_thread = threading.Thread(target=fsm_worker.run, daemon=True)
     fsm_thread.start()
     print("✅ FSM Worker started in background thread")

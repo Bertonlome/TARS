@@ -23,6 +23,7 @@ class TaskPageBase(BasePage):
     # Signals for communicating with MainWindow
     task_done_signal = QtCore.Signal()
     task_cancel_signal = QtCore.Signal()
+    task_override_signal = QtCore.Signal()  # New: signal for override (force next state)
     task_allowed_signal = QtCore.Signal()
     task_not_allowed_signal = QtCore.Signal()
     countdown_zero_signal = QtCore.Signal()
@@ -46,6 +47,10 @@ class TaskPageBase(BasePage):
         # Circular countdown widgets (to be set by subclass)
         self.current_circular_countdown = None
         self.next_circular_countdown = None
+        
+        # Task state tracking
+        self._task_cancelled = False  # Track if current task was cancelled
+        self._button_in_override_mode = False  # Track if cancel button is in override mode
         
         # Glow effect tracking
         self._glow_timer = None
@@ -113,6 +118,10 @@ class TaskPageBase(BasePage):
     # COUNTDOWN METHODS
     def update_current_countdown(self):
         """Update current task countdown display"""
+        # Check if task was cancelled - ignore timer events if so
+        if self._task_cancelled:
+            return
+        
         if self.current_countdown_value > 0:
             self.current_countdown_value -= 1
             if self.current_circular_countdown:
@@ -126,7 +135,9 @@ class TaskPageBase(BasePage):
             self.current_countdown_timer.stop()
             if self.current_circular_countdown:
                 self.current_circular_countdown.set_progress(0.0)
-            self.countdown_zero_signal.emit()
+            # Only emit countdown_zero_signal if task was not cancelled
+            if not self._task_cancelled:
+                self.countdown_zero_signal.emit()
     
     def update_next_countdown(self):
         """Update next task countdown display"""
@@ -146,6 +157,10 @@ class TaskPageBase(BasePage):
     
     def start_current_countdown(self, seconds):
         """Start countdown for current task"""
+        # Reset cancellation flag and button mode for new countdown
+        self._task_cancelled = False
+        self._reset_cancel_button_to_normal()
+        
         self.current_countdown_value = seconds
         self.current_countdown_max = seconds
         if self.current_circular_countdown:
@@ -164,6 +179,10 @@ class TaskPageBase(BasePage):
     
     def handle_human_task(self):
         """Handle task when performer is human (no countdown needed)"""
+        # Reset cancellation flag and button mode - human tasks don't have countdown to cancel
+        self._task_cancelled = False
+        self._reset_cancel_button_to_normal()
+        
         self.current_countdown_timer.stop()
         self.current_countdown_value = 0
         self.current_countdown_max = 1
@@ -189,17 +208,41 @@ class TaskPageBase(BasePage):
         self.task_not_allowed_signal.emit()
     
     def task_cancel_clicked(self):
-        """Handle task cancel button click"""
-        if self.current_task_container:
-            self.start_glow_effect(self.current_task_container, "red")
-        
-        self.current_countdown_timer.stop()
-        self.current_countdown_value = 0
-        if self.current_circular_countdown:
-            self.current_circular_countdown.set_value(0, self.current_countdown_max if self.current_countdown_max > 0 else 1)
-            self.current_circular_countdown.set_progress(0.0)
-        
-        self.task_cancel_signal.emit()
+        """Handle task cancel/override button click - behavior depends on button mode"""
+        if self._button_in_override_mode:
+            # Button is in OVERRIDE mode - force transition to next state
+            if self.current_task_container:
+                self.start_glow_effect(self.current_task_container, "green")
+            self.task_override_signal.emit()
+        else:
+            # Button is in CANCEL mode - cancel the current task
+            if self.current_task_container:
+                self.start_glow_effect(self.current_task_container, "red")
+            
+            # Mark task as cancelled before stopping timer
+            self._task_cancelled = True
+            
+            self.current_countdown_timer.stop()
+            self.current_countdown_value = 0
+            if self.current_circular_countdown:
+                self.current_circular_countdown.set_value(0, self.current_countdown_max if self.current_countdown_max > 0 else 1)
+                self.current_circular_countdown.set_progress(0.0)
+            
+            self.task_cancel_signal.emit()
+            
+            # Switch button to OVERRIDE mode
+            self._button_in_override_mode = True
+            self._update_cancel_button_text()
+    
+    def _update_cancel_button_text(self):
+        """Update cancel button text based on current mode - to be overridden by subclass"""
+        # Subclasses should override this to update their specific button widget
+        pass
+    
+    def _reset_cancel_button_to_normal(self):
+        """Reset cancel button back to CANCEL mode - called on task transitions"""
+        self._button_in_override_mode = False
+        self._update_cancel_button_text()
     
     # GLOW EFFECTS
     def start_glow_effect(self, widget, color):
