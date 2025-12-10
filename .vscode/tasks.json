@@ -5,7 +5,12 @@
         {
             "label": "Generate UI Python from main.ui",
             "type": "shell",
-            "command": ".venv/bin/pyside6-uic main.ui -o modules/ui_main.py",
+            "windows": {
+                "command": ".venv\\Scripts\\pyside6-uic main.ui -o modules\\ui_main.py"
+            },
+            "linux": {
+                "command": ".venv/bin/pyside6-uic main.ui -o modules/ui_main.py"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -15,7 +20,12 @@
         {
             "label": "Generate python resource file from resources.qrc",
             "type": "shell",
-            "command": ".venv/bin/pyside6-rcc resources.qrc -o modules/resources_rc.py",
+            "windows": {
+                "command": ".venv\\Scripts\\pyside6-rcc resources.qrc -o modules\\resources_rc.py"
+            },
+            "linux": {
+                "command": ".venv/bin/pyside6-rcc resources.qrc -o modules/resources_rc.py"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false

@@ -848,7 +848,7 @@ Button */
                    <enum>Qt::LayoutDirection::LeftToRight</enum>
                   </property>
                   <property name="styleSheet">
-                   <string notr="true">background-image: url(:/icons/images/icons/home.svg);</string>
+                   <string notr="true">background-image: url(:/icons/home.svg);</string>
                   </property>
                   <property name="text">
                    <string>Home</string>
@@ -870,7 +870,7 @@ Button */
                    </size>
                   </property>
                   <property name="styleSheet">
-                   <string notr="true">background-image: url(:/icons/images/icons/log-open-google.svg);</string>
+                   <string notr="true">background-image: url(:/icons/log-open-google.svg);</string>
                   </property>
                   <property name="text">
                    <string>flight</string>
@@ -895,7 +895,7 @@ Button */
                    <cursorShape>PointingHandCursor</cursorShape>
                   </property>
                   <property name="styleSheet">
-                   <string notr="true">background-image: url(:/icons/images/icons/user-profiles.svg);</string>
+                   <string notr="true">background-image: url(:/icons/user-profiles.svg);</string>
                   </property>
                   <property name="text">
                    <string>Briefing</string>
