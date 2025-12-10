@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'main.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.1
+## Created by: Qt User Interface Compiler version 6.10.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -668,7 +668,7 @@ class Ui_MainWindow(object):
         self.btn_home.setFont(font)
         self.btn_home.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_home.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
-        self.btn_home.setStyleSheet(u"background-image: url(:/icons/cil-home.png);")
+        self.btn_home.setStyleSheet(u"background-image: url(:/icons/images/icons/cil-home.png);")
 
         self.verticalLayout_8.addWidget(self.btn_home)
 
@@ -677,7 +677,7 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.btn_flight.sizePolicy().hasHeightForWidth())
         self.btn_flight.setSizePolicy(sizePolicy)
         self.btn_flight.setMinimumSize(QSize(0, 40))
-        self.btn_flight.setStyleSheet(u"background-image: url(:/icons/cil-airplane-mode.png);")
+        self.btn_flight.setStyleSheet(u"background-image: url(:/icons/images/icons/cil-airplane-mode.png);")
 
         self.verticalLayout_8.addWidget(self.btn_flight)
 
@@ -687,7 +687,7 @@ class Ui_MainWindow(object):
         self.btn_briefing.setSizePolicy(sizePolicy)
         self.btn_briefing.setMinimumSize(QSize(0, 40))
         self.btn_briefing.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_briefing.setStyleSheet(u"background-image: url(:/icons/cil-user.png);")
+        self.btn_briefing.setStyleSheet(u"background-image: url(:/icons/images/icons/cil-calendar-check.png);")
 
         self.verticalLayout_8.addWidget(self.btn_briefing)
 
@@ -2812,7 +2812,7 @@ class Ui_MainWindow(object):
         self.toolBox.addItem(self.page_2, u"Payload and weight")
         self.page_3 = QWidget()
         self.page_3.setObjectName(u"page_3")
-        self.page_3.setGeometry(QRect(0, 0, 2325, 348))
+        self.page_3.setGeometry(QRect(0, 0, 2325, 1106))
         self.page_3_layout = QVBoxLayout(self.page_3)
         self.page_3_layout.setObjectName(u"page_3_layout")
         self.label_5 = QLabel(self.page_3)

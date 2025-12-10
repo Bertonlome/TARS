@@ -848,7 +848,7 @@ Button */
                    <enum>Qt::LayoutDirection::LeftToRight</enum>
                   </property>
                   <property name="styleSheet">
-                   <string notr="true">background-image: url(:/icons/home.svg);</string>
+                   <string notr="true">background-image: url(:/icons/images/icons/cil-home.png);</string>
                   </property>
                   <property name="text">
                    <string>Home</string>
@@ -870,7 +870,7 @@ Button */
                    </size>
                   </property>
                   <property name="styleSheet">
-                   <string notr="true">background-image: url(:/icons/log-open-google.svg);</string>
+                   <string notr="true">background-image: url(:/icons/images/icons/cil-airplane-mode.png);</string>
                   </property>
                   <property name="text">
                    <string>flight</string>
@@ -895,7 +895,7 @@ Button */
                    <cursorShape>PointingHandCursor</cursorShape>
                   </property>
                   <property name="styleSheet">
-                   <string notr="true">background-image: url(:/icons/user-profiles.svg);</string>
+                   <string notr="true">background-image: url(:/icons/images/icons/cil-calendar-check.png);</string>
                   </property>
                   <property name="text">
                    <string>Briefing</string>
@@ -5053,7 +5053,7 @@ RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
                                 <x>0</x>
                                 <y>0</y>
                                 <width>2325</width>
-                                <height>348</height>
+                                <height>1106</height>
                                </rect>
                               </property>
                               <attribute name="label">
