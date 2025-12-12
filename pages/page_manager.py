@@ -60,7 +60,7 @@ class PageManager:
         else:
             print(f"Warning: Page '{page_name}' not found")
     
-    def get_page(self, page_name):
+    def get_page(self, page_name: str) -> HomePage | FlightPage | BriefingPage | None:
         """
         Get a specific page instance
         
@@ -68,7 +68,7 @@ class PageManager:
             page_name (str): Name of the page
             
         Returns:
-            BasePage: The page instance or None if not found
+            HomePage | FlightPage | BriefingPage | None: The page instance or None if not found
         """
         return self.pages.get(page_name, None)
     

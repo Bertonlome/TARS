@@ -293,9 +293,10 @@ class TaskPageBase(BasePage):
             }}
         """)
         self._glow_index += 1
-        if self._glow_index >= len(self._glow_steps):
-            self._glow_timer.stop()
-            self._glow_active_widget = None
+        if self._glow_index is not None and self._glow_index >= len(self._glow_steps):
+            if self._glow_timer is not None:
+                self._glow_timer.stop()
+                self._glow_active_widget = None
     
     def reset_radio_button(self, button):
         """Reset radio button state"""

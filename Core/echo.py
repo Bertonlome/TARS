@@ -10,11 +10,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 # =========================================================================
-
-
 import ingescape as igs
-import sys
-
 
 class Singleton(type):
     _instances = {}
@@ -22,7 +18,6 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
 
 class Echo(metaclass=Singleton):
     def __init__(self):
@@ -92,10 +87,6 @@ class Echo(metaclass=Singleton):
         self.request_vectors_o = None
         
     # outputs
-    @staticmethod
-    def set_impulsionO(self):
-        igs.output_set_impulsion("impulsion")
-
     @property
     def pax_safetyO(self):
         return self._pax_safetyO
@@ -185,7 +176,7 @@ class Echo(metaclass=Singleton):
     def request_takeoff_clearanceO(self, value):
         self._request_takeoff_clearanceO = value
         if self._request_takeoff_clearanceO is not None:
-            igs.output_set_impulsion("request_takeoff_clearance", self._request_takeoff_clearanceO)
+            igs.output_set_impulsion("request_takeoff_clearance")
     
     @property
     def declare_maydayO(self):
@@ -194,7 +185,7 @@ class Echo(metaclass=Singleton):
     def declare_maydayO(self, value):
         self._declare_maydayO = value
         if self._declare_maydayO is not None:
-            igs.output_set_impulsion("declare_mayday", self._declare_maydayO)
+            igs.output_set_impulsion("declare_mayday")
             
     @property
     def declare_panO(self):
@@ -203,7 +194,7 @@ class Echo(metaclass=Singleton):
     def declare_panO(self, value):
         self._declare_panO = value
         if self._declare_panO is not None:
-            igs.output_set_impulsion("declare_pan", self._declare_panO)
+            igs.output_set_impulsion("declare_pan")
             
     @property
     def request_vectorsO(self):
@@ -212,12 +203,12 @@ class Echo(metaclass=Singleton):
     def request_vectorsO(self, value):
         self._request_vectorsO = value
         if self._request_vectorsO is not None:
-            igs.output_set_impulsion("request_vectors", self._request_vectorsO)
+            igs.output_set_impulsion("request_vectors")
 
     # services
     def receive_values(self, sender_agent_name, sender_agent_uuid, boolV, integer, double, string, data, token, my_data):
         igs.info(f"Service receive_values called by {sender_agent_name} ({sender_agent_uuid}) with argument_list {boolV, integer, double, string, data} and token '{token}''")
 
-    def send_values(self, sender_agent_name, sender_agent_uuid, token, my_data):
-        print(f"Service send_values called by {sender_agent_name} ({sender_agent_uuid}), token '{token}' sending values : {self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO}")
-        igs.info(sender_agent_uuid, "receive_values", (self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO), token)
+    #def send_values(self, sender_agent_name, sender_agent_uuid, token, my_data):
+        #print(f"Service send_values called by {sender_agent_name} ({sender_agent_uuid}), token '{token}' sending values : {self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO}")
+        #igs.service_call(sender_agent_uuid, "receive_values", self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO, token)

@@ -390,14 +390,16 @@ class GUIAgent(QObject):
     def _connect_ui_to_tars(self):
         """Connect MainWindow signals to TARS inputs via Ingescape"""
         # Task completion - HomePage
-        self.main_window.get_home_page().task_done_signal.connect(self._send_task_acknowledged)
-        self.main_window.get_home_page().task_cancel_signal.connect(self._send_task_cancelled)
-        self.main_window.get_home_page().task_override_signal.connect(self._send_task_override)
-        self.main_window.get_home_page().task_allowed_signal.connect(self._send_task_allowed)
-        self.main_window.get_home_page().task_not_allowed_signal.connect(self._send_task_not_allowed)
-        self.main_window.get_home_page().countdown_zero_signal.connect(self._send_countdown_complete)
-        self.main_window.get_home_page().next_step_signal.connect(self._send_next_step)
-        self.main_window.get_home_page().previous_step_signal.connect(self._send_previous_step)
+        home_page = self.main_window.get_home_page()
+        if home_page is not None:
+            home_page.task_done_signal.connect(self._send_task_acknowledged)
+            home_page.task_cancel_signal.connect(self._send_task_cancelled)
+            home_page.task_override_signal.connect(self._send_task_override)
+            home_page.task_allowed_signal.connect(self._send_task_allowed)
+            home_page.task_not_allowed_signal.connect(self._send_task_not_allowed)
+            home_page.countdown_zero_signal.connect(self._send_countdown_complete)
+            home_page.next_step_signal.connect(self._send_next_step)
+            home_page.previous_step_signal.connect(self._send_previous_step)
         
         # Task completion - FlightPage (same signals)
         flight_page = self.main_window.page_manager.get_page('flight')
@@ -420,11 +422,6 @@ class GUIAgent(QObject):
         """Send task cancellation to TARS"""
         igs.output_set_impulsion("task_cancelled")
         print("📤 Sent task_cancelled to TARS")
-    
-    def _send_task_override(self):
-        """Send task override (force next state) to TARS"""
-        igs.output_set_impulsion("task_override")
-        print("⚡ Sent task_override to TARS (force next state)")
     
     def _send_task_override(self):
         """Send task override (force next state) to TARS"""

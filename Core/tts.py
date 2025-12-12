@@ -2,12 +2,13 @@ import pyttsx3
 import threading
 import queue
 import re
+from typing import Any
 
 _engine = pyttsx3.init()
 _engine.setProperty('rate', 155)
 _engine.setProperty('volume', 0.9)
-voices = _engine.getProperty('voices')
-if len(voices) > 1:
+voices: Any = _engine.getProperty('voices')  # Type is a list-like object from pyttsx3
+if voices and len(voices) > 1:
     _engine.setProperty('voice', voices[1].id)
 
 # Warm up the engine with a dummy call to avoid first-call initialization delay

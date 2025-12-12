@@ -201,29 +201,41 @@ class TarsAgent:
         
         
         # LINE-UP AND HOLD Procedure
+        #self.fsm.add_transition(Transition(
+            #self.states[("BEFORE TAKEOFF", "EICAS", "CHECKED")], 
+            #self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")], 
+            #self.is_acked, 
+            #self.dummy_action))
+
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "EICAS", "CHECKED")], 
-            self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")], 
-            self.is_acked, 
-            self.dummy_action))
-        
-        self.fsm.add_transition(Transition(
-            self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")], 
             self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
-            self.allow_transition, 
+            self.is_acked, 
             lambda: self.on_speak_action(self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].callout) if self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role == "performer" else self.dummy_action()))
         
-        self.fsm.add_transition(Transition(
-            self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
-            self.states[("LINE-UP AND HOLD", "Brakes", "HOLD")], 
-            self.is_acked, 
-            self.dummy_action))
+        #self.fsm.add_transition(Transition(
+            #self.states[("LINE-UP AND HOLD", "Runway centerline", "ALIGN")], 
+            #self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
+            #self.allow_transition, 
+            #lambda: self.on_speak_action(self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].callout) if self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role == "performer" else self.dummy_action()))
+
+        #self.fsm.add_transition(Transition(
+            #self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
+            #self.states[("LINE-UP AND HOLD", "Brakes", "HOLD")], 
+            #self.is_acked, 
+            #self.dummy_action))
         
         self.fsm.add_transition(Transition(
-            self.states[("LINE-UP AND HOLD", "Brakes", "HOLD")], 
+            self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
-            self.allow_transition, 
+            self.is_acked, 
             self.dummy_action))
+
+        #self.fsm.add_transition(Transition(
+            #self.states[("LINE-UP AND HOLD", "Brakes", "HOLD")], 
+            #self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
+            #self.allow_transition, 
+            #self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
@@ -287,29 +299,41 @@ class TarsAgent:
             lambda: self.on_speak_action(self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")].callout)))
         
         # Rotation and initial climb if no alarms        
+        #self.fsm.add_transition(Transition(
+            #self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")], 
+            #self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
+            #lambda: not self.is_alarm(), 
+            #lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].callout)))
+        
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")], 
-            self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
-            lambda: not self.is_alarm(), 
-            lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].callout)))
-        
-        self.fsm.add_transition(Transition(
-            self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             lambda: self.is_v_rotate and not self.is_alarm(), 
-            self.dummy_action))
+            lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].callout)))
+
+        #self.fsm.add_transition(Transition(
+            #self.states[("TAKEOFF", "Elevator Control", "ROTATE")], 
+            #self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
+            #lambda: self.is_v_rotate and not self.is_alarm(), 
+            #self.dummy_action))
         
+        #self.fsm.add_transition(Transition(
+            #self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
+            #self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
+            #lambda: self.is_pitch_above_threshold and not self.is_alarm(), 
+            #self.check_slip_skid_action))
+
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
-            self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
+            self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
             lambda: self.is_pitch_above_threshold and not self.is_alarm(), 
             self.check_slip_skid_action))
         
-        self.fsm.add_transition(Transition(
-            self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
-            self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
-            lambda: not self.is_alarm(), 
-            self.dummy_action))
+        #self.fsm.add_transition(Transition(
+            #self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
+            #self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
+            #lambda: not self.is_alarm(), 
+            #self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
@@ -339,12 +363,12 @@ class TarsAgent:
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
-        self.fsm.add_transition(Transition(
-            self.states[("TAKEOFF", "Elevator Control", "ROTATE")],
-            self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")],
-            lambda: self.is_engine_failed() or self.is_alarm(),
-            self.dummy_action,
-            transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
+        #self.fsm.add_transition(Transition(
+            #self.states[("TAKEOFF", "Elevator Control", "ROTATE")],
+            #self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")],
+            #lambda: self.is_engine_failed() or self.is_alarm(),
+            #self.dummy_action,
+            #transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
@@ -353,12 +377,12 @@ class TarsAgent:
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
-        self.fsm.add_transition(Transition(
-            self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
-            self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
-            lambda: self.is_engine_failed() or self.is_alarm(), 
-            self.dummy_action,
-            transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
+        #self.fsm.add_transition(Transition(
+            #self.states[("TAKEOFF", "Slip/Skid", "CHECK")], 
+            #self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
+            #lambda: self.is_engine_failed() or self.is_alarm(), 
+            #self.dummy_action,
+            #transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
@@ -509,7 +533,7 @@ class TarsAgent:
             self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")], 
             self.is_flaps_retracted, 
             self.dummy_action,
-            transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].autonomy_role == "supporter" and self.agent.airspeed_i <= V_ENR else self.dummy_action()))
+            transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Accelerate", "TO V_ENR")].autonomy_role == "supporter" and self.agent.airspeed_i is not None and self.agent.airspeed_i <= V_ENR else self.dummy_action()))
         
         # Communicate with ATC transitions
         self.fsm.add_transition(Transition(
@@ -675,7 +699,7 @@ class TarsAgent:
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")], 
             self.states[("AFTER TAKEOFF", "LANDING GEAR Handle", "UP")], 
             self.is_acked, 
-            self.check_gear_up_send_signal,)),
+            self.check_gear_up_send_signal,))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "LANDING GEAR Handle", "UP")], 
@@ -1154,15 +1178,15 @@ class TarsAgent:
             igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def check_gear_up_send_signal(self):
-        if self.agent.landing_gear_pos_i is not None:
-            message = f"Landing Gear Position: {self.agent.landing_gear_pos_i}"
-            tars_input = f"Landing gear position is {self.agent.landing_gear_pos_i}."
+        if self.agent.control_gear_i is not None:
+            message = f"Landing Gear Position: {self.agent.control_gear_i}"
+            tars_input = f"Landing gear position is {self.agent.control_gear_i}."
             igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def check_flaps_retracted_send_signal(self):
-        if self.agent.flap_handle_pos_i is not None:
-            message = f"Flap Handle Position: {self.agent.flap_handle_pos_i}"
-            tars_input = f"Flap handle position is {self.agent.flap_handle_pos_i}."
+        if self.agent.control_flaps_i is not None:
+            message = f"Flap Handle Position: {self.agent.control_flaps_i}"
+            tars_input = f"Flap handle position is {self.agent.control_flaps_i}."
             igs.output_set_string("interaction_message", json.dumps({"message": message, "tars_input": tars_input}))
     
     def is_electrical_load_under_limit(self):
@@ -1241,11 +1265,6 @@ class TarsAgent:
             return True
         return False
 
-    def is_brake_released(self):
-        if self.agent.park_brakes_i is not None and self.agent.park_brakes_i == 0:
-            return True
-        return False
-
     def is_airspeed_alive(self):
         if self.agent.airspeed_i is not None and self.agent.airspeed_i > AIRSPEED_ALIVE_THRESHOLD:
             return True
@@ -1274,7 +1293,8 @@ class TarsAgent:
         return False
 
     def is_slip_skid_centered(self):
-        if self.agent.slip_skid_i is not None and abs(self.agent.slip_skid_i) < SLIP_SKID_THRESHOLD:
+        """Check if slip/skid indicator is centered (within tolerance)"""
+        if self.agent.slip_i is not None and abs(self.agent.slip_i) < SLIP_SKID_THRESHOLD:
             return True
         return False
 
@@ -1484,13 +1504,6 @@ class TarsAgent:
             return True
         return False
     
-    def is_slip_skid_centered(self):
-        """Check if slip/skid indicator is centered (within tolerance)"""
-        if self.agent.slip_i is not None:
-            # Consider centered if within ±1 degree
-            return abs(self.agent.slip_i) <= 1
-        return False
-    
     def is_rudder_control_release(self):
         """Check if rudder control is released (within tolerance)"""
         print(f"Rudder Control Input: {self.agent.control_rudder_i}")
@@ -1549,9 +1562,8 @@ class TarsAgent:
             
         elif name == "task_cancelled":
             print("❌ Task cancelled by user - reclaiming authority")
-            # Cancel the current action in FSM worker
-            if hasattr(self, 'fsm_worker') and self.fsm_worker:
-                self.fsm_worker.cancel_current_action()
+            # Task cancellation is handled by the FSM execution loop
+            # No action needed here - the cancellation signal itself is sufficient
             
         elif name == "start_procedure":
             print("▶️  Start procedure requested from GUI")
@@ -2149,9 +2161,9 @@ class TarsAgent:
         self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
     
     def engage_yaw_damper_action(self):
-        if self.is_alarm():
+        if self.is_alarm() or self.is_engine_failed():
             return  # Do not engage yaw damper during alarm
-        if self.yaw_damper_mode == 1:
+        if self.agent.yaw_damper_i == 1:
             print("Yaw Damper already engaged.")
             return
         else:

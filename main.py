@@ -18,7 +18,7 @@ import sys
 import os
 import platform
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtWidgets import QGraphicsOpacityEffect
+from PySide6.QtWidgets import QGraphicsOpacityEffect, QPushButton
 from PySide6.QtGui import QFont, QFontDatabase
 import signal
 import threading
@@ -28,6 +28,10 @@ from Core.agent import ApprovalStatus, TarsAgent
 from Core.fsm_worker import FSMWorker as FSMWorkerCore  # Import the core FSM worker
 from Core.tts import format_callout, shutdown, register_speak_callback, register_finished_callback
 import time
+
+# Import page types for type hints
+from pages.home_page import HomePage
+from pages.flight_page import FlightPage
 
 # IMPORT / GUI AND MODULES AND WIDGETS
 # ///////////////////////////////////////////////////////////////
@@ -146,17 +150,17 @@ class MainWindow(QMainWindow):
         
         # Phase 6 FIX: Run TARS Agent as separate subprocess
         # This fixes Ingescape's "one agent per process" limitation
-        self.tars_process = None
+        self.tars_process: subprocess.Popen | None = None
         self.start_tars_subprocess()
         self.ui.tars_status_label.setText("TARS Agent RUNNING")
         
         # Start STT (Speech-to-Text) subprocess
-        self.stt_process = None
+        self.stt_process: subprocess.Popen | None = None
         self.stt_monitor_timer = None
         self.start_stt_subprocess()
         
         # Start ATC (Air Traffic Control) subprocess
-        self.atc_process = None
+        self.atc_process: subprocess.Popen | None = None
         self.start_atc_subprocess()
         
         # Phase 6: FSM Worker and threading removed - TARS Agent now runs independently
@@ -212,11 +216,11 @@ class MainWindow(QMainWindow):
 
         # TOGGLE MENU
         # ///////////////////////////////////////////////////////////////
-        widgets.toggleButton.clicked.connect(lambda: UIFunctions.toggleMenu(self, True))
+        widgets.toggleButton.clicked.connect(lambda: UIFunctions.toggleMenu(self, True)) # type: ignore
 
         # SET UI DEFINITIONS
         # ///////////////////////////////////////////////////////////////
-        UIFunctions.uiDefinitions(self)
+        UIFunctions.uiDefinitions(self) # type: ignore
 
         # QTableWidget PARAMETERS
         # ///////////////////////////////////////////////////////////////
@@ -232,13 +236,13 @@ class MainWindow(QMainWindow):
 
         # EXTRA LEFT BOX
         def openCloseLeftBox():
-            UIFunctions.toggleLeftBox(self, True)
+            UIFunctions.toggleLeftBox(self, True) # type: ignore
         widgets.toggleLeftBox.clicked.connect(openCloseLeftBox)
         widgets.extraCloseColumnBtn.clicked.connect(openCloseLeftBox)
 
         # EXTRA RIGHT BOX
         def openCloseRightBox():
-            UIFunctions.toggleRightBox(self, True)
+            UIFunctions.toggleRightBox(self, True) # type: ignore
         widgets.settingsTopBtn.clicked.connect(openCloseRightBox)
 
         # SHOW APP
@@ -253,14 +257,14 @@ class MainWindow(QMainWindow):
         # SET THEME AND HACKS
         if useCustomTheme:
             # LOAD AND APPLY STYLE
-            UIFunctions.theme(self, themeFile, True)
+            UIFunctions.theme(self, themeFile, True) # type: ignore
             # SET HACKS
-            AppFunctions.setThemeHack(self)
+            AppFunctions.setThemeHack(self) # type: ignore
 
         # SET HOME PAGE AND SELECT MENU
         # ///////////////////////////////////////////////////////////////
         # Page manager will handle initial page navigation
-        widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet()))
+        widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet())) # type: ignore
         widgets = self.ui
         
         # INITIALIZE GUI AGENT (Phase 4 & 6)
@@ -278,7 +282,7 @@ class MainWindow(QMainWindow):
         Setup signal connections between MainWindow and pages
         """
         # Connect HomePage signals
-        home_page = self.page_manager.get_page('home')
+        home_page = self.get_home_page()
         if home_page:
             home_page.task_done_signal.connect(self.handle_task_done)
             home_page.task_cancel_signal.connect(self.handle_task_cancel)
@@ -287,7 +291,7 @@ class MainWindow(QMainWindow):
             home_page.countdown_zero_signal.connect(self.handle_countdown_zero)
         
         # Connect FlightPage signals (same handlers as HomePage)
-        flight_page = self.page_manager.get_page('flight')
+        flight_page = self.get_flight_page()
         if flight_page:
             flight_page.task_done_signal.connect(self.handle_task_done)
             flight_page.task_cancel_signal.connect(self.handle_task_cancel)
@@ -386,34 +390,38 @@ class MainWindow(QMainWindow):
         """
         # Trigger glow effect based on autonomy role
         home_page = self.get_home_page()
-        if state_obj.autonomy_role == "performer":
-            # Blue glow for performer tasks
-            home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
-            
-            # Get delay_after_action and convert to int for timer
-            delay_after = state_obj.delay_after_action
-            if delay_after == 'is_acked':
-                # Don't show tick mark for acknowledgment-based tasks
-                pass
-            else:
-                try:
-                    delay_after_ms = int(float(delay_after) * 1000)
-                    home_page.current_circular_countdown.schedule_task_fired(1000, delay_after_ms)
-                except (ValueError, TypeError):
-                    # If conversion fails, don't schedule tick mark
+        if home_page is not None:
+            if state_obj.autonomy_role == "performer":
+                # Blue glow for performer tasks
+                home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
+                
+                # Get delay_after_action and convert to int for timer
+                delay_after = state_obj.delay_after_action
+                if delay_after == 'is_acked':
+                    # Don't show tick mark for acknowledgment-based tasks
                     pass
+                else:
+                    try:
+                        delay_after_ms = int(float(delay_after) * 1000)
+                        if home_page.current_circular_countdown is not None:
+                            home_page.current_circular_countdown.schedule_task_fired(1000, delay_after_ms)
+                    except (ValueError, TypeError):
+                    # If conversion fails, don't schedule tick mark
+                        pass
 
-    def get_home_page(self):
+    def get_home_page(self) -> HomePage | None:
         """
         Get the HomePage instance from page manager
         """
-        return self.page_manager.get_page('home')
+        page = self.page_manager.get_page('home')
+        return page if isinstance(page, HomePage) else None
     
-    def get_flight_page(self):
+    def get_flight_page(self) -> FlightPage | None:
         """
         Get the FlightPage instance from page manager
         """
-        return self.page_manager.get_page('flight')
+        page = self.page_manager.get_page('flight')
+        return page if isinstance(page, FlightPage) else None
     
     def refresh_task_timeline_data(self):
         """
@@ -573,12 +581,20 @@ class MainWindow(QMainWindow):
         # Handle countdown timers using State object attributes
         home_page = self.get_home_page()
         flight_page = self.get_flight_page()
+
+        if home_page is None or flight_page is None:
+            print("⚠️ HomePage or FlightPage not found, cannot update state")
+            return
         
         # Stop timers on both pages
-        home_page.current_countdown_timer.stop()
-        home_page.next_countdown_timer.stop()
-        flight_page.current_countdown_timer.stop()
-        flight_page.next_countdown_timer.stop()
+        if home_page.current_countdown_timer is not None:
+            home_page.current_countdown_timer.stop()
+        if home_page.next_countdown_timer is not None:
+            home_page.next_countdown_timer.stop()
+        if flight_page.current_countdown_timer is not None:
+            flight_page.current_countdown_timer.stop()
+        if flight_page.next_countdown_timer is not None:
+            flight_page.next_countdown_timer.stop()
         
         home_page.set_checklist_label_passed(previous_state_obj.procedure, previous_state_obj.task_object, previous_state_obj.value) if previous_state_obj else None
 
@@ -670,13 +686,16 @@ class MainWindow(QMainWindow):
                 current_delay_after = current_state_obj.delay_after_action
                 next_delay_before = next_state_obj.delay_before_action
                 
-                if current_delay_after == 'is_acked' or next_delay_before == 'is_acked':
+                if home_page.next_circular_countdown is not None and (current_delay_after == 'is_acked' or next_delay_before == 'is_acked'):
                     # Waiting for human acknowledgment - show N/A
                     home_page.next_circular_countdown.set_na()
-                    home_page.next_countdown_timer.stop()
+                    if home_page.next_countdown_timer is not None:
+                        home_page.next_countdown_timer.stop()
                     home_page.next_countdown_value = 0
-                    flight_page.next_circular_countdown.set_na()
-                    flight_page.next_countdown_timer.stop()
+                    if flight_page.next_circular_countdown is not None:
+                        flight_page.next_circular_countdown.set_na()
+                    if flight_page.next_countdown_timer is not None:
+                        flight_page.next_countdown_timer.stop()
                     flight_page.next_countdown_value = 0
                     #print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
                 else:
@@ -720,9 +739,9 @@ class MainWindow(QMainWindow):
         # Handle previous task autonomy role display (home page)
         if previous_state_obj is not None:
             if previous_state_obj.autonomy_role != "performer":
-                self.get_home_page().hide_label(self.ui.p_t_prog_widget_2)
+                home_page.hide_label(self.ui.p_t_prog_widget_2)
             else:
-                self.get_home_page().show_label(self.ui.p_t_prog_widget_2)
+                home_page.show_label(self.ui.p_t_prog_widget_2)
         else:
             self.ui.p_t_prog_widget_2.hide()
         
@@ -746,14 +765,14 @@ class MainWindow(QMainWindow):
 
         # Handle current task autonomy role display and buttons (home page)
         if current_state_obj.autonomy_role != "performer":
-            self.get_home_page().hide_label(self.ui.c_t_prog_widget_2)
+            home_page.hide_label(self.ui.c_t_prog_widget_2)
             self.remove_glow(self.ui.current_task_container_3)
             self.ui.cancel_task_button_2.hide()
         else:
-            self.get_home_page().show_label(self.ui.c_t_prog_widget_2)
+            home_page.show_label(self.ui.c_t_prog_widget_2)
             # Only reset button style if it's currently hidden (new task starting)
             if not self.ui.cancel_task_button_2.isVisible():
-                self.get_home_page().show_button(self.ui.cancel_task_button_2, "red")
+                home_page.show_button(self.ui.cancel_task_button_2, "red")
         
         # Handle current task autonomy role display (flight page)
         if current_state_obj.autonomy_role == "performer":
@@ -768,9 +787,9 @@ class MainWindow(QMainWindow):
         # Handle next task autonomy role display (home page)
         if next_state_obj is not None:
             if next_state_obj.autonomy_role != "performer":
-                self.get_home_page().hide_label(self.ui.n_t_prog_widget_2)
+                home_page.hide_label(self.ui.n_t_prog_widget_2)
             else:
-                self.get_home_page().show_label(self.ui.n_t_prog_widget_2)
+                home_page.show_label(self.ui.n_t_prog_widget_2)
         else:
             self.ui.n_t_prog_widget_2.hide()
         
@@ -807,8 +826,8 @@ class MainWindow(QMainWindow):
         if current_state_obj.type == "Checklist":
             self.set_interaction_text(self.format_checklist_line(current_state_obj.task_object, current_state_obj.value))
             #if not self.ui.int_panel_right_button.isVisible() :
-            self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-            self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+            home_page.show_button(self.ui.int_panel_right_button, "green")
+            flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
             if current_state_obj.autonomy_role == "performer":
                 self.ui.int_panel_right_button.setText("CHECK")
                 self.ui.int_panel_right_button_flight.setText("CHECK")
@@ -846,10 +865,10 @@ class MainWindow(QMainWindow):
                 case "display_winds_and_ack":
                     self.set_interaction_text("WIND REPORT:\n\nMETAR: CYUL 201500Z 09004KT 1SM FG OVC015 05/04 A2992 \nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY")
                     self.set_interaction_tars_input("WIND 090° / 04 kt\nCrosswind Component: 02 kt from the right < Max Crosswind (25 knots)\nHeadwind Component: 3.5 kt")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "grey")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "grey")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "grey")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "grey")
                     self.ui.int_panel_left_button.setText("EDIT")
                     self.ui.int_panel_left_button_flight.setText("EDIT")
                     self.ui.int_panel_right_button.setText("CHECK")
@@ -871,44 +890,44 @@ class MainWindow(QMainWindow):
                     self.set_interaction_text(f"{current_state_obj.callout}?")
                     self.ui.int_panel_right_button.setText("START")
                     self.ui.int_panel_right_button_flight.setText("START")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("CANCEL")
                     self.ui.int_panel_left_button_flight.setText("CANCEL")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "red")
                 case "prompt_next_checklist":
                     self.set_interaction_text(f"{current_state_obj.value}?")
                     self.ui.int_panel_right_button.setText("NEXT")
                     self.ui.int_panel_right_button_flight.setText("NEXT")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("CANCEL")
                     self.ui.int_panel_left_button_flight.setText("CANCEL")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "red")
                 case "allow_trim_rudder":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Allow TARS to adjust trim/rudder settings?")
                     self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.int_panel_right_button_flight.setText("APPROVE")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     self.ui.int_panel_left_button_flight.setText("DENY")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "red")
                 case "allow_engage_ap":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Allow TARS to engage the autopilot?")
                     self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.int_panel_right_button_flight.setText("APPROVE")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     self.ui.int_panel_left_button_flight.setText("DENY")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "red")
                 case "show_v_enr":
                     self.set_interaction_text(f"Set speed to VEnr = {self.agent.V_ENR} knots")
                 case "allow_comm":
@@ -918,12 +937,12 @@ class MainWindow(QMainWindow):
                     self.set_interaction_tars_input(formatted_callout)
                     self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.int_panel_right_button_flight.setText("APPROVE")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     self.ui.int_panel_left_button_flight.setText("DENY")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "red")
                 case "prompt_announce_panpan":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Do you want me to announce announce PAN-PAN and request vectors to ATC on 119.9?")
@@ -931,22 +950,23 @@ class MainWindow(QMainWindow):
                     self.set_interaction_tars_input(formatted_callout)
                     self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.int_panel_right_button_flight.setText("APPROVE")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_left_button.setText("DENY")
                     self.ui.int_panel_left_button_flight.setText("DENY")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "red")
                 case "display_trim_rudder":
-                    self.set_interaction_text(f"Current trim : {self.agent.trim_rudder} %")
+                    #self.set_interaction_text(f"Current trim : {self.agent.trim_rudder} %")
+                    self.set_interaction_text("Adjusting rudder trim for single-engine operation")
                 case "display_alarm":
                     self.set_interaction_text("Alarm: Engine Fire")
                 case "display_engage_autopilot":
                     self.set_interaction_text("Engage Autopilot: ")
-                    if not self.ui.int_panel_right_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
-                    if not self.ui.int_panel_left_button.isVisible() : self.get_home_page().show_button(self.ui.int_panel_left_button, "red")
-                    if not self.ui.int_panel_left_button_flight.isVisible() : self.get_flight_page().show_button(self.ui.int_panel_left_button_flight, "red")
+                    if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_left_button.isVisible() : home_page.show_button(self.ui.int_panel_left_button, "red")
+                    if not self.ui.int_panel_left_button_flight.isVisible() : flight_page.show_button(self.ui.int_panel_left_button_flight, "red")
                     self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.int_panel_right_button_flight.setText("APPROVE")
                     self.ui.int_panel_left_button.setText("DENY")
@@ -955,14 +975,14 @@ class MainWindow(QMainWindow):
                     self.set_interaction_text(f"Immediate action item : \n1. Throttle {self.agent.engine_failed_side} engine throttle IDLE\n- IF LIGHT REMAINS ON (15 SECONDS)\nIlluminated ENGINE FIRE Switch LIFT COVER AND PUSH")
                 case "display_checklist_emer_eng_fire_continue":
                     self.set_interaction_text("Emergency Fire Checklist: ")
-                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible(): self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible(): flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_right_button.setText("START CHECKLIST")
                     self.ui.int_panel_right_button_flight.setText("START CHECKLIST")
                 case "display_checklist_aft_takeoff_continue":
                     self.set_interaction_text("After takeoff Checklist: ")
-                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible(): self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible(): flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_right_button.setText("START CHECKLIST")
                     self.ui.int_panel_right_button_flight.setText("START CHECKLIST")
                 case "display_checklist_aft_takeoff":
@@ -978,8 +998,8 @@ class MainWindow(QMainWindow):
                     self.set_interaction_text("Setting altimeter to STD")
                 case "display_checklist_eng_fail_proc_continue":
                     self.set_interaction_text("Engine Failure Procedure")
-                    if not self.ui.int_panel_right_button.isVisible(): self.get_home_page().show_button(self.ui.int_panel_right_button, "green")
-                    if not self.ui.int_panel_right_button_flight.isVisible(): self.get_flight_page().show_button(self.ui.int_panel_right_button_flight, "green")
+                    if not self.ui.int_panel_right_button.isVisible(): home_page.show_button(self.ui.int_panel_right_button, "green")
+                    if not self.ui.int_panel_right_button_flight.isVisible(): flight_page.show_button(self.ui.int_panel_right_button_flight, "green")
                     self.ui.int_panel_right_button.setText("START CHECKLIST")
                     self.ui.int_panel_right_button_flight.setText("START CHECKLIST")
                 case "display_checklist_eng_fail_proc":
@@ -1005,40 +1025,43 @@ class MainWindow(QMainWindow):
     def navigateToPageButtonClick(self):
         # GET BUTTON CLICKED
         btn = self.sender()
+        if not isinstance(btn, QPushButton):
+            return
         btnName = btn.objectName()
 
         # SHOW BRIEFING PAGE
         if btnName == "btn_briefing":
             # Use page manager for briefing page
             self.page_manager.navigate_to_page('briefing')
-            UIFunctions.resetStyle(self, btnName)
-            btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
+            UIFunctions.resetStyle(self, btnName) # type: ignore
+            btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet())) # type: ignore
         # SHOW HOME PAGE
         if btnName == "btn_home":
             # Use page manager for home page
             self.page_manager.navigate_to_page('home')
-            UIFunctions.resetStyle(self, btnName)
-            btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
+            UIFunctions.resetStyle(self, btnName) # type: ignore
+            btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet())) # type: ignore
 
         # SHOW WIDGETS PAGE
         if btnName == "btn_widgets":
-            widgets.stackedWidget.setCurrentWidget(widgets.widgets)
-            UIFunctions.resetStyle(self, btnName)
-            btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
-
+            if widgets is not None:
+                widgets.stackedWidget.setCurrentWidget(widgets.widgets)
+                UIFunctions.resetStyle(self, btnName) # type: ignore
+                btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet())) # type: ignore
         # SHOW NEW PAGE
         if btnName == "btn_flight":
-            widgets.stackedWidget.setCurrentWidget(widgets.flight)
-            self.page_manager.navigate_to_page('flight')
-            UIFunctions.resetStyle(self, btnName)
-            btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet()))
+            if widgets is not None:
+                widgets.stackedWidget.setCurrentWidget(widgets.flight)
+                self.page_manager.navigate_to_page('flight')
+                UIFunctions.resetStyle(self, btnName) # type: ignore
+                btn.setStyleSheet(UIFunctions.selectMenu(btn.styleSheet())) # type: ignore
     # //////////////////////////////////////////////////////////////
 
     # RESIZE EVENTS
     # ///////////////////////////////////////////////////////////////
     def resizeEvent(self, event):
         # Update Size Grips
-        UIFunctions.resize_grips(self)
+        UIFunctions.resize_grips(self) # type: ignore
 
     # MOUSE CLICK EVENTS
     # ///////////////////////////////////////////////////////////////
@@ -1116,7 +1139,7 @@ class MainWindow(QMainWindow):
     def start_stt_monitor(self):
         """Start a background thread to monitor STT subprocess output and health"""
         def monitor_stt():
-            if not self.stt_process:
+            if not self.stt_process or not self.stt_process.stdout:
                 return
             
             print("📊 STT monitor thread started")
@@ -1195,7 +1218,7 @@ class MainWindow(QMainWindow):
     def start_tars_monitor(self):
         """Start a background thread to monitor TARS subprocess output and health"""
         def monitor_tars():
-            if not self.tars_process:
+            if not self.tars_process or not self.tars_process.stdout:
                 return
             
             print("📊 TARS monitor thread started")
@@ -1270,7 +1293,7 @@ class MainWindow(QMainWindow):
     def start_atc_monitor(self):
         """Start a background thread to monitor ATC subprocess output and health"""
         def monitor_atc():
-            if not self.atc_process:
+            if not self.atc_process or not self.atc_process.stdout:
                 return
             
             print("📊 ATC monitor thread started")

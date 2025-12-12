@@ -8,9 +8,9 @@ BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,LANDING Light Switch,AS DESIRED,per
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ANTI-COLL Light Switch,ON,performer,supporter,anti_coll_light_switch,0,is_acked,,,,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Radar,AS REQUIRED,performer,supporter,radar_requirement,0,is_acked,,,,
 BEFORE TAKEOFF,NORM,Checklist,Parameter Check,EICAS,CHECKED,performer,supporter,,0,is_acked,,,,
-LINE-UP AND HOLD,NORM,SOP,Flight Control,Runway centerline,ALIGN,performer,,,0,is_acked,,,,
+LINE-UP AND HOLD,NORM,SOP,Flight Control,Runway centerline,ALIGN,performer,,hide,0,is_acked,,,,
 LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,supporter,performer,display_winds_and_ack,5,5,"Wind report from METAR : wind calm, zero niner zero degrees at four knots",,,
-LINE-UP AND HOLD,NORM,SOP,Flight Control,Brakes,HOLD,performer,,,0,4,,,,
+LINE-UP AND HOLD,NORM,SOP,Flight Control,Brakes,HOLD,performer,,hide,0,4,,,,
 LINE-UP AND HOLD,NORM,SOP,Autopilot Mgmt,Select Altitude,PRESET AS CLEARED,green,red,alt_preset_as_cleared,0,is_acked,,,,
 TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,supporter,,0,is_acked,,,,
 TAKEOFF,NORM,SOP,Flight Control,THROTTLES,TO Detent,performer,,display_fadec,0,is_sensed,,continuous,is_thrust_toga,
@@ -22,9 +22,9 @@ TAKEOFF,NORM,SOP,Callout,"""Airspeed's alive""",ANNOUNCE,,performer,,0,0,Airspee
 TAKEOFF,NORM,SOP,Callout,"""70 kts""",ANNOUNCE,,performer,,0,0,Seventy Knots,transition,is_seventy_kts,next_task
 TAKEOFF,NORM,SOP,Callout,"""V1""",ANNOUNCE,,performer,,0,0,V One,transition,is_v_one,next_task
 TAKEOFF,NORM,SOP,Callout,"""Rotate""",ANNOUNCE,,performer,,0,0,Rotate,transition,is_v_rotate,next_task
-TAKEOFF,NORM,Checklist,Flight Control,Elevator Control,ROTATE,performer,,,0,0,,continuous,is_pitch_maintained,end_of_procedure
+TAKEOFF,NORM,Checklist,Flight Control,Elevator Control,ROTATE,performer,,hide,0,0,,continuous,is_pitch_maintained,end_of_procedure
 TAKEOFF,NORM,SOP,Flight Control,Pitch,MAINTAIN 10°,performer,,,0,0,,transition,is_pitch_maintained,end_of_procedure
-TAKEOFF,NORM,SOP,Parameter Check,Slip/Skid,CHECK,performer,supporter,,0,0,,continuous,is_slip_skid_centered,end_of_procedure
+TAKEOFF,NORM,SOP,Parameter Check,Slip/Skid,CHECK,performer,supporter,hide,0,0,,continuous,is_slip_skid_centered,end_of_procedure
 TAKEOFF,NORM,SOP,Parameter Check,Climb rate,CHECK POSITIVE,,performer,,0,1,,transition,is_positive_rate,next_task
 TAKEOFF,NORM,SOP,Switch / Lever,LANDING GEAR,UP,performer,,,0,1,"Positive rate, gear up",transition,is_gear_up,end_of_procedure
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Navigation,Climb,TO A SAFE ALTITUDE,performer,supporter,eng_failure_aft_v1_memo_items,0,2,Climb to {SAFE_ALTITUDE},continuous,is_safe_altitude,end_of_procedure

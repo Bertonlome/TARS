@@ -51,7 +51,7 @@ COMMANDS = [
     # Task acknowledgment
     Command(
         action="acknowledge",
-        keywords=["check", "confirm", "Takeoff clearance confirm", "checked", "trick", "shrek", "chicken", "start", "done", "chick", "jake", "complete", "completed", "acknowledge", "acknowledged", "crosscheck", "crosschecked", "verify", "verified", "affirm", "affirmed", "confirmed", "validate", "validated", "certify", "certified", "attest", "attested", "ratify", "ratified", "endorse", "endorsed", "assent", "assented", "recognize", "recognized", "admit", "admitted", "grant", "granted", "subscribe", "subscribed"],
+        keywords=["check", "okay", "confirm", "Takeoff clearance confirm", "checked", "trick", "shrek", "chicken", "start", "done", "chick", "jake", "complete", "completed", "acknowledge", "acknowledged", "crosscheck", "crosschecked", "verify", "verified", "affirm", "affirmed", "confirmed", "validate", "validated", "certify", "certified", "attest", "attested", "ratify", "ratified", "endorse", "endorsed", "assent", "assented", "recognize", "recognized", "admit", "admitted", "grant", "granted", "subscribe", "subscribed"],
         requires_exact=False,
         description="Acknowledge task completion"
     ),

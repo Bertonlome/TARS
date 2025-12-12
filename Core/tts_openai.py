@@ -5,7 +5,7 @@ import asyncio
 from openai import AsyncOpenAI
 from openai.helpers import LocalAudioPlayer
 
-openai = AsyncOpenAI(}
+openai = AsyncOpenAI()
 _speech_done_event = threading.Event()
 _speech_queue = queue.Queue()
 _speak_callbacks = []

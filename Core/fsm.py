@@ -4,7 +4,7 @@ import time
 # This code defines a simple FSM with states, transitions, and actions.
 
 class State:
-    def __init__(self, procedure, classification, type, category, task_object, value, human_role=None, autonomy_role=None, information_requirement=None, interaction=None, delay_before_action=0, delay_after_action=0, callout=None, condition=None, condition_type=None, condition_function=None, monitor_scope=None):
+    def __init__(self, procedure, classification, type, category, task_object, value, human_role=None, autonomy_role=None, information_requirement=None, interaction=None, delay_before_action: int | float | str = 0, delay_after_action: int | float | str = 0, callout=None, condition=None, condition_type=None, condition_function=None, monitor_scope=None):
         self.procedure = procedure
         self.classification = classification
         self.type = type

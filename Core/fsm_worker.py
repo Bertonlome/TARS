@@ -251,7 +251,7 @@ class FSMWorker:
                             if delay > 0:
                                 print(f"⏳ Waiting {delay}s before action (delay_before_action)")
                                 # Use agent's countdown event for waiting
-                                if hasattr(self.agent, 'countdown_completion_event'):
+                                if hasattr(self.agent, 'countdown_completion_event') and self.agent.countdown_completion_event is not None:
                                     self.agent.countdown_completion_event.clear()
                                     self.agent.countdown_completion_event.wait(timeout=delay + 2)
                                 else:

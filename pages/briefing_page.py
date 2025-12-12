@@ -41,7 +41,7 @@ class Task:
         # Store all additional CSV columns for preservation during export
         self.extra_fields = extra_fields
 
-def load_tasks(csv_path: Path = None, classification_filter: list = None):
+def load_tasks(csv_path: Path | None = None, classification_filter: list | None = None):
     """Load tasks from CSV or return demo data
     
     Args:
@@ -144,15 +144,15 @@ def load_tasks(csv_path: Path = None, classification_filter: list = None):
     
     return [Task(*t) for t in demo]
 
-def load_normal_tasks(csv_path: Path = None):
+def load_normal_tasks(csv_path: Path | None = None):
     """Load only normal operation tasks (Classification == NORM)"""
     return load_tasks(csv_path, classification_filter=['NORM'])
 
-def load_contingency_tasks(csv_path: Path = None):
+def load_contingency_tasks(csv_path: Path | None = None):
     """Load only contingency tasks (Classification == EMER or ABNORM)"""
     return load_tasks(csv_path, classification_filter=['EMER', 'ABNORM'])
 
-def load_all_tasks_preserve_order(csv_path: Path = None):
+def load_all_tasks_preserve_order(csv_path: Path | None = None):
     """Load all tasks in original CSV order (no filtering)"""
     return load_tasks(csv_path, classification_filter=None)
 
@@ -904,8 +904,9 @@ class BriefingPage(BasePage):
         for container in [container_1, container_2]:
             while container.count():
                 child = container.takeAt(0)
-                if child.widget():
-                    child.widget().deleteLater()
+                widget = child.widget()
+                if widget is not None:
+                    widget.deleteLater()
         
         # Get unique categories
         categories = self._get_unique_categories()
@@ -1560,10 +1561,15 @@ class BriefingPage(BasePage):
         contingency_selections = self.get_contingency_selected_performers()
         
         # Process ALL tasks in original order
+        if self.all_tasks is None:
+            return
+        
         for i, task in enumerate(self.all_tasks):
             # Determine which selection dictionary to use based on task classification
             if task.classification == 'NORM':
                 # Find the task index in normal_tasks list
+                if self.normal_tasks is None:
+                    continue
                 try:
                     normal_task_index = self.normal_tasks.index(task)
                     if normal_task_index in normal_selections:
@@ -1574,6 +1580,8 @@ class BriefingPage(BasePage):
                     continue  # Task not found in normal_tasks
             elif task.classification in ['EMER', 'ABNORM']:
                 # Find the task index in contingency_tasks list
+                if self.contingency_tasks is None:
+                    continue
                 try:
                     contingency_task_index = self.contingency_tasks.index(task)
                     if contingency_task_index in contingency_selections:
@@ -1853,7 +1861,7 @@ class BriefingPage(BasePage):
                 
                 # Validate header format
                 expected_headers = ['Procedure', 'Classification', 'Type', 'Task Object', 'Value', 'Human Role', 'Autonomy Role']
-                if not all(header in reader.fieldnames for header in expected_headers):
+                if reader.fieldnames is None or not all(header in reader.fieldnames for header in expected_headers):
                     QMessageBox.warning(None, "Invalid File Format", 
                                       f"The selected CSV file does not have the expected format.\n"
                                       f"Expected headers: {', '.join(expected_headers)}")

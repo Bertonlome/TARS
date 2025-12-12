@@ -1,7 +1,7 @@
 {
     "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "off",
     "python.analysis.autoSearchPaths": true,
+    "python.analysis.typeCheckingMode": "basic",
     "python.analysis.extraPaths": [
         "./",
         "./Core",
@@ -9,5 +9,10 @@
         "./pages"
     ],
     "python.analysis.stubPath": "./",
-    "python.languageServer": "Pylance"
+    "python.languageServer": "Pylance",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportGeneralTypeIssues": "none",
+        "reportOptionalMemberAccess": "warning",
+        "reportAttributeAccessIssue": "none"
+    }
 }

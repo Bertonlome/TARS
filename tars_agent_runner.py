@@ -110,8 +110,9 @@ def main():
             igs.output_set_string("tts_text", "")
             print(f"📤 TTS finished")
             # Signal completion event for FSM
-            if tars_agent.tts_completion_event:
-                tars_agent.tts_completion_event.set()
+            if tars_agent is not None:
+                if tars_agent.tts_completion_event:
+                    tars_agent.tts_completion_event.set()
         except Exception as e:
             print(f"Error publishing TTS finish: {e}")
     
@@ -131,18 +132,20 @@ def main():
             print(f"📤 Published current_state: {state.procedure} - {state.task_object}")
             
             # Publish previous state (from FSM history)
-            if hasattr(tars_agent.fsm, 'state_history') and len(tars_agent.fsm.state_history) > 0:
-                previous_state = tars_agent.fsm.state_history[-1]
-                previous_json = encode_state_to_json(previous_state)
-                igs.output_set_string("previous_state", previous_json)
-                print(f"📤 Published previous_state: {previous_state.procedure} - {previous_state.task_object}")
+            if tars_agent is not None:
+                if hasattr(tars_agent.fsm, 'state_history') and len(tars_agent.fsm.state_history) > 0:
+                    previous_state = tars_agent.fsm.state_history[-1]
+                    previous_json = encode_state_to_json(previous_state)
+                    igs.output_set_string("previous_state", previous_json)
+                    print(f"📤 Published previous_state: {previous_state.procedure} - {previous_state.task_object}")
             
             # Publish next state (find transition from current state)
             next_state = None
-            for transition in tars_agent.fsm.transitions:
-                if transition.from_state == state:
-                    next_state = transition.to_state
-                    break
+            if tars_agent is not None:
+                for transition in tars_agent.fsm.transitions:
+                    if transition.from_state == state:
+                        next_state = transition.to_state
+                        break
             
             if next_state:
                 next_json = encode_state_to_json(next_state)

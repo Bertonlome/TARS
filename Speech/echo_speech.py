@@ -30,11 +30,6 @@ class Echo(metaclass=Singleton):
         # outputs
         self.speech_output_o = None
         
-    # outputs
-    @staticmethod
-    def set_impulsionO(self):
-        igs.output_set_impulsion("impulsion")
-
     @property
     def speech_output_o(self):
         return self._speech_output_o
@@ -48,6 +43,6 @@ class Echo(metaclass=Singleton):
     def receive_values(self, sender_agent_name, sender_agent_uuid, boolV, integer, double, string, data, token, my_data):
         igs.info(f"Service receive_values called by {sender_agent_name} ({sender_agent_uuid}) with argument_list {boolV, integer, double, string, data} and token '{token}''")
 
-    def send_values(self, sender_agent_name, sender_agent_uuid, token, my_data):
-        print(f"Service send_values called by {sender_agent_name} ({sender_agent_uuid}), token '{token}' sending values : {self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO}")
-        igs.info(sender_agent_uuid, "receive_values", (self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO), token)
+    #def send_values(self, sender_agent_name, sender_agent_uuid, token, my_data):
+        #print(f"Service send_values called by {sender_agent_name} ({sender_agent_uuid}), token '{token}' sending values : {self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO}")
+        #igs.info(sender_agent_uuid, "receive_values", (self.boolO, self.integerO, self.doubleO, self.stringO, self.dataO), token)
