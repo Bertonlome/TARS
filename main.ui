@@ -1747,7 +1747,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                       <string notr="true">background: transparent;</string>
                      </property>
                      <property name="currentIndex">
-                      <number>1</number>
+                      <number>0</number>
                      </property>
                      <widget class="QWidget" name="home">
                       <layout class="QVBoxLayout" name="verticalLayout_22">
@@ -2041,6 +2041,31 @@ background-color: rgba(0, 40, 80, 220);
                                      </layout>
                                     </widget>
                                    </item>
+                                   <item>
+                                    <widget class="QLabel" name="p_t_pilot_icon">
+                                     <property name="minimumSize">
+                                      <size>
+                                       <width>50</width>
+                                       <height>50</height>
+                                      </size>
+                                     </property>
+                                     <property name="maximumSize">
+                                      <size>
+                                       <width>50</width>
+                                       <height>50</height>
+                                      </size>
+                                     </property>
+                                     <property name="text">
+                                      <string/>
+                                     </property>
+                                     <property name="pixmap">
+                                      <pixmap resource="resources.qrc">:/images/images/images/human_pilot_icon.png</pixmap>
+                                     </property>
+                                     <property name="scaledContents">
+                                      <bool>true</bool>
+                                     </property>
+                                    </widget>
+                                   </item>
                                   </layout>
                                  </widget>
                                 </item>
@@ -2134,6 +2159,30 @@ background-color: rgba(0, 40, 80, 220);
                                  </widget>
                                 </item>
                                 <item>
+                                 <layout class="QVBoxLayout" name="c_t_s_container_2">
+                                  <item>
+                                   <widget class="QLabel" name="c_t_s_value_2">
+                                    <property name="styleSheet">
+                                     <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>TextLabel</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                                   <widget class="QLabel" name="c_t_s_unit_2">
+                                    <property name="styleSheet">
+                                     <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>seconds</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                 </layout>
+                                </item>
+                                <item>
                                  <widget class="QRadioButton" name="check_radio_button">
                                   <property name="sizePolicy">
                                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -2197,28 +2246,29 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                  </widget>
                                 </item>
                                 <item>
-                                 <layout class="QVBoxLayout" name="c_t_s_container_2">
-                                  <item>
-                                   <widget class="QLabel" name="c_t_s_value_2">
-                                    <property name="styleSheet">
-                                     <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
-                                    </property>
-                                    <property name="text">
-                                     <string>TextLabel</string>
-                                    </property>
-                                   </widget>
-                                  </item>
-                                  <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                   <widget class="QLabel" name="c_t_s_unit_2">
-                                    <property name="styleSheet">
-                                     <string notr="true">font: 300 12pt &quot;JetBrains Mono&quot;;</string>
-                                    </property>
-                                    <property name="text">
-                                     <string>seconds</string>
-                                    </property>
-                                   </widget>
-                                  </item>
-                                 </layout>
+                                 <widget class="QLabel" name="c_t_pilot_icon">
+                                  <property name="minimumSize">
+                                   <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                   </size>
+                                  </property>
+                                  <property name="maximumSize">
+                                   <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                   </size>
+                                  </property>
+                                  <property name="text">
+                                   <string/>
+                                  </property>
+                                  <property name="pixmap">
+                                   <pixmap resource="resources.qrc">:/images/images/images/human_pilot_icon.png</pixmap>
+                                  </property>
+                                  <property name="scaledContents">
+                                   <bool>true</bool>
+                                  </property>
+                                 </widget>
                                 </item>
                                </layout>
                               </widget>
@@ -2345,6 +2395,31 @@ background-color: rgba(0, 40, 80, 220);
                                       </widget>
                                      </item>
                                     </layout>
+                                   </item>
+                                   <item>
+                                    <widget class="QLabel" name="n_t_pilot_icon">
+                                     <property name="minimumSize">
+                                      <size>
+                                       <width>40</width>
+                                       <height>40</height>
+                                      </size>
+                                     </property>
+                                     <property name="maximumSize">
+                                      <size>
+                                       <width>40</width>
+                                       <height>40</height>
+                                      </size>
+                                     </property>
+                                     <property name="text">
+                                      <string/>
+                                     </property>
+                                     <property name="pixmap">
+                                      <pixmap resource="resources.qrc">:/images/images/images/human_pilot_icon.png</pixmap>
+                                     </property>
+                                     <property name="scaledContents">
+                                      <bool>true</bool>
+                                     </property>
+                                    </widget>
                                    </item>
                                   </layout>
                                  </widget>

@@ -35,14 +35,16 @@ class GUIAgent(QObject):
     _previous_state_signal = Signal(dict)  # Previous state dict from JSON
     _tts_speak_signal = Signal(str)  # TTS text being spoken
     _tts_finished_signal = Signal(str)  # TTS finished speaking
+    _action_about_to_fire_signal = Signal(dict)  # Action about to fire (state dict)
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
-                 device: str = "wlp0s20f3", port: int = 5670):
+                 device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
         super().__init__()
         self.main_window = main_window
         self.agent_name = agent_name
         self.device = device
         self.port = port
+        self.no_next_countdown = no_next_countdown
         
         # Connect internal signals to UI update methods
         self._alert_signal.connect(self._on_alert)
@@ -53,6 +55,7 @@ class GUIAgent(QObject):
         self._previous_state_signal.connect(self._on_previous_state_changed)
         self._tts_speak_signal.connect(self.main_window.on_tts_speak)
         self._tts_finished_signal.connect(self.main_window.on_tts_finished)
+        self._action_about_to_fire_signal.connect(self._on_action_about_to_fire)
         
         # Connect MainWindow user action signals to TARS inputs
         self._connect_ui_to_tars()
@@ -202,7 +205,8 @@ class GUIAgent(QObject):
     def _on_countdown_next_input(self, io_type, name, value_type, value, my_data):
         """Handle countdown_next update from TARS"""
         try:
-            print(f"📊 Countdown next: {value}s")
+            if not self.no_next_countdown:
+                print(f"📊 Countdown next: {value}s")
             # Could update next task countdown display here if needed
         except Exception as e:
             print(f"Error processing countdown_next: {e}")
@@ -266,7 +270,8 @@ class GUIAgent(QObject):
         try:
             state_data = json.loads(value)
             print(f"⚡ Action about to fire: {state_data.get('task_object')}")
-            # Could show pre-action indicator in UI
+            # Emit signal for UI update (tick mark animation)
+            self._action_about_to_fire_signal.emit(state_data)
         except Exception as e:
             print(f"Error processing action_about_to_fire: {e}")
     
@@ -383,6 +388,38 @@ class GUIAgent(QObject):
         # Store for later use
         self.main_window.previous_state = state_data
     
+    def _on_action_about_to_fire(self, state_data: dict):
+        """Handle action about to fire from TARS (main thread) - show tick mark"""
+        try:
+            # Reconstruct State object from JSON data
+            from Core.fsm import State
+            state = State(
+                procedure=state_data.get('procedure', ''),
+                classification=state_data.get('classification', ''),
+                type=state_data.get('type', ''),
+                category=state_data.get('category', ''),
+                task_object=state_data.get('task_object', ''),
+                value=state_data.get('value', ''),
+                human_role=state_data.get('human_role', ''),
+                autonomy_role=state_data.get('autonomy_role', ''),
+                information_requirement=state_data.get('information_requirement', ''),
+                interaction=state_data.get('interaction', ''),
+                delay_before_action=state_data.get('delay_before_action', 0),
+                delay_after_action=state_data.get('delay_after_action', 0),
+                callout=state_data.get('callout', ''),
+                condition=state_data.get('condition'),
+                condition_type=state_data.get('condition_type'),
+                condition_function=state_data.get('condition_function'),
+                monitor_scope=state_data.get('monitor_scope'),
+            )
+            
+            # Call MainWindow handler to show tick mark animation
+            self.main_window.handle_action_about_to_fire(state)
+        except Exception as e:
+            print(f"Error in _on_action_about_to_fire: {e}")
+            import traceback
+            traceback.print_exc()
+    
     # ========================================================================
     # GUI → TARS: Connect UI actions to Ingescape outputs
     # ========================================================================
@@ -467,7 +504,8 @@ class GUIAgent(QObject):
 
 def create_gui_agent(main_window: MainWindow, 
                      device: str = "wlp0s20f3", 
-                     port: int = 5670) -> GUIAgent:
+                     port: int = 5670,
+                     no_next_countdown: bool = False) -> GUIAgent:
     """
     Factory function to create and start GUI agent
     
@@ -475,11 +513,12 @@ def create_gui_agent(main_window: MainWindow,
         main_window: MainWindow instance to wrap
         device: Network device name
         port: Ingescape port
+        no_next_countdown: If True, suppress next countdown logging
         
     Returns:
         Initialized and started GUIAgent
     """
-    gui_agent = GUIAgent(main_window, device=device, port=port)
+    gui_agent = GUIAgent(main_window, device=device, port=port, no_next_countdown=no_next_countdown)
     gui_agent.start()
     return gui_agent
 

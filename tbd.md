@@ -34,6 +34,7 @@
 
 
 [ ] Add attention getter web agent
+[ ] Add Tutorial for flight scenario with imm act item, and TARS interaction
 [ ] Get access to the flight panel of the flight sim
 [ ] allow the motion
 [ ] Set up eye-tracking cameras

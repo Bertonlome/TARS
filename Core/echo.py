@@ -85,6 +85,10 @@ class Echo(metaclass=Singleton):
         self.declare_mayday_o = None
         self.declare_pan_o = None
         self.request_vectors_o = None
+        self.tts_request_o = None  # Text to send to TTS agent
+        
+        # TTS agent status (only need is_speaking to know when speech finishes)
+        self.tts_is_speaking_i = None
         
     # outputs
     @property

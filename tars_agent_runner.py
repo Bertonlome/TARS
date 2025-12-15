@@ -89,35 +89,27 @@ def main():
     tts_event.set()  # Initially set (no TTS in progress)
     tars_agent.tts_completion_event = tts_event
     
-    # Set up TTS callbacks to publish speaking status via Ingescape
-    from Core import tts
+    # Set up observer for TTS speaking status from TTS agent
+    import ingescape as igs
     
-    def on_tts_speak(text):
-        """Publish TTS speaking start via Ingescape"""
-        try:
-            import ingescape as igs
-            igs.output_set_bool("tts_speaking", True)
-            igs.output_set_string("tts_text", text)
-            print(f"📤 TTS started: {text[:50]}...")
-        except Exception as e:
-            print(f"Error publishing TTS start: {e}")
+    def on_tts_speaking_changed(ioType, name, valueType, value, myData):
+        """Called when TTS agent's is_speaking output changes"""
+        if tars_agent is None:
+            return
+            
+        # Track when TTS speaking transitions from True to False
+        was_speaking = tars_agent.tts_speaking_before
+        is_speaking = value
+        
+        tars_agent.tts_speaking_before = is_speaking
+        
+        # If transitioned from speaking to not speaking, signal completion
+        if was_speaking and not is_speaking:
+            print(f"📥 TTS finished (detected via Ingescape)")
+            if tars_agent.tts_completion_event:
+                tars_agent.tts_completion_event.set()
     
-    def on_tts_finished(text):
-        """Publish TTS speaking end via Ingescape"""
-        try:
-            import ingescape as igs
-            igs.output_set_bool("tts_speaking", False)
-            igs.output_set_string("tts_text", "")
-            print(f"📤 TTS finished")
-            # Signal completion event for FSM
-            if tars_agent is not None:
-                if tars_agent.tts_completion_event:
-                    tars_agent.tts_completion_event.set()
-        except Exception as e:
-            print(f"Error publishing TTS finish: {e}")
-    
-    tts.register_speak_callback(on_tts_speak)
-    tts.register_finished_callback(on_tts_finished)
+    igs.observe_input("tts_is_speaking", on_tts_speaking_changed, None)
     
     # Set up FSM worker callbacks to publish via Ingescape
     def on_state_changed(state):

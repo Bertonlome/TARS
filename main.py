@@ -26,7 +26,6 @@ import subprocess
 from pathlib import Path
 from Core.agent import ApprovalStatus, TarsAgent
 from Core.fsm_worker import FSMWorker as FSMWorkerCore  # Import the core FSM worker
-from Core.tts import format_callout, shutdown, register_speak_callback, register_finished_callback
 import time
 
 # Import page types for type hints
@@ -44,6 +43,7 @@ os.environ["QT_FONT_DPI"] = "96" # FIX Problem for High DPI and Scale above 100%
 # SET AS GLOBAL WIDGETS
 # ///////////////////////////////////////////////////////////////
 widgets = None
+NO_NEXT_COUNTDOWN = True
 
 # FSM Worker - Qt Wrapper
 # ///////////////////////////////////////////////////////////////
@@ -163,6 +163,10 @@ class MainWindow(QMainWindow):
         self.atc_process: subprocess.Popen | None = None
         self.start_atc_subprocess()
         
+        # Start TTS (Text-to-Speech) subprocess
+        self.tts_process: subprocess.Popen | None = None
+        self.start_tts_subprocess()
+        
         # Phase 6: FSM Worker and threading removed - TARS Agent now runs independently
         # All FSM logic is handled by TARS Agent subprocess
         # GUI receives state updates via Ingescape messages from GUIAgent
@@ -170,19 +174,10 @@ class MainWindow(QMainWindow):
         self.previous_state = None
         self.next_state = None
 
-        # TTS completion tracking - for TTS callbacks
-        self.tts_completion_event = threading.Event()
-        self.tts_completion_event.set()  # Initially set (ready - no speech in progress)
-
         # Countdown completion tracking - for countdown timer
         self.countdown_completion_event = threading.Event()
         self.countdown_completion_event.set()  # Initially set (no countdown in progress)
 
-        self.tts_speak_signal.connect(self.on_tts_speak)
-        register_speak_callback(self.tts_callback)
-        register_finished_callback(self.tts_finished_callback)
-        self.tts_finished_signal.connect(self.on_tts_finished)
-        
         # Connect emergency injection signal to slot (thread-safe)
         self.inject_emergency_signal.connect(self.inject_emergency_procedure)
         
@@ -271,7 +266,7 @@ class MainWindow(QMainWindow):
         # ///////////////////////////////////////////////////////////////
         # GUI Agent wraps this MainWindow and bridges TARS ↔ GUI via Ingescape
         from gui_agent import create_gui_agent
-        self.gui_agent = create_gui_agent(self, device="wlp0s20f3", port=5670)
+        self.gui_agent = create_gui_agent(self, device="wlp0s20f3", port=5670, no_next_countdown=NO_NEXT_COUNTDOWN)
         print("✅ GUI Agent initialized and connected to TARS Agent")
         
     # End of init
@@ -391,23 +386,35 @@ class MainWindow(QMainWindow):
         # Trigger glow effect based on autonomy role
         home_page = self.get_home_page()
         if home_page is not None:
-            if state_obj.autonomy_role == "performer":
-                # Blue glow for performer tasks
+            # Show tick mark for both performer and supporter tasks
+            if state_obj.autonomy_role in ("performer", "supporter"):
+                # Blue glow for performer/supporter tasks
                 home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
                 
                 # Get delay_after_action and convert to int for timer
                 delay_after = state_obj.delay_after_action
-                if delay_after == 'is_acked':
-                    # Don't show tick mark for acknowledgment-based tasks
-                    pass
-                else:
-                    try:
+                try:
+                    if delay_after == "is_acked":
+                        tick_duration = 60000  # Show for 60 seconds if waiting for acknowledgment
+                    else:
                         delay_after_ms = int(float(delay_after) * 1000)
-                        if home_page.current_circular_countdown is not None:
-                            home_page.current_circular_countdown.schedule_task_fired(1000, delay_after_ms)
-                    except (ValueError, TypeError):
-                    # If conversion fails, don't schedule tick mark
-                        pass
+                        # Show tick for at least 3 seconds, or delay_after duration (whichever is longer)
+                        tick_duration = max(3000, delay_after_ms) if delay_after_ms > 0 else 3000
+                    
+                    if home_page.current_circular_countdown is not None:
+                        # For supporter tasks, show immediately since they may transition quickly
+                        # For performer tasks, delay slightly to sync with TTS/action completion
+                        if state_obj.autonomy_role == "supporter":
+                            home_page.current_circular_countdown.show_task_fired(tick_duration)
+                        else:
+                            home_page.current_circular_countdown.schedule_task_fired(1000, tick_duration)
+                except (ValueError, TypeError):
+                    # If conversion fails, show for default 3 seconds
+                    if home_page.current_circular_countdown is not None:
+                        if state_obj.autonomy_role == "supporter":
+                            home_page.current_circular_countdown.show_task_fired(3000)
+                        else:
+                            home_page.current_circular_countdown.schedule_task_fired(1000, 3000)
 
     def get_home_page(self) -> HomePage | None:
         """
@@ -566,8 +573,6 @@ class MainWindow(QMainWindow):
         
         # Get previous, current, and next state objects
         previous_state_obj = getattr(self, '_previous_state_obj', None)
-        
-        
         # Extract display text from state objects
         previous_procedure_text = previous_state_obj.procedure if previous_state_obj else ""
         previous_task_text = f"{previous_state_obj.task_object}     {previous_state_obj.value}" if previous_state_obj else ""
@@ -680,45 +685,48 @@ class MainWindow(QMainWindow):
                 self.ui.c_t_s_value_2.setText("0")
 
         # For next task counter (current delay_after_action + next delay_before_action)
-        try:
-            if next_state_obj:
-                # Check if either delay is 'is_acked' (waiting for human input)
-                current_delay_after = current_state_obj.delay_after_action
-                next_delay_before = next_state_obj.delay_before_action
-                
-                if home_page.next_circular_countdown is not None and (current_delay_after == 'is_acked' or next_delay_before == 'is_acked'):
-                    # Waiting for human acknowledgment - show N/A
-                    home_page.next_circular_countdown.set_na()
-                    if home_page.next_countdown_timer is not None:
-                        home_page.next_countdown_timer.stop()
-                    home_page.next_countdown_value = 0
-                    if flight_page.next_circular_countdown is not None:
-                        flight_page.next_circular_countdown.set_na()
-                    if flight_page.next_countdown_timer is not None:
-                        flight_page.next_countdown_timer.stop()
-                    flight_page.next_countdown_value = 0
-                    #print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
-                else:
-                    # Normal time-based delays
-                    current_delay_before = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
-                    current_delay_after = int(current_delay_after) if current_delay_after else 0
-                    next_delay_before = int(next_delay_before) if next_delay_before else 0
-                    total_seconds = current_delay_before + current_delay_after + next_delay_before
-                    print(f"\nNext task : {next_state_obj.task_object} estimated time: {total_seconds} seconds")
-                    self.ui.n_t_s_value_2.setText(str(total_seconds))
-                    if total_seconds > 0:
-                        home_page.start_next_countdown(total_seconds)
-                        flight_page.start_next_countdown(total_seconds)
-                    else:
+        if NO_NEXT_COUNTDOWN == True and home_page.next_circular_countdown is not None:
+            home_page.next_circular_countdown.hide()
+        if NO_NEXT_COUNTDOWN == False:
+            try:
+                if next_state_obj:
+                    # Check if either delay is 'is_acked' (waiting for human input)
+                    current_delay_after = current_state_obj.delay_after_action
+                    next_delay_before = next_state_obj.delay_before_action
+                    
+                    if home_page.next_circular_countdown is not None and (current_delay_after == 'is_acked' or next_delay_before == 'is_acked'):
+                        # Waiting for human acknowledgment - show N/A
+                        home_page.next_circular_countdown.set_na()
+                        if home_page.next_countdown_timer is not None:
+                            home_page.next_countdown_timer.stop()
                         home_page.next_countdown_value = 0
+                        if flight_page.next_circular_countdown is not None:
+                            flight_page.next_circular_countdown.set_na()
+                        if flight_page.next_countdown_timer is not None:
+                            flight_page.next_countdown_timer.stop()
                         flight_page.next_countdown_value = 0
-            else:
+                        #print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
+                    else:
+                        # Normal time-based delays
+                        current_delay_before = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
+                        current_delay_after = int(current_delay_after) if current_delay_after else 0
+                        next_delay_before = int(next_delay_before) if next_delay_before else 0
+                        total_seconds = current_delay_before + current_delay_after + next_delay_before
+                        print(f"\nNext task : {next_state_obj.task_object} estimated time: {total_seconds} seconds")
+                        self.ui.n_t_s_value_2.setText(str(total_seconds))
+                        if total_seconds > 0:
+                            home_page.start_next_countdown(total_seconds)
+                            flight_page.start_next_countdown(total_seconds)
+                        else:
+                            home_page.next_countdown_value = 0
+                            flight_page.next_countdown_value = 0
+                else:
+                    self.ui.n_t_s_value_2.setText("N/A")
+            except (ValueError, TypeError, AttributeError) as e:
+                print(f"Error calculating next task countdown: {e}")
+                home_page.next_countdown_timer.stop()
+                flight_page.next_countdown_timer.stop()
                 self.ui.n_t_s_value_2.setText("N/A")
-        except (ValueError, TypeError, AttributeError) as e:
-            print(f"Error calculating next task countdown: {e}")
-            home_page.next_countdown_timer.stop()
-            flight_page.next_countdown_timer.stop()
-            self.ui.n_t_s_value_2.setText("N/A")
 
         # Update UI labels (home page)
         self.ui.p_g_2.setText(previous_procedure_text)
@@ -739,11 +747,14 @@ class MainWindow(QMainWindow):
         # Handle previous task autonomy role display (home page)
         if previous_state_obj is not None:
             if previous_state_obj.autonomy_role != "performer":
+                home_page.show_label(self.ui.p_t_human_pilot_icon_flight)
                 home_page.hide_label(self.ui.p_t_prog_widget_2)
             else:
                 home_page.show_label(self.ui.p_t_prog_widget_2)
+                home_page.hide_label(self.ui.p_t_human_pilot_icon_flight)
         else:
-            self.ui.p_t_prog_widget_2.hide()
+            home_page.hide_label(self.ui.p_t_prog_widget_2)
+            home_page.hide_label(self.ui.p_t_human_pilot_icon_flight)
         
         # Handle previous task autonomy role display (flight page)
         if previous_state_obj is not None:
@@ -760,49 +771,66 @@ class MainWindow(QMainWindow):
             self.ui.p_t_tars_icon_flight.hide()
             self.ui.p_t_human_pilot_icon_flight.hide()
         
+
         self.remove_glow(self.ui.current_task_container_3)
-        
 
         # Handle current task autonomy role display and buttons (home page)
-        if current_state_obj.autonomy_role != "performer":
+        if current_state_obj.autonomy_role != "performer" and current_state_obj.autonomy_role != "supporter":
+            home_page.show_label(self.ui.c_t_human_pilot_icon_flight)
             home_page.hide_label(self.ui.c_t_prog_widget_2)
-            self.remove_glow(self.ui.current_task_container_3)
-            self.ui.cancel_task_button_2.hide()
-        else:
+            home_page.hide_button(self.ui.cancel_task_button_2)
+        elif current_state_obj.autonomy_role == "performer" :
             home_page.show_label(self.ui.c_t_prog_widget_2)
+            home_page.hide_label(self.ui.c_t_human_pilot_icon_flight)
+            # Only reset button style if it's currently hidden (new task starting)
+            if not self.ui.cancel_task_button_2.isVisible():
+                home_page.show_button(self.ui.cancel_task_button_2, "red")
+        elif current_state_obj.autonomy_role == "supporter" :
+            home_page.show_label(self.ui.c_t_prog_widget_2)
+            home_page.show_label(self.ui.c_t_human_pilot_icon_flight)
             # Only reset button style if it's currently hidden (new task starting)
             if not self.ui.cancel_task_button_2.isVisible():
                 home_page.show_button(self.ui.cancel_task_button_2, "red")
         
         # Handle current task autonomy role display (flight page)
+        if current_state_obj.autonomy_role != "performer" and current_state_obj.autonomy_role != "supporter":
+            self.ui.c_t_human_pilot_icon_flight.show()
+            self.ui.c_t_tars_icon_flight.hide()
         if current_state_obj.autonomy_role == "performer":
             # TARS is performer - show TARS icon, hide human icon
             self.ui.c_t_tars_icon_flight.show()
             self.ui.c_t_human_pilot_icon_flight.hide()
-        else:
+        elif current_state_obj.autonomy_role == "supporter":
             # Human is performer - show human icon, hide TARS icon
             self.ui.c_t_human_pilot_icon_flight.show()
-            self.ui.c_t_tars_icon_flight.hide()
+            self.ui.c_t_tars_icon_flight.show()
 
         # Handle next task autonomy role display (home page)
         if next_state_obj is not None:
-            if next_state_obj.autonomy_role != "performer":
+            if next_state_obj.autonomy_role != "performer" and next_state_obj.autonomy_role != "supporter":
                 home_page.hide_label(self.ui.n_t_prog_widget_2)
-            else:
+                home_page.show_label(self.ui.n_t_human_pilot_icon_flight)
+            elif next_state_obj.autonomy_role == "performer" :
                 home_page.show_label(self.ui.n_t_prog_widget_2)
+                home_page.hide_label(self.ui.n_t_human_pilot_icon_flight)
+            elif next_state_obj.autonomy_role == "supporter" :
+                home_page.show_label(self.ui.n_t_prog_widget_2)
+                home_page.show_label(self.ui.n_t_human_pilot_icon_flight)
         else:
-            self.ui.n_t_prog_widget_2.hide()
+            home_page.hide_label(self.ui.n_t_prog_widget_2)
+            home_page.hide_label(self.ui.n_t_human_pilot_icon_flight)
         
         # Handle next task autonomy role display (flight page)
         if next_state_obj is not None:
-            if next_state_obj.autonomy_role == "performer":
-                # TARS is performer - show TARS icon, hide human icon
-                self.ui.n_t_tars_icon_flight.show()
-                self.ui.n_t_human_pilot_icon_flight.hide()
-            else:
-                # Human is performer - show human icon, hide TARS icon
+            if next_state_obj.autonomy_role != "performer" and next_state_obj.autonomy_role != "supporter":
                 self.ui.n_t_human_pilot_icon_flight.show()
                 self.ui.n_t_tars_icon_flight.hide()
+            elif next_state_obj.autonomy_role == "performer":
+                self.ui.n_t_tars_icon_flight.show()
+                self.ui.n_t_human_pilot_icon_flight.hide()
+            elif next_state_obj.autonomy_role == "supporter":
+                self.ui.n_t_human_pilot_icon_flight.show()
+                self.ui.n_t_tars_icon_flight.show()
         else:
             # No next task - hide both icons
             self.ui.n_t_tars_icon_flight.hide()
@@ -933,8 +961,8 @@ class MainWindow(QMainWindow):
                 case "allow_comm":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Allow TARS to communicate with ATC?")
-                    formatted_callout = format_callout(current_state_obj.callout)
-                    self.set_interaction_tars_input(formatted_callout)
+                    # Callout formatting now happens in TARS agent before sending to TTS
+                    self.set_interaction_tars_input(current_state_obj.callout)
                     self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.int_panel_right_button_flight.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
@@ -946,8 +974,8 @@ class MainWindow(QMainWindow):
                 case "prompt_announce_panpan":
                     home_page.connect_int_panel_buttons(default=False)
                     self.set_interaction_text("Do you want me to announce announce PAN-PAN and request vectors to ATC on 119.9?")
-                    formatted_callout = format_callout(current_state_obj.callout)
-                    self.set_interaction_tars_input(formatted_callout)
+                    # Callout formatting now happens in TARS agent before sending to TTS
+                    self.set_interaction_tars_input(current_state_obj.callout)
                     self.ui.int_panel_right_button.setText("APPROVE")
                     self.ui.int_panel_right_button_flight.setText("APPROVE")
                     if not self.ui.int_panel_right_button.isVisible() : home_page.show_button(self.ui.int_panel_right_button, "green")
@@ -1325,6 +1353,86 @@ class MainWindow(QMainWindow):
         monitor_thread = threading.Thread(target=monitor_atc, daemon=True)
         monitor_thread.start()
     
+    def start_tts_subprocess(self):
+        """Start the TTS (Text-to-Speech) agent as a subprocess"""
+        try:
+            # Get path to tts_agent.py
+            project_root = Path(__file__).parent
+            tts_script = project_root / "tts" / "tts_agent.py"
+            
+            if not tts_script.exists():
+                print(f"⚠️  TTS script not found at {tts_script}")
+                return
+            
+            # Get Python interpreter from virtual environment
+            if sys.platform == "win32":
+                python_exe = project_root / ".venv" / "Scripts" / "python.exe"
+            else:
+                python_exe = project_root / ".venv" / "bin" / "python"
+            
+            if not python_exe.exists():
+                # Fallback to system Python
+                python_exe = sys.executable
+                print(f"⚠️  Virtual environment Python not found, using system Python: {python_exe}")
+            
+            # Start subprocess with unbuffered output
+            # TTS agent needs: agent_name, network_device, port
+            self.tts_process = subprocess.Popen(
+                [str(python_exe), "-u", str(tts_script), "TTS_Agent", "wlp0s20f3", "5670"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                text=True,
+                encoding='utf-8',
+                bufsize=1,
+                cwd=str(project_root)
+            )
+            
+            print(f"🔊 TTS subprocess started (PID: {self.tts_process.pid})")
+            
+            # Start monitoring thread to read output and check if process crashes
+            self.start_tts_monitor()
+            
+        except Exception as e:
+            print(f"❌ Failed to start TTS subprocess: {e}")
+            import traceback
+            traceback.print_exc()
+            self.tts_process = None
+    
+    def start_tts_monitor(self):
+        """Start a background thread to monitor TTS subprocess output and health"""
+        def monitor_tts():
+            if not self.tts_process or not self.tts_process.stdout:
+                return
+            
+            print("📊 TTS monitor thread started")
+            try:
+                # Read output line by line
+                for line in iter(self.tts_process.stdout.readline, ''):
+                    if line:
+                        print(f"[TTS] {line.rstrip()}")
+                    
+                    # Check if process is still running
+                    if self.tts_process.poll() is not None:
+                        break
+                
+                # Process has exited
+                exit_code = self.tts_process.poll()
+                if exit_code != 0:
+                    print(f"⚠️  TTS subprocess crashed with exit code {exit_code}")
+                    # Optionally restart
+                    # QtCore.QTimer.singleShot(2000, self.start_tts_subprocess)
+                else:
+                    print("✅ TTS subprocess exited normally")
+                    
+            except Exception as e:
+                print(f"❌ Error in TTS monitor thread: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # Start monitor in background thread
+        monitor_thread = threading.Thread(target=monitor_tts, daemon=True)
+        monitor_thread.start()
+    
     def stop_tars_subprocess(self):
         """Stop the TARS Agent subprocess gracefully"""
         if self.tars_process:
@@ -1382,6 +1490,25 @@ class MainWindow(QMainWindow):
             finally:
                 self.stt_process = None
     
+    def stop_tts_subprocess(self):
+        """Stop the TTS subprocess gracefully"""
+        if self.tts_process:
+            try:
+                print("🛑 Stopping TTS subprocess...")
+                self.tts_process.terminate()  # Send SIGTERM
+                try:
+                    self.tts_process.wait(timeout=5)  # Wait up to 5 seconds
+                    print("✅ TTS subprocess stopped")
+                except subprocess.TimeoutExpired:
+                    print("⚠️  TTS subprocess didn't stop gracefully, forcing...")
+                    self.tts_process.kill()  # Force kill
+                    self.tts_process.wait()
+                    print("✅ TTS subprocess killed")
+            except Exception as e:
+                print(f"❌ Error stopping TTS subprocess: {e}")
+            finally:
+                self.tts_process = None
+    
     def closeEvent(self, event):
         """Override close event to cleanup subprocess"""
         print("Closing application...")
@@ -1395,8 +1522,8 @@ class MainWindow(QMainWindow):
         # Stop ATC subprocess
         self.stop_atc_subprocess()
         
-        # Shutdown TTS
-        shutdown()
+        # Stop TTS subprocess
+        self.stop_tts_subprocess()
         
         event.accept()
 

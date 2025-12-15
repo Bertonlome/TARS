@@ -8,12 +8,12 @@ import math
 from pathlib import Path
 from Core.echo import *
 from Core.fsm import FiniteStateMachine, State, Transition
-from Core.tts import speak_wait, set_agent_reference
 from Core.speech_commands import match_command, match_all_commands
 from Core.message_protocol import encode_state_to_json, create_alert_message, create_condition_message, create_interaction_message
 import csv
 import json
 import time as time_module
+import re
 
 from ingescape import output_create
 
@@ -107,6 +107,9 @@ class TarsAgent:
         
         # Countdown completion event - will be set by external coordinator
         self.countdown_completion_event = None
+        
+        # TTS speaking state tracking
+        self.tts_speaking_before = False
         
         # Input-to-condition mapping for event-driven monitoring
         # Maps input names to condition function names that depend on them
@@ -877,8 +880,6 @@ class TarsAgent:
 
         self.agent = Echo()
         
-        # Set agent reference in TTS for variable interpolation
-        set_agent_reference(self)
     # END INITIALIZATION OF FSM AND STATES
 
     # ===================================================================
@@ -1895,12 +1896,13 @@ class TarsAgent:
         igs.output_create("alert_clear", igs.IMPULSION_T, None)  # Clear alert display
         igs.output_create("condition_violated", igs.STRING_T, None)  # JSON condition violation
         igs.output_create("condition_restored", igs.STRING_T, None)  # JSON condition restoration
-        igs.output_create("tts_speaking", igs.BOOL_T, None)  # True when TTS active
-        igs.output_create("tts_text", igs.STRING_T, None)  # Current TTS text
         igs.output_create("action_about_to_fire", igs.STRING_T, None)  # JSON state before action fires
         igs.output_create("checklist_item_complete", igs.STRING_T, None)  # JSON checklist completion
         igs.output_create("emergency_procedure_inject", igs.STRING_T, None)  # Emergency procedure name
         igs.output_create("interaction_message", igs.STRING_T, None)  # JSON interaction panel message
+        
+        # TTS Agent communication
+        igs.output_create("tts_request", igs.STRING_T, None)  # Text to send to TTS agent
 
         igs.input_create("On_Off", igs.BOOL_T, None)
         igs.input_create("next_step", igs.IMPULSION_T, None)
@@ -1961,6 +1963,9 @@ class TarsAgent:
         igs.input_create("emergency_inject", igs.STRING_T, None)  # Emergency procedure name to inject
         igs.input_create("force_state_jump", igs.STRING_T, None)  # Force jump to specific state (from UI clicks)
         igs.input_create("countdown_complete", igs.IMPULSION_T, None)  # Countdown timer reached zero
+        
+        # TTS Agent status monitoring (only need is_speaking to know when speech finishes)
+        igs.input_create("tts_is_speaking", igs.BOOL_T, None)  # TTS agent speaking status
 
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("next_step", self.impulsion_input_callback, self.agent)
@@ -2029,11 +2034,73 @@ class TarsAgent:
     def set_tts_completion_event(self, event):
         """Set the threading.Event used to track TTS completion"""
         self.tts_completion_event = event
+    
+    def format_callout(self, text: str) -> str:
+        """Format callout text by replacing {variable_name} with agent attribute values
+        
+        Examples:
+            "FLC V two {V_TWO}" -> "FLC V two 97 knots"
+            "Heading {heading_i}" -> "Heading 057"
+            
+        Args:
+            text: Callout text with optional {variable_name} placeholders
+            
+        Returns:
+            Formatted text with variables replaced by their values
+        """
+        # Find all {variable_name} patterns
+        pattern = r'\{([^}]+)\}'
+        matches = re.findall(pattern, text)
+        
+        for var_name in matches:
+            var_name_stripped = var_name.strip()
+            
+            # Try to get the value from agent attributes
+            value = None
+            
+            # First, try agent attributes directly
+            if hasattr(self, var_name_stripped):
+                value = getattr(self, var_name_stripped)
+            # Try with _i suffix (common for inputs like heading_i)
+            elif hasattr(self, f"{var_name_stripped}_i"):
+                value = getattr(self, f"{var_name_stripped}_i")
+            # Try uppercase (class constants like V_TWO, V_ONE)
+            elif hasattr(self, var_name_stripped.upper()):
+                value = getattr(self, var_name_stripped.upper())
+            
+            # Format the value if found
+            if value is not None:
+                # Format numbers nicely
+                if isinstance(value, float):
+                    if value.is_integer():
+                        formatted_value = str(int(value))
+                    else:
+                        formatted_value = f"{value:.1f}"
+                elif isinstance(value, int):
+                    # Format heading/angles with leading zeros (e.g., 057)
+                    if 'heading' in var_name_stripped.lower() or 'runway' in var_name_stripped.lower():
+                        formatted_value = f"{value:03d}"
+                    else:
+                        formatted_value = str(value)
+                else:
+                    formatted_value = str(value)
+                
+                # Replace the placeholder
+                text = text.replace(f"{{{var_name}}}", formatted_value)
+            else:
+                # Variable not found - leave placeholder
+                print(f"⚠️  TTS variable not found: {var_name_stripped}")
+                text = text.replace(f"{{{var_name}}}", f"[{var_name_stripped}]")
+        
+        return text
 
     def on_speak_action(self, speak_message=None, sleep=True):
         print(f"Action: {self.fsm.current_state}")
         if speak_message:
-            speak_wait(speak_message)
+            # Format the callout with variable interpolation
+            formatted_text = self.format_callout(speak_message)
+            # Send to TTS agent via Ingescape
+            igs.output_set_string("tts_request", formatted_text)
             # Return True to indicate this was a speech action
             return True
         return False

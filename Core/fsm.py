@@ -25,6 +25,18 @@ class State:
 
     def __repr__(self):
         return f"State({self.procedure}, {self.classification}, {self.task_object}, {self.value}, condition={self.condition})"
+    
+    def __eq__(self, other):
+        """Two states are equal if they have the same procedure, task_object, and value"""
+        if not isinstance(other, State):
+            return False
+        return (self.procedure == other.procedure and 
+                self.task_object == other.task_object and 
+                self.value == other.value)
+    
+    def __hash__(self):
+        """Hash based on procedure, task_object, and value for use in sets/dicts"""
+        return hash((self.procedure, self.task_object, self.value))
 
 class Transition:
     def __init__(self, from_state, to_state, condition, action=None, transition_action=None):

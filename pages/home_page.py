@@ -892,6 +892,10 @@ class HomePage(TaskPageBase):
         opacity_effect.setOpacity(0.99)
         label.show()
     
+    def hide_button(self, button):
+        """Hide a button"""
+        button.hide()
+    
     # TASK BUTTON HANDLERS
     # ///////////////////////////////////////////////////////////////
     def task_done_clicked(self):

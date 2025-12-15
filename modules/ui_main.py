@@ -1183,6 +1183,15 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_10.addWidget(self.previous_task_container)
 
+        self.p_t_pilot_icon = QLabel(self.previous_task_container_6)
+        self.p_t_pilot_icon.setObjectName(u"p_t_pilot_icon")
+        self.p_t_pilot_icon.setMinimumSize(QSize(50, 50))
+        self.p_t_pilot_icon.setMaximumSize(QSize(50, 50))
+        self.p_t_pilot_icon.setPixmap(QPixmap(u":/images/images/images/human_pilot_icon.png"))
+        self.p_t_pilot_icon.setScaledContents(True)
+
+        self.horizontalLayout_10.addWidget(self.p_t_pilot_icon)
+
 
         self.previous_task_container_5.addWidget(self.previous_task_container_6)
 
@@ -1234,6 +1243,23 @@ class Ui_MainWindow(object):
 
         self.current_task_container_4.addWidget(self.current_task_container)
 
+        self.c_t_s_container_2 = QVBoxLayout()
+        self.c_t_s_container_2.setObjectName(u"c_t_s_container_2")
+        self.c_t_s_value_2 = QLabel(self.current_task_container_3)
+        self.c_t_s_value_2.setObjectName(u"c_t_s_value_2")
+        self.c_t_s_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+
+        self.c_t_s_container_2.addWidget(self.c_t_s_value_2)
+
+        self.c_t_s_unit_2 = QLabel(self.current_task_container_3)
+        self.c_t_s_unit_2.setObjectName(u"c_t_s_unit_2")
+        self.c_t_s_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
+
+        self.c_t_s_container_2.addWidget(self.c_t_s_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+        self.current_task_container_4.addLayout(self.c_t_s_container_2)
+
         self.check_radio_button = QRadioButton(self.current_task_container_3)
         self.check_radio_button.setObjectName(u"check_radio_button")
         sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
@@ -1271,22 +1297,14 @@ class Ui_MainWindow(object):
 
         self.current_task_container_4.addWidget(self.cancel_task_button_2)
 
-        self.c_t_s_container_2 = QVBoxLayout()
-        self.c_t_s_container_2.setObjectName(u"c_t_s_container_2")
-        self.c_t_s_value_2 = QLabel(self.current_task_container_3)
-        self.c_t_s_value_2.setObjectName(u"c_t_s_value_2")
-        self.c_t_s_value_2.setStyleSheet(u"font: 500 16pt \"JetBrains Mono\";")
+        self.c_t_pilot_icon = QLabel(self.current_task_container_3)
+        self.c_t_pilot_icon.setObjectName(u"c_t_pilot_icon")
+        self.c_t_pilot_icon.setMinimumSize(QSize(50, 50))
+        self.c_t_pilot_icon.setMaximumSize(QSize(50, 50))
+        self.c_t_pilot_icon.setPixmap(QPixmap(u":/images/images/images/human_pilot_icon.png"))
+        self.c_t_pilot_icon.setScaledContents(True)
 
-        self.c_t_s_container_2.addWidget(self.c_t_s_value_2)
-
-        self.c_t_s_unit_2 = QLabel(self.current_task_container_3)
-        self.c_t_s_unit_2.setObjectName(u"c_t_s_unit_2")
-        self.c_t_s_unit_2.setStyleSheet(u"font: 300 12pt \"JetBrains Mono\";")
-
-        self.c_t_s_container_2.addWidget(self.c_t_s_unit_2, 0, Qt.AlignmentFlag.AlignHCenter)
-
-
-        self.current_task_container_4.addLayout(self.c_t_s_container_2)
+        self.current_task_container_4.addWidget(self.c_t_pilot_icon)
 
 
         self.row_1_col_2_VBox_2.addWidget(self.current_task_container_3)
@@ -1361,6 +1379,15 @@ class Ui_MainWindow(object):
 
 
         self.horizontalLayout_13.addLayout(self.n_t_s_container_2)
+
+        self.n_t_pilot_icon = QLabel(self.next_task_container_6)
+        self.n_t_pilot_icon.setObjectName(u"n_t_pilot_icon")
+        self.n_t_pilot_icon.setMinimumSize(QSize(40, 40))
+        self.n_t_pilot_icon.setMaximumSize(QSize(40, 40))
+        self.n_t_pilot_icon.setPixmap(QPixmap(u":/images/images/images/human_pilot_icon.png"))
+        self.n_t_pilot_icon.setScaledContents(True)
+
+        self.horizontalLayout_13.addWidget(self.n_t_pilot_icon)
 
 
         self.next_task_container_5.addWidget(self.next_task_container_6)
@@ -3088,7 +3115,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.stackedWidget.setCurrentIndex(1)
+        self.stackedWidget.setCurrentIndex(0)
         self.stack_tab_container.setCurrentIndex(1)
         self.tabWidget.setCurrentIndex(1)
         self.toolBox.setCurrentIndex(0)
@@ -3157,18 +3184,21 @@ class Ui_MainWindow(object):
         self.p_t_prog_widget_2.setText("")
         self.p_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.p_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
+        self.p_t_pilot_icon.setText("")
         self.c_t_prog_widget_2.setText("")
         self.c_t_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.c_g_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
-        self.check_radio_button.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
-        self.cancel_task_button_2.setText(QCoreApplication.translate("MainWindow", u"CANCEL", None))
         self.c_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.c_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
+        self.check_radio_button.setText(QCoreApplication.translate("MainWindow", u"CHECK", None))
+        self.cancel_task_button_2.setText(QCoreApplication.translate("MainWindow", u"CANCEL", None))
+        self.c_t_pilot_icon.setText("")
         self.n_t_prog_widget_2.setText("")
         self.n_t_label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.n_g_label_2.setText(QCoreApplication.translate("MainWindow", u"TextLabel", None))
         self.n_t_s_value_2.setText(QCoreApplication.translate("MainWindow", u"0", None))
         self.n_t_s_unit_2.setText(QCoreApplication.translate("MainWindow", u"seconds", None))
+        self.n_t_pilot_icon.setText("")
         self.stack_tab_container.setTabText(self.stack_tab_container.indexOf(self.stack_tab_1), QCoreApplication.translate("MainWindow", u"Tab 1", None))
         self.stack_tab_container.setTabText(self.stack_tab_container.indexOf(self.stack_tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
         self.ecl_tab_container.setTabText(self.ecl_tab_container.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Tab 1", None))

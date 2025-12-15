@@ -76,6 +76,22 @@ class CircularCountdown(QWidget):
         # Reset N/A mode when setting a value
         self._show_na = False
         
+        # Only reset tick mark if we're starting a NEW countdown (from 0 or different task)
+        # Don't reset if just updating the same countdown
+        if current > 0 and maximum > 0:
+            # Starting a new countdown - reset tick mark
+            self._show_tick = False
+            
+            # Stop any pending tick mark timers
+            if self._tick_animation_timer:
+                self._tick_animation_timer.stop()
+                self._tick_animation_timer.deleteLater()
+                self._tick_animation_timer = None
+            if self._delayed_tick_timer:
+                self._delayed_tick_timer.stop()
+                self._delayed_tick_timer.deleteLater()
+                self._delayed_tick_timer = None
+        
         self._value = current
         self._display_value = float(current)
         self._max_value = maximum if maximum > 0 else 1
@@ -152,9 +168,11 @@ class CircularCountdown(QWidget):
         # Set up timer to hide tick mark after duration
         if self._tick_animation_timer:
             self._tick_animation_timer.stop()
+            self._tick_animation_timer.deleteLater()
             self._tick_animation_timer = None
         
-        self._tick_animation_timer = QTimer()
+        # Create timer with parent to prevent garbage collection
+        self._tick_animation_timer = QTimer(self)
         self._tick_animation_timer.setSingleShot(True)
         self._tick_animation_timer.timeout.connect(self._hide_tick_mark)
         self._tick_animation_timer.start(duration_ms)
@@ -170,10 +188,11 @@ class CircularCountdown(QWidget):
         # Stop any existing delayed tick timer
         if self._delayed_tick_timer:
             self._delayed_tick_timer.stop()
+            self._delayed_tick_timer.deleteLater()
             self._delayed_tick_timer = None
         
-        # Create timer for delayed tick mark
-        self._delayed_tick_timer = QTimer()
+        # Create timer for delayed tick mark with parent to prevent garbage collection
+        self._delayed_tick_timer = QTimer(self)
         self._delayed_tick_timer.setSingleShot(True)
         self._delayed_tick_timer.timeout.connect(lambda: self.show_task_fired(duration_ms))
         self._delayed_tick_timer.start(delay_ms)
