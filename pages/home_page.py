@@ -900,7 +900,7 @@ class HomePage(TaskPageBase):
     # ///////////////////////////////////////////////////////////////
     def task_done_clicked(self):
         """Handle task done button click"""
-        self.start_glow_effect(self.widgets.current_task_container_3, "green")
+        #self.start_glow_effect(self.widgets.current_task_container_3, "green")
         # Emit signal to notify MainWindow
         self.task_done_signal.emit()
     

@@ -70,6 +70,7 @@ class Echo(metaclass=Singleton):
         self.pitot_heat_i = None  # Pitot heat on/off
         self.latitude_i = None  # Latitude
         self.longitude_i = None  # Longitude
+        self.anti_coll_lights_i = None  # Anti-collision lights on/off
 
         # outputs
         self.pax_safety_o = None
@@ -86,6 +87,7 @@ class Echo(metaclass=Singleton):
         self.declare_pan_o = None
         self.request_vectors_o = None
         self.tts_request_o = None  # Text to send to TTS agent
+        self.alt_sel_o = None  # Altitude select in feet
         
         # TTS agent status (only need is_speaking to know when speech finishes)
         self.tts_is_speaking_i = None
@@ -208,6 +210,15 @@ class Echo(metaclass=Singleton):
         self._request_vectorsO = value
         if self._request_vectorsO is not None:
             igs.output_set_impulsion("request_vectors")
+    
+    @property
+    def alt_selO(self):
+        return self._alt_selO
+    @alt_selO.setter
+    def alt_selO(self, value):
+        self._alt_selO = value
+        if self._alt_selO is not None:
+            igs.output_set_int("alt_sel", self._alt_selO)
 
     # services
     def receive_values(self, sender_agent_name, sender_agent_uuid, boolV, integer, double, string, data, token, my_data):

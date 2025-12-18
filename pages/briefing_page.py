@@ -38,6 +38,10 @@ class Task:
         self.human_supports = bool(int(human_supports)) if str(human_supports).strip() != "" else False
         self.agent_supports = bool(int(agent_supports)) if str(agent_supports).strip() != "" else False
         
+        # Extract TARS role descriptions from extra_fields
+        self.tars_performer_role = extra_fields.get('TARS Performer Role', '')
+        self.tars_supporter_role = extra_fields.get('TARS Supporter Role', '')
+        
         # Store all additional CSV columns for preservation during export
         self.extra_fields = extra_fields
 
@@ -107,6 +111,8 @@ def load_tasks(csv_path: Path | None = None, classification_filter: list | None 
                     'time_to_initiate_action': row.get("Time to Initiate Action", "").strip(),
                     'time_after_ending_action': row.get("Time after Ending Action", "").strip(),
                     'callout': row.get("Callout", "").strip(),
+                    'TARS Performer Role': row.get("TARS Performer Role", "").strip(),
+                    'TARS Supporter Role': row.get("TARS Supporter Role", "").strip(),
                 }
                 
                 tasks.append(Task(
@@ -201,6 +207,64 @@ class SupportNode(QGraphicsRectItem):
         self.setPen(pen)
         self.setZValue(9)
 
+
+class RoleDescriptionBox(QGraphicsItem):
+    """Text box showing TARS role description for a task with background."""
+    def __init__(self, center: QPointF, width: float = 300):
+        super().__init__()
+        self.max_width = width
+        self.center_y = center.y()
+        self.padding = 10
+        
+        # Set initial position (to the right of TARS column)
+        self.setPos(center.x(), center.y() - 35)
+        
+        # Create background rectangle
+        self.background = QGraphicsRectItem(0, 0, width, 70, self)
+        self.background.setBrush(QBrush(QColor(60, 60, 80, 180)))  # Semi-transparent dark background
+        self.background.setPen(QPen(QColor(100, 100, 120), 1))
+        self.background.setZValue(7)
+        
+        # Create text item
+        self.text_item = QGraphicsTextItem(self)
+        self.text_item.setPos(self.padding, self.padding)
+        self.text_item.setDefaultTextColor(QColor("#ffffff"))
+        font = QFont()
+        font.setPointSize(10)
+        font.setFamily("JetBrains Mono")
+        self.text_item.setFont(font)
+        self.text_item.setTextWidth(width - 2 * self.padding)
+        self.text_item.setZValue(8)
+        
+        # Start with placeholder text
+        self.set_text("")
+        
+    def boundingRect(self):
+        """Required by QGraphicsItem"""
+        return self.background.rect()
+    
+    def paint(self, painter, option, widget=None):
+        """Required by QGraphicsItem (background handles painting)"""
+        pass
+        
+    def set_text(self, text: str):
+        """Update the displayed text."""
+        if text and text.strip():
+            self.text_item.setPlainText(text.strip())
+            # Adjust background height based on text
+            text_height = self.text_item.boundingRect().height() + 2 * self.padding
+            self.background.setRect(0, 0, self.max_width, max(70, text_height))
+        else:
+            self.text_item.setPlainText("(Select a performer to see TARS role)")
+            self.text_item.setDefaultTextColor(QColor("#888888"))  # Gray for placeholder
+            self.background.setRect(0, 0, self.max_width, 70)
+    
+    def clear_text(self):
+        """Clear the text and show placeholder."""
+        self.text_item.setPlainText("(Select a performer to see TARS role)")
+        self.text_item.setDefaultTextColor(QColor("#888888"))  # Gray for placeholder
+        self.background.setRect(0, 0, self.max_width, 70)
+
 # ---------------------------- View/Scene ----------------------------
 
 class InterdependenceScene(QGraphicsScene):
@@ -220,6 +284,8 @@ class InterdependenceScene(QGraphicsScene):
             "TARS": 820
         }
         self.node_r = 20
+        self.role_box_x = 900  # X position for role description boxes
+        self.role_box_width = 350  # Width of role description boxes
 
         # Group tasks by procedure
         self.procedures = self._group_tasks_by_procedure()
@@ -229,6 +295,9 @@ class InterdependenceScene(QGraphicsScene):
         
         # Keep track of nodes for visual updates
         self.nodes: dict[tuple[int, str], ClickNode] = {}  # (row, role) -> node
+        
+        # Keep track of role description boxes
+        self.role_boxes: dict[int, RoleDescriptionBox] = {}  # row -> role description box
 
         # Persistent items
         self.path_items: list[QGraphicsPathItem] = []   # solid path between rows
@@ -391,9 +460,9 @@ class InterdependenceScene(QGraphicsScene):
             # Update current_y for next procedure (add space between procedures)
             current_y += len(tasks_in_proc) * self.row_h + self.procedure_spacing
 
-        # Scene rect adjusted to fit actual content bounds
+        # Scene rect adjusted to fit actual content bounds (including role boxes)
         content_left = 0
-        content_right = self.col_x["TARS"] + 100
+        content_right = self.role_box_x + self.role_box_width + 50  # Include role boxes
         content_top = 20
         # Calculate total height based on all procedures
         total_height = current_y + 50  # Add some bottom padding
@@ -407,6 +476,30 @@ class InterdependenceScene(QGraphicsScene):
         Args:
             filtered_category: If provided, only build nodes for tasks in this category
         """
+        for row, t in enumerate(self.tasks):
+            # Skip this task if category filter is active and doesn't match
+            if filtered_category and t.category != filtered_category:
+                continue
+            
+            # Only create role description box if TARS has any role (performer or supporter)
+            has_tars_role = (
+                (t.tars_performer_role and t.tars_performer_role.strip()) or 
+                (t.tars_supporter_role and t.tars_supporter_role.strip())
+            )
+            
+            if has_tars_role:
+                y = self._row_y(row, filtered_category)
+                role_box_center = QPointF(self.role_box_x, y)
+                role_box = RoleDescriptionBox(role_box_center, self.role_box_width)
+                self.addItem(role_box)
+                self.role_boxes[row] = role_box
+                
+                # Track role box for filtering
+                if row not in self.row_elements:
+                    self.row_elements[row] = []
+                self.row_elements[row].append(role_box)
+        
+        # Now build nodes and supporters
         for row, t in enumerate(self.tasks):
             # Skip tasks not in the filtered category
             if filtered_category and t.category != filtered_category:
@@ -498,6 +591,9 @@ class InterdependenceScene(QGraphicsScene):
                 # Set selected state based on whether this node is the selected one
                 node.set_selected(node_role == role)
         
+        # Update role description box
+        self._update_role_description(row, role)
+        
         # Update support lines based on current selections
         self._update_support_lines()
         
@@ -508,6 +604,32 @@ class InterdependenceScene(QGraphicsScene):
         if self.selection_callback:
             self.selection_callback()
 
+    def _update_role_description(self, row: int, role: str):
+        """Update role description box based on selection."""
+        if row not in self.role_boxes:
+            return
+        
+        role_box = self.role_boxes[row]
+        task = self.tasks[row]
+        
+        if role == "TARS":
+            # TARS is performer - show performer role
+            if task.tars_performer_role and task.tars_performer_role.strip():
+                role_box.text_item.setDefaultTextColor(QColor("#ffffff"))  # White for content
+                role_box.set_text(task.tars_performer_role)
+            else:
+                role_box.clear_text()
+        elif role == "HUMAN" and task.agent_supports:
+            # HUMAN is performer and TARS can support - show supporter role
+            if task.tars_supporter_role and task.tars_supporter_role.strip():
+                role_box.text_item.setDefaultTextColor(QColor("#ffffff"))  # White for content
+                role_box.set_text(task.tars_supporter_role)
+            else:
+                role_box.clear_text()
+        else:
+            # Clear the box
+            role_box.clear_text()
+    
     def _update_support_lines(self):
         """Update support lines based on current selections"""
         # Remove old support lines
@@ -616,6 +738,7 @@ class InterdependenceScene(QGraphicsScene):
         self.row_elements.clear()
         self.static_header_items.clear()
         self.nodes.clear()
+        self.role_boxes.clear()
         self.path_items.clear()
         self.dashed_items.clear()
     
@@ -640,9 +763,12 @@ class InterdependenceScene(QGraphicsScene):
         self._update_support_lines()
     
     def _restore_node_selections(self):
-        """Restore the visual state of nodes based on self.selected dictionary"""
+        """Restore the visual state of nodes and role descriptions based on self.selected dictionary"""
         for row, selected_role in self.selected.items():
-            # Update all nodes in this row
+            # Update role description
+            self._update_role_description(row, selected_role)
+            
+            # Update node visual state for this row
             if (row, "HUMAN") in self.nodes:
                 self.nodes[(row, "HUMAN")].set_selected(selected_role == "HUMAN")
             if (row, "TARS") in self.nodes:

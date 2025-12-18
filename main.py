@@ -871,7 +871,7 @@ class MainWindow(QMainWindow):
             self.ui.int_panel_left_button.hide()
             self.ui.int_panel_left_button_flight.hide()
     
-        # Handle interaction panel based on current state's interaction attribute
+        """# Handle interaction panel based on current state's interaction attribute
         if current_state_obj.interaction is not None and current_state_obj.interaction != "":
             #self.ui.int_panel_right_button.hide()
             #self.ui.int_panel_left_button.hide()
@@ -1038,7 +1038,8 @@ class MainWindow(QMainWindow):
                     self.set_interaction_text("Single Engine Approach and Landing Checklist")
                 case "pressurization_check":
                     self.set_interaction_text("Pressurization Check: ")
-                    self.set_interaction_tars_input("CABIN ALTITUDE: NORMAL\nDIFFERENTIAL PRESSURE: NORMAL")
+                    self.set_interaction_tars_input("CABIN ALTITUDE: NORMAL\nDIFFERENTIAL PRESSURE: NORMAL") 
+        """
     
         # Update task timeline widget
         home_page.update_task_timeline(current_state_obj)
