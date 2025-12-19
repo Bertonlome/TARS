@@ -157,7 +157,7 @@ class MainWindow(QMainWindow):
         # Start STT (Speech-to-Text) subprocess
         self.stt_process: subprocess.Popen | None = None
         self.stt_monitor_timer = None
-        self.start_stt_subprocess()
+        #self.start_stt_subprocess()
         
         # Start ATC (Air Traffic Control) subprocess
         self.atc_process: subprocess.Popen | None = None
