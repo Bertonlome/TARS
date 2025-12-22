@@ -161,10 +161,12 @@ TARS_OUTPUTS = {
     # Interaction Panel Messages
     "interaction_message": {
         "type": "string",  # JSON encoded
-        "description": "Message and optional TARS input for interaction panel",
+        "description": "Message and optional TARS input for interaction panel with button configuration",
         "format": {
             "message": "str - Main message text",
             "tars_input": "str - Optional TARS reasoning/input (default empty)",
+            "left_button": "str - Left button text (None=hide, empty string=no change, text=show with text)",
+            "right_button": "str - Right button text (None=hide, empty string=no change, text=show with text)",
         },
     },
 }
@@ -345,25 +347,37 @@ def create_condition_message(procedure: str, task_object: str, value: str, condi
     })
 
 
-def create_interaction_message(message: str, tars_input: str = "") -> str:
+def create_interaction_message(message: str, tars_input: str = "", 
+                              left_button: str = "", right_button: str = "") -> str:
     """
     Create interaction panel message JSON
     
     Args:
         message: Main message text (empty string = None, preserves existing UI text)
         tars_input: Optional TARS reasoning/input (empty string = None, preserves existing UI text)
+        left_button: Left button text (empty string = no change, None = hide, text = show with text)
+        right_button: Right button text (empty string = no change, None = hide, text = show with text)
         
     Returns:
         JSON string
         
     Note:
         Empty strings are converted to None to signal "no update" to GUI
+        For buttons: empty string = no change, explicit None = hide, text = show with that text
     """
     import json
-    return json.dumps({
+    payload = {
         "message": message if message else None,
         "tars_input": tars_input if tars_input else None,
-    })
+    }
+    
+    # Only include button config if explicitly set (not empty string)
+    if left_button != "":
+        payload["left_button"] = left_button
+    if right_button != "":
+        payload["right_button"] = right_button
+        
+    return json.dumps(payload)
 
 
 # ============================================================================

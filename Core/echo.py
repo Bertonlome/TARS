@@ -71,6 +71,8 @@ class Echo(metaclass=Singleton):
         self.latitude_i = None  # Latitude
         self.longitude_i = None  # Longitude
         self.anti_coll_lights_i = None  # Anti-collision lights on/off
+        self.alt_sel_i = None  # Altitude select in feet
+        self.heading_sel_i = None  # Heading select in degrees
 
         # outputs
         self.pax_safety_o = None

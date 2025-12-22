@@ -10,7 +10,7 @@ BEFORE TAKEOFF,NORM,Checklist,Parameter Check,EICAS,CHECKED,performer,,EICAS vis
 LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,performer,supporter,"Wind speed, direction, runway alignment.",,,,display_winds_and_ack,2,5,"Wind report from METAR : wind calm, zero niner zero degrees at four knots"
 LINE-UP AND HOLD,NORM,SOP,Autopilot Mgmt,Select Altitude,PRESET AS CLEARED,supporter,performer,ATC clearance,,,,alt_preset_as_cleared,2,2,
 TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,,"CAS status, system alerts, checklist progress.",,,,,0,is_acked,
-TAKEOFF,NORM,Checklist,Flight Control,THROTTLES,TO Detent,performer,,"Throttle position, engine parameters, runway conditions.",,,,display_fadec,0,is_sensed,
+TAKEOFF,NORM,Checklist,Flight Control,THROTTLES,TO Detent,performer,supporter,"Throttle position, engine parameters, runway conditions.",,,,display_fadec,0,is_sensed,
 TAKEOFF,NORM,Checklist,System Check,FADEC bug,CHECK TO,,performer,"FADEC status, engine parameters, TARS action log.",,,,display_eng_spool_evenly,1,1,FADEC normal
 TAKEOFF,NORM,Checklist,System Check,Engine spool,CHECK EVEN,,performer,"Engine RPM, temperature, pressure, and spool rate.",,,,display_n1_matches_command_bug,1,2,
 TAKEOFF,NORM,SOP,Callout,"""Airspeed's alive""",ANNOUNCE,,performer,"Current airspeed, runway conditions, aircraft weight.",,,,,0,0,Airspeed is alive
@@ -25,7 +25,7 @@ ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Flight Director,SET TO MODE,,
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Flight Control,Pitch,MAINTAIN 10°,performer,supporter,"Current pitch angle, engine status, autopilot engagement.",,,,eng_failure_aft_v1_memo_items,0,2,Maintain {TO_PITCH} degrees
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Switch / Lever,LANDING GEAR,UP,performer,supporter,"Engine status, gear position, airspeed, altitude.",,,,eng_failure_aft_v1_memo_items,0,2,
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Parameter Check,Airspeed,CHECK V2,,performer,"Current airspeed, V2 speed, engine status.",,,,eng_failure_aft_v1_memo_items,0,2,Aim for {V_TWO} knots
-ENG FAILURE DURING TAKEOFF,EMER,SOP,Flight Control,Rudder,TRIM,supporter,performer,"Engine status, current rudder trim position, airspeed, and yaw rate.",,,,allow_trim_rudder,15,is_acked,Trim rudder for {engine_failed_side} engine failure.
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Flight Control,Rudder,TRIM,supporter,performer,"Engine status, current rudder trim position, airspeed, and yaw rate.",,,,allow_trim_rudder,10,5,Trim rudder for {engine_failed_side} engine failure.
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Callout,Alarm,ANNOUNCE,,performer,"Engine status, alarm type, current flight phase.",,,,,0,5,"Alarm {engine_failed_side} Engine Fire, low oil pressure {engine_failed_side}"
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Check,SAFE ALTITUDE REACHED,,performer,"Current altitude, agreed safe altitude",,,,eng_failure_aft_v1_memo_items,0,is_sensed,Safe altitude {SAFE_ALTITUDE} feet reached
 ENGINE FIRE,EMER,Memory Item,Switch / Lever,Throttle (affected engine),IDLE,performer,supporter,"Engine status, throttle position, fire warning.",,,,engine_fire_memo_items,0,is_sensed,Throttle {engine_failed_side} engine IDLE
@@ -34,14 +34,14 @@ ENGINE FIRE,EMER,Memory Item,System Check,Engine FIRE LIGHT,CHECK ON AFTER 15s,p
 ENGINE FIRE,EMER,Memory Item,Switch / Lever,Illuminated ENGINE FIRE Switch,LIFT COVER AND PUSH,performer,,"Engine fire status, TARS communication readiness, ATC frequency.",,,,engine_fire_memo_items,0,5,
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,SET SPD MODE,,performer,"Current airspeed, target speed, engine status.",,,,,0,5,Arming Speed mode to FLC {V_ENR} knots
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,SET HDG MODE,,performer,"Current heading, target heading, engine status.",,,,,0,5,Arming heading mode to {RUNWAY_HEADING} degrees
-ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,ENGAGE,supporter,performer,"Engine status, autopilot mode, runway length remaining.",,,,allow_engage_ap,5,3,Will engage autopilot on your approval
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,ENGAGE,supporter,performer,"Engine status, autopilot mode, runway length remaining.",,,,allow_engage_ap,1,5,Will engage autopilot on your approval
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Altitude,CHECK 1500ft AGL,,performer,"Altitude, engine status, autopilot mode, ATC clearance.",,,,,0,3,Altitude superior to {SAFE_ALTITUDE} feet
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Airspeed,CHECK V2+10,,performer,"Current airspeed, V2+10 target, engine status.",,,,,0,3,
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Environment Check,Obstacles,CHECK Clear,performer,,"Engine status, obstacle proximity, runway length, weather conditions.",,,,,0,5,
 ENG FAILURE DURING TAKEOFF,EMER,Memory item,Switch / Lever,FLAP Handle,UP,performer,supporter,"Flap handle position, engine status, airspeed.",,,,,0,is_sensed,Retract Flaps
 ENG FAILURE DURING TAKEOFF,EMER,Memory item,Flight Control,Accelerate,TO V_ENR,performer,supporter,"V_ENR value, current airspeed",,,,show_v_enr,0,is_sensed,Accelerate to {V_ENR}
-ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,CONTACT,supporter,performer,"Engine status, ATC frequency, emergency checklist.",,,,allow_comm,15,1,"""Mayday, Mayday, Mayday,  Cessna Papa Oscar Lima Yankee, engine fire, {altitude} feet, continuing {heading} degrees heading, two souls on board."""
-ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,READBACK,supporter,performer,"Engine status, runway length remaining, ATC frequency.",,,,,5,5,"""Cessna Papa Oscar Lima Yankee, continuing zero six zero degrees, climbing five thousand feet"""
+ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,CONTACT,supporter,performer,"Engine status, ATC frequency, emergency checklist.",,,,allow_comm,5,1,"""Mayday, Mayday, Mayday,  Cessna Papa Oscar Lima Yankee, engine fire, {altitude} feet, continuing {heading} degrees heading, two souls on board."""
+ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,READBACK,supporter,performer,"Engine status, runway length remaining, ATC frequency.",,,,,1,1,"""Cessna Papa Oscar Lima Yankee, continuing zero six zero degrees, climbing five thousand feet"""
 ENGINE FIRE,EMER,SOP,Checklist Mgmt,Checklist,ORDER START,,performer,"Engine temperature, fire detection status, fuel shutoff valve position.",,,,prompt_start_checklist,5,5,Starting ENGINE FIRE Emergency Checklist
 ENGINE FIRE,EMER,Checklist,Other,Immediate Action Item,CHECK DONE,performer,,"Engine temperature, pressure, fire detection status, checklist steps.",,,,immediate_action_items,0,is_acked,CHECK Immediate action Items done
 ENGINE FIRE,EMER,Checklist,Switch / Lever,Throttle (affected engine),CUTOFF,performer,supporter,"Engine fire alert, throttle position, engine temperature.",,,,,0,is_sensed,Throttle {engine_failed_side} cutoff

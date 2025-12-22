@@ -29,7 +29,7 @@ class GUIAgent(QObject):
     # Internal signals for thread-safe UI updates (Ingescape callbacks run in different thread)
     _alert_signal = Signal(str, str)  # (message, color)
     _clear_alert_signal = Signal()
-    _interaction_message_signal = Signal(str, str)  # (message, tars_input)
+    _interaction_message_signal = Signal(str, str, object)  # (message, tars_input, button_config)
     _state_changed_signal = Signal(dict)  # State dict from JSON
     _next_state_signal = Signal(dict)  # Next state dict from JSON
     _previous_state_signal = Signal(dict)  # Previous state dict from JSON
@@ -165,7 +165,15 @@ class GUIAgent(QObject):
             # But empty string will be treated as "no update" in handler
             message = "" if message is None else message
             tars_input = "" if tars_input is None else tars_input
-            self._interaction_message_signal.emit(message, tars_input)
+            
+            # Extract button configuration (if present)
+            button_config = {}
+            if "left_button" in msg_data:
+                button_config["left_button"] = msg_data["left_button"]
+            if "right_button" in msg_data:
+                button_config["right_button"] = msg_data["right_button"]
+                
+            self._interaction_message_signal.emit(message, tars_input, button_config)
         except Exception as e:
             print(f"Error processing interaction message: {e}")
     
@@ -317,11 +325,64 @@ class GUIAgent(QObject):
         if flight_page:
             flight_page.clearAlert()
     
-    def _on_interaction_message(self, message: str, tars_input: str):
+    def _on_interaction_message(self, message: str, tars_input: str, button_config: dict):
         """Update interaction panel (main thread)"""
         # Update both home and flight pages using helper methods
         self.main_window.set_interaction_text(message)
         self.main_window.set_interaction_tars_input(tars_input, show=bool(tars_input))
+        
+        # Handle button configuration if provided
+        if button_config:
+            home_page = self.main_window.page_manager.get_page('home')
+            flight_page = self.main_window.page_manager.get_page('flight')
+            
+            # Determine if we need approval mode (APPROVE/DENY buttons)
+            # If either button text is APPROVE or DENY, we use approval mode
+            left_text = button_config.get("left_button", "")
+            right_text = button_config.get("right_button", "")
+            use_approval_mode = False
+            if left_text and left_text in ("APPROVE", "DENY"):
+                use_approval_mode = True
+            if right_text and right_text in ("APPROVE", "DENY"):
+                use_approval_mode = True
+            
+            # Reconnect buttons with appropriate handlers
+            if home_page:
+                home_page.connect_int_panel_buttons(default=not use_approval_mode)
+            
+            # Configure left button
+            if "left_button" in button_config:
+                left_btn_text = button_config["left_button"]
+                if left_btn_text is None:  # None = hide
+                    if home_page:
+                        home_page.int_panel_left_button.hide()
+                    if flight_page:
+                        flight_page.int_panel_left_button.hide()
+                elif left_btn_text:  # Non-empty string = show with text
+                    if home_page:
+                        home_page.int_panel_left_button.setText(left_btn_text)
+                        home_page.int_panel_left_button.show()
+                    if flight_page:
+                        flight_page.int_panel_left_button.setText(left_btn_text)
+                        flight_page.int_panel_left_button.show()
+                # Empty string = no change, do nothing
+            
+            # Configure right button
+            if "right_button" in button_config:
+                right_btn_text = button_config["right_button"]
+                if right_btn_text is None:  # None = hide
+                    if home_page:
+                        home_page.int_panel_right_button.hide()
+                    if flight_page:
+                        flight_page.int_panel_right_button.hide()
+                elif right_btn_text:  # Non-empty string = show with text
+                    if home_page:
+                        home_page.int_panel_right_button.setText(right_btn_text)
+                        home_page.int_panel_right_button.show()
+                    if flight_page:
+                        flight_page.int_panel_right_button.setText(right_btn_text)
+                        flight_page.int_panel_right_button.show()
+                # Empty string = no change, do nothing
     
     def _on_state_changed(self, state_data: dict):
         """Handle state change from TARS (main thread)"""
