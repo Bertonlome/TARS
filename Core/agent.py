@@ -43,6 +43,7 @@ elif platform.system() == "Windows":
 else:
     DEFAULT_DEVICE = "wlps"
 
+CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_PILOT_PERF.csv"
 ### PARAMETERS ###
 TO_PITCH = 10  # Takeoff pitch target in degrees
 SAFE_ALTITUDE = 1500  # Safe altitude to climb to after engine failure
@@ -111,6 +112,7 @@ class TarsAgent:
         self.VECTOR_HEADING = VECTOR_HEADING  # Vector heading for ATC instructions
         self.VECTOR_ALTITUDE = VECTOR_ALTITUDE  # Vector altitude for ATC instructions
         self.ONE_THOUSAND_FIVE_HUNDRED_FEET = ONE_THOUSAND_FIVE_HUNDRED_FEET  # 1500 feet altitude threshold
+        self.CURRENT_BRIEFING_EXPORT_LOADED = CURRENT_BRIEFING_EXPORT_LOADED
 
         # FSM setup
         self.task_acked = [False]
@@ -169,13 +171,13 @@ class TarsAgent:
         }
 
         # Load task definitions with role allocations
-        allocation_csv_path = Path(__file__).parent / "briefing_export__full_TARS_20251217_193407.csv"        
+        allocation_csv_path = Path(__file__).parent / self.CURRENT_BRIEFING_EXPORT_LOADED        
         # Create states from allocation CSV
         self.states = self.create_states_from_csv(allocation_csv_path)
         self.checklists = self.create_checklists_from_states(self.states)
         idle_key = ("IDLE", "Idle", "WAITING")
         finished_key = ("FINISHED", "Finished", "COMPLETED")
-        self.fsm = FiniteStateMachine(self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")])
+        self.fsm = FiniteStateMachine(self.states[(idle_key)])
 
         # BEFORE TAKEOFF Procedure
         self.fsm.add_transition(Transition(
@@ -195,7 +197,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
             self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
-            lambda: self.is_pitot_heat_on() if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role in ("supporter", "performer") else self.is_acked(),
+            lambda: self.is_pitot_heat_on() if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role in ("performer") else self.is_acked(),
             action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_ENGINE_ANTI_ICE)) if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
@@ -213,7 +215,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")], 
             self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")], 
-            lambda: self.is_pax_safety_on() if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "supporter" else self.is_acked(),
+            lambda: self.is_pax_safety_on() if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role in ("performer") else self.is_acked(),
             action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_LANDING_LIGHT_RUNWAY)) if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
@@ -225,15 +227,14 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")], 
             self.states[("BEFORE TAKEOFF", "EICAS", "CHECKED")], 
-            lambda: self.is_anti_coll_lights_on() if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role == "supporter" else self.is_acked(), 
+            lambda: self.is_anti_coll_lights_on() if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role in ("performer") else self.is_acked(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "EICAS", "CHECKED")], 
             self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
             self.is_acked, 
-            action= lambda: (self.on_speak_action(self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].callout), igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_WINDS_HEADER, self.INTERACTION_WINDS_DATA))) if self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role == "supporter" else self.dummy_action())
-        )
+            action= lambda: self.check_winds_send_signal() if self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
@@ -275,14 +276,14 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")], 
             self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")], 
-            lambda: self.is_airspeed_alive() if self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].autonomy_role == "performer" else self.is_acked(),
+            lambda: self.is_airspeed_alive() if self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.is_acked(),
             action= lambda: self.check_seventy_kts_send_signal() if self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].callout) if self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")], 
             self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")], 
-            lambda: self.is_seventy_kts() if self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")].autonomy_role == "performer" else self.is_acked(),
+            lambda: self.is_seventy_kts() if self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.is_acked(),
             action=lambda: self.check_v_one_send_signal() if self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")].callout) if self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
         
@@ -296,7 +297,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")], 
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
-            lambda: self.is_v_rotate() and not self.is_alarm() if self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].autonomy_role == "performer" else self.is_acked(),
+            lambda: self.is_v_rotate() and not self.is_alarm() if self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.is_acked(),
             action=lambda: self.check_pitch_send_signal() if self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].callout) if self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
 
@@ -310,7 +311,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
             self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
-            lambda: self.is_positive_rate and not self.is_alarm() if self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")].autonomy_role == "performer" else self.is_acked(),
+            lambda: self.is_positive_rate and not self.is_alarm() if self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")].autonomy_role in ("performer", "supporter") else self.is_acked(),
             transition_action=lambda: self.on_speak_action("Gear up") if self.states[("TAKEOFF", "LANDING GEAR", "UP")].autonomy_role == "supporter" else self.dummy_action()))
         
         # Branch: Normal path to AFTER TAKEOFF
@@ -325,45 +326,45 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")],
-            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.is_acked(),
-            action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
+            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
+            action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Rotate\"", "ANNOUNCE")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")],
-            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.is_acked(),
-            action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
+            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
+            action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
-            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.is_acked(),
+            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
-            lambda : self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.is_acked(),
+            lambda : self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "LANDING GEAR", "UP")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
-            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.is_acked(),
+            lambda: self.is_engine_failed() or self.is_alarm() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role == "supporter" else self.dummy_action()))
 
         # ENG FAILURE DURING TAKEOFF transitions
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")],
-            lambda: self.allow_transition() if self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].autonomy_role == "performer" else self.is_acked(),
+            lambda: self.allow_transition() if self.states[("ENG FAILURE DURING TAKEOFF", "Climb", "TO A SAFE ALTITUDE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             lambda : (igs.output_set_double("flight_director", 1) if self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].autonomy_role == "performer" else self.dummy_action()),
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].autonomy_role == "performer" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")], 
-            lambda: self.allow_transition() if self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].autonomy_role == "performer" else self.is_acked(), 
+            lambda: self.is_flight_director_on() if self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].autonomy_role in ("supporter", "performer") else self.is_acked(), 
             action=lambda: self.check_pitch_send_signal() if self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")].autonomy_role == "supporter" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
@@ -396,28 +397,28 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")], 
-            self.allow_transition, 
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_HDG_MODE, "")) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].autonomy_role == "supporter" else self.dummy_action(),
+            lambda: self.is_speed_mode_on() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_SET_HDG_MODE, "")) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action= lambda: (self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].callout), self.arm_heading_mode_send_signal()) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].autonomy_role == "performer" else self.dummy_action())) 
 
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
-            self.allow_transition, 
+            lambda: self.is_heading_mode_on() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET HDG MODE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action=lambda: self.engage_autopilot_action() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action(),
             transition_action= lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role == "performer" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")], 
-            lambda: self.is_slip_skid_centered() or self.task_approval_status[0] == ApprovalStatus.DENIED or self.flight_director_mode == 2,
+            lambda: self.is_slip_skid_centered() or self.task_approval_status[0] == ApprovalStatus.DENIED or self.flight_director_mode == 2 or self.is_acked(),
             action=lambda: igs.output_set_string("alert", create_alert_message(self.ALERT_ENGINE_FIRE, "red")) if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role in ("supporter", "performer") else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")], 
-            lambda: self.allow_transition() if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
+            lambda: not self.is_master_warning_on() or self.is_acked() if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_SAFE_ALTITUDE_REACHED)) if self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")].autonomy_role in ("supporter", "performer") else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")].autonomy_role == "performer" else self.dummy_action()))
         
@@ -451,7 +452,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")],
-            lambda: self.is_engine_fire_switch_pushed() if self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")].autonomy_role == "supporter" else self.is_acked(),
+            lambda: self.is_acked() if self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")].autonomy_role == "supporter" else self.is_acked(),
             action=lambda: self.check_1500_ft_send_signal() if self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
 
         
@@ -525,21 +526,21 @@ class TarsAgent:
             self.states[("ENGINE FIRE", "Immediate Action Item", "CHECK DONE")], 
             self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")], 
             self.is_acked, 
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_THROTTLE_CUTOFF, "")) if self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")].autonomy_role == "supporter" else self.dummy_action(),
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_throttle_cutoff(), "")) if self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")].callout) if self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")].autonomy_role == "supporter" and self.flight_director_mode != 2 else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Throttle (affected engine)", "CUTOFF")], 
             self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")], 
             self.is_throttle_cutoff, 
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_FUEL_BOOST_OFF, "")) if self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")].autonomy_role == "supporter" else self.dummy_action(),
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_fuel_boost_off(), "")) if self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")].callout) if self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")].autonomy_role == "supporter" and self.flight_director_mode != 2 else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "OFF")], 
             self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")], 
             self.is_fuel_boost_off, 
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_FUEL_BOOST_NORM, "")) if self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")].autonomy_role == "supporter" else self.dummy_action(),
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_fuel_boost_norm(), "")) if self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")].callout) if self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")].autonomy_role == "supporter" and self.flight_director_mode != 2 else self.dummy_action()))
         
         # this is an important task that should be trigger after the 30s no matter what (need to have continuous checking of the timer)
@@ -547,7 +548,7 @@ class TarsAgent:
             self.states[("ENGINE FIRE", "FUEL BOOST Switch (affected side)", "NORM")], 
             self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 30s")], 
             self.is_fuel_boost_norm, 
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_CHECK_ENGINE_FIRE_LIGHT, "")) if self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 30s")].autonomy_role == "supporter" else self.dummy_action(),
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_check_engine_fire_light(), "")) if self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 30s")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 30s")].callout) if self.states[("ENGINE FIRE", "Engine FIRE LIGHT", "CHECK ON AFTER 30s")].autonomy_role == "supporter" and self.flight_director_mode != 2 else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
@@ -590,7 +591,7 @@ class TarsAgent:
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")],
             self.is_denied,
             self.dummy_action,
-            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0]))
+            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0]) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role == "performer" else self.dummy_action())
         
         # If TARS allowed
         self.fsm.add_transition(Transition(
@@ -598,20 +599,20 @@ class TarsAgent:
             self.states[("DECLARE PANPAN", "ATC", "READBACK")],
             self.is_allowed,
             lambda: self.send_vector_signals(),
-            transition_action=lambda: self.contact_atc_action("panpan")))
+            transition_action=lambda: self.contact_atc_action("panpan") if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
             self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")], 
             lambda: self.is_denied(),
             action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_SET_HEADING, "")),
-            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'follow_vectors_status', [ApprovalStatus.DENIED]))))
+            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'follow_vectors_status', [ApprovalStatus.DENIED])) if self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
             self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")], 
             lambda: self.is_allowed(),
-            action=lambda: self.set_heading_action() if self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
+            action=lambda: self.set_heading_action() if self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")], 
@@ -671,20 +672,20 @@ class TarsAgent:
             self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")], 
             self.states[("AFTER TAKEOFF", "Anti-Ice/Deice Systems", "AS REQUIRED")], 
             self.is_acked, 
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_ENGAGE_YAW_DAMPER, "")) if self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")].autonomy_role in ("supporter","performer") else self.dummy_action(),
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_engage_yaw_damper(), "")) if self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")].autonomy_role in ("supporter","performer") else self.dummy_action(),
             transition_action=lambda: self.engage_yaw_damper_action() if self.states[("AFTER TAKEOFF", "Yaw Damper", "AS DESIRED")].autonomy_role == "performer"  else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Anti-Ice/Deice Systems", "AS REQUIRED")], 
             self.states[("AFTER TAKEOFF", "PAX SAFETY Switch", "AS REQUIRED")], 
             self.is_acked, 
-            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_PAX_SAFETY_SWITCH, "")) if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action()))
+            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_pax_safety_switch(), "")) if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "PAX SAFETY Switch", "AS REQUIRED")], 
             self.states[("AFTER TAKEOFF", "LANDING Light Switch", "AS REQUIRED")], 
             self.is_acked, 
-            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_LANDING_LIGHT_SWITCH, "")) if self.states[("AFTER TAKEOFF", "LANDING Light Switch", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action()))
+            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_LANDING_LIGHT_AFTER_TAKEOFF, "")) if self.states[("AFTER TAKEOFF", "LANDING Light Switch", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "LANDING Light Switch", "AS REQUIRED")], 
@@ -747,27 +748,27 @@ class TarsAgent:
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "ORDER START")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")], 
             lambda: self.allow_transition() if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "ORDER START")].autonomy_role == "performer" else self.is_acked(), 
-            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_THROTTLE_CUTOFF_ENGINE_FAILURE, "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")].autonomy_role in ("supporter","performer") else self.dummy_action(),
+            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_throttle_cutoff(), "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")].autonomy_role in ("supporter","performer") else self.dummy_action(),
             transition_action=lambda: self.check_engine_cutoff() if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")], 
             lambda: self.is_throttle_cutoff() if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Throttle (affected engine)", "CUTOFF")].autonomy_role == "supporter" else self.is_acked(),
-            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_READ_CAUTION_TEXT_ENGINE_FAILURE, "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].autonomy_role in ("supporter","performer") else self.dummy_action(),
+            action= lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_CAUTION_TEXT_READOUT, "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].autonomy_role in ("supporter","performer") else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].callout) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].autonomy_role == "performer" else self.dummy_action())) 
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "GEN Switch (affected side)", "OFF")], 
             lambda: self.allow_transition() if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "CAUTION text", "READ")].autonomy_role in ("supporter","performer") else self.is_acked(),
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_GEN_SWITCH_OFF, "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "GEN Switch (affected side)", "OFF")].autonomy_role in ("supporter","performer") else self.dummy_action()))
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_gen_switch_off(), "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "GEN Switch (affected side)", "OFF")].autonomy_role in ("supporter","performer") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "GEN Switch (affected side)", "OFF")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "IGNITION switch (affected side)", "NORM")], 
             lambda: self.is_gen_switch_off() if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "GEN Switch (affected side)", "OFF")].autonomy_role == "supporter" else self.is_acked(),
-            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_IGNITION_SWITCH_NORM, "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "IGNITION switch (affected side)", "NORM")].autonomy_role in ("supporter","performer") else self.dummy_action()))
+            action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_ignition_switch_norm(), "")) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "IGNITION switch (affected side)", "NORM")].autonomy_role in ("supporter","performer") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "IGNITION switch (affected side)", "NORM")], 
@@ -1173,7 +1174,7 @@ class TarsAgent:
 
     def is_engine_spool_even(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
-            if self.agent.e1_n1_percent_i > 60 and self.agent.e2_n1_percent_i > 60:  # Both engines above idle
+            if self.agent.e1_n1_percent_i > 40 and self.agent.e2_n1_percent_i > 40:  # Both engines above idle
                 diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
                 if diff <= 5:  # Assuming a threshold of 5% for even spool
                     self.engine_spool_alert_sent = False
@@ -1202,12 +1203,12 @@ class TarsAgent:
             if self.agent.pitot_heat_i:
                 msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
                 igs.output_set_string("interaction_message", msg)
-                if self.states[("TAKEOFF", "Pitot heat", "CHECK ON")].autonomy_role == "performer":
+                if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
                     self.on_speak_action("Pitot heat is ON")
             else:
                 msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
                 igs.output_set_string("interaction_message", msg)
-                if self.states[("TAKEOFF", "Pitot heat", "CHECK ON")].autonomy_role == "performer":
+                if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
                     self.on_speak_action("Pitot heat is OFF")
     
     def check_airspeed_alive_send_signal(self):
@@ -1236,7 +1237,7 @@ class TarsAgent:
     def check_engine_spool_send_signal(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
             diff = abs(self.agent.e1_n1_percent_i - self.agent.e2_n1_percent_i)
-            if self.agent.e1_n1_percent_i < 90 or self.agent.e2_n1_percent_i < 90:
+            if self.agent.e1_n1_percent_i < 60 or self.agent.e2_n1_percent_i < 60:
                 msg = create_interaction_message(f"Engine 1 N1: {self.agent.e1_n1_percent_i:.1f}%\nEngine 2 N1: {self.agent.e2_n1_percent_i:.1f}%", f"Engines thrust is low!")
                 igs.output_set_string("interaction_message", msg)
                 if self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")].autonomy_role == "performer":
@@ -1261,7 +1262,7 @@ class TarsAgent:
     
     def is_n1_percent_above_90(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
-            if self.agent.e1_n1_percent_i >= 90 and self.agent.e2_n1_percent_i >= 90:
+            if self.agent.e1_n1_percent_i >= 60 and self.agent.e2_n1_percent_i >= 60:
                 return True
         return False
     
@@ -1344,6 +1345,21 @@ class TarsAgent:
             return True
         if self.agent.e2_n1_percent_i is not None and self.agent.e2_n1_percent_i < 50 and (self.agent.e1_n1_percent_i is not None and self.agent.e1_n1_percent_i > 50):
             self.engine_failed_side = "Right"
+            return True
+        return False
+    
+    def is_flight_director_on(self):
+        if self.agent.flight_director_i is not None and (self.agent.flight_director_i == 1 or self.agent.flight_director_i == 2):
+            return True
+        return False
+    
+    def is_speed_mode_on(self):
+        if self.agent.speed_mode_i is not None and self.agent.speed_mode_i == 2:
+            return True
+        return False
+    
+    def is_heading_mode_on(self):
+        if self.agent.heading_mode_i is not None and self.agent.heading_mode_i == 2:
             return True
         return False
 
@@ -2420,25 +2436,34 @@ class TarsAgent:
     
     def throttle_idle_action(self):
         self.on_speak_action(self.states[("ENGINE FIRE", "Throttle (affected engine)", "IDLE")].callout)
-        while(not self.is_throttle_idle() and not self.is_acked()):
+        wrong_throttle_flag = False
+        while(not self.is_throttle_idle() and not self.is_acked() and not wrong_throttle_flag):
             if self.engine_failed_side == "Left":
                 if self.agent.r_throttle_i is not None and self.agent.r_throttle_i < 1:
                     self.on_speak_action("Wrong throttle adjusted.")
+                    wrong_throttle_flag = True
             elif self.engine_failed_side == "Right":
                 if self.agent.l_throttle_i is not None and self.agent.l_throttle_i < 1:
                     self.on_speak_action("Wrong throttle adjusted.")
-            time.sleep(0.1)  # Wait until throttle is set to idle
+                    wrong_throttle_flag = True
+            time.sleep(1)  # Wait until throttle is set to idle
+    
+    def check_winds_send_signal(self):
+        msg = create_interaction_message(self.INTERACTION_WINDS_HEADER, self.INTERACTION_WINDS_DATA)
+        igs.output_set_string("interaction_message", msg)
+        if self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role == "performer":
+            self.on_speak_action(self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].callout)
     
     def check_pax_safety_send_signal(self):
         if self.agent.pax_safety_i is not None and self.agent.pax_safety_i < 1:
             interaction_json = create_interaction_message("", "PAX SAFETY Switch is OFF")
             igs.output_set_string("interaction_message", interaction_json)
-            if self.state[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
+            if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
                 self.on_speak_action("PAX SAFETY Switch is OFF")
         else:
             interaction_json = create_interaction_message("", "PAX SAFETY Switch is ON")
             igs.output_set_string("interaction_message", interaction_json)
-            if self.state[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
+            if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
                 self.on_speak_action("PAX SAFETY Switch is ON")
     
     def check_fadec_bug_to_send_signal(self):
@@ -2504,6 +2529,11 @@ class TarsAgent:
     #V1 Speed Display
     INTERACTION_SHOW_V_ONE = f"V1 = {V_ONE} knots"
 
+    INTERACTION_SET_SPD_MODE = "ARMING SPEED MODE"
+    INTERACTION_SET_HDG_MODE = "ARMING HEADING MODE"
+
+    INTERACTION_CHECK_V2_PLUS_10 = f"CHECK IAS V2+10 = {V_TWO + 10} KNOTS"
+
     #After takeoff checklist
     INTERACTION_START_AFT_TO_CHECKLIST = "Safe altitude reached. Ready to start After Takeoff Checklist."
 
@@ -2532,6 +2562,18 @@ class TarsAgent:
     
     # Autopilot Approval
     INTERACTION_ALLOW_ENGAGE_AP = "Allow TARS to engage the autopilot?"
+
+    def get_interaction_throttle_cutoff(self) -> str:
+        return f"Throttle {self.engine_failed_side} CUTOFF"
+    
+    def get_interaction_fuel_boost_off(self) -> str:
+        return f"FUEL BOOST Switch {self.engine_failed_side} OFF"
+    
+    def get_interaction_fuel_boost_norm(self) -> str:
+        return f"FUEL BOOST Switch {self.engine_failed_side} NORM"
+    
+    def get_interaction_check_engine_fire_light(self) -> str:
+        return f"Check ENGINE FIRE light {self.engine_failed_side} remains ON"
     
     # Speed Display
     INTERACTION_SHOW_V_ENR = "Set speed to VEnr = {V_ENR} knots"
@@ -2573,11 +2615,42 @@ class TarsAgent:
     INTERACTION_CHECKLIST_SING_ENG_APP = "Single Engine Approach and Landing Checklist"
     
     # Yaw Damper
+    def get_interaction_engage_yaw_damper(self) -> str:
+        if self.is_engine_failed():
+            return self.INTERACTION_YAW_DAMPER_SINGLE_ENGINE
+        else:
+            return self.INTERACTION_YAW_DAMPER_NORMAL
     INTERACTION_YAW_DAMPER_SINGLE_ENGINE = "OFF for full rudder authority during single-engine operations"
     INTERACTION_YAW_DAMPER_NORMAL = "ON for comfort during normal operations"
     
     # Pax Safety Switch
-    INTERACTION_PAX_SAFETY_SWITCH = "ABNORMAL SITUATION: PAX SAFETY Switch SET TO SEATBELT"
+    def get_interaction_pax_safety_switch(self) -> str:
+        if self.is_engine_failed():
+            return self.INTERACTION_PAX_SAFETY_SWITCH_ENG_FAILED
+        else:
+            return self.INTERACTION_PAX_SAFETY_SWITCH_NORMAL
+    INTERACTION_PAX_SAFETY_SWITCH_ENG_FAILED = "ABNORMAL SITUATION: PAX SAFETY Switch SET TO SEATBELT"
+    INTERACTION_PAX_SAFETY_SWITCH_NORMAL = "PAX SAFETY Switch SET TO OFF"
+
+    def get_interaction_gen_switch_off(self) -> str:
+        if self.engine_failed_side == "Left":
+            return "GENERATOR Switch LEFT OFF"
+        else:
+            return "GENERATOR Switch RIGHT OFF"
+    
+    def get_interaction_ignition_switch_norm(self) -> str:
+        if self.engine_failed_side == "Left":
+            return "IGNITION Switch LEFT NORM"
+        else:
+            return "IGNITION Switch RIGHT NORM"
+    
+    INTERACTION_REDUCE_ELECTRICAL_LOAD = "Reduce electrical load to under 300 amps"
+
+    INTERACTION_FUEL_TRANSFER_KNOB = "Checking fuel balance"
+    def get_interaction_verify_engine_fire_switch(self) -> str:
+        return f"Verify ENGINE FIRE Switch {self.engine_failed_side} is PUSHED"
+    
+    INTERACTION_NEXT_CHECKLIST_SINGLE_ENGINE_APPROACH = "Next: Single Engine Approach and Landing Checklist"
     
     # Altimeter
     INTERACTION_ALTI_SET_STD = "Setting altimeter to STD"
