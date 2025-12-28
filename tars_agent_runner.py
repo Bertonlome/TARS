@@ -121,6 +121,11 @@ def main():
             # Publish current state
             state_json = encode_state_to_json(state)
             igs.output_set_string("current_state", state_json)
+            igs.output_set_string("current_procedure", state.procedure)
+            igs.output_set_string("current_task_object", state.task_object)
+            igs.output_set_string("current_task_value", str(state.value))
+            igs.output_set_string("current_task_autonomy_role", str(state.autonomy_role))
+            igs.output_set_string("current_task_human_role", str(state.human_role))
             print(f"📤 Published current_state: {state.procedure} - {state.task_object}")
             
             # Publish previous state (from FSM history)
@@ -135,6 +140,8 @@ def main():
             next_state = None
             if tars_agent is not None:
                 for transition in tars_agent.fsm.transitions:
+                    if transition is None:  # Skip None transitions
+                        continue
                     if transition.from_state == state:
                         next_state = transition.to_state
                         break
