@@ -1,10 +1,4 @@
 from argparse import Action
-from curses.ascii import alt
-from dbm import dumb
-from doctest import master
-from operator import is_
-#from os import wait
-from pickle import INT
 import stat
 import threading
 import time
@@ -21,7 +15,6 @@ import json
 import time as time_module
 import re
 
-from annotated_types import T
 from ingescape import output_create
 
 # Direct import for better IDE support
@@ -183,7 +176,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("IDLE", "Idle", "WAITING")], 
             self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
-            self.is_started, 
+            lambda: self.is_started(), 
             lambda: self.on_display_clearance_action() if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role in ("performer", "supporter") else self.dummy_action(),
             lambda: igs.output_set_impulsion("request_takeoff_clearance")))
         
@@ -306,7 +299,7 @@ class TarsAgent:
             self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")], 
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
             lambda: self.is_pitch_above_threshold() and not self.is_alarm() if self.states[("TAKEOFF", "Pitch", "MAINTAIN 10°")].autonomy_role == "supporter" else self.is_acked(),
-            action = self.check_positive_rate_send_signal() if self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")].autonomy_role == "supporter" else self.dummy_action()))
+            action=lambda: self.check_positive_rate_send_signal() if self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "Climb rate", "CHECK POSITIVE")], 
@@ -591,7 +584,7 @@ class TarsAgent:
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")],
             self.is_denied,
             self.dummy_action,
-            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0]) if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role == "performer" else self.dummy_action())
+            transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))[0] if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role == "performer" else self.dummy_action()))
         
         # If TARS allowed
         self.fsm.add_transition(Transition(
@@ -654,7 +647,7 @@ class TarsAgent:
             self.states[("AFTER TAKEOFF", "Obstacles", "CHECK CLEAR")], 
             self.states[("AFTER TAKEOFF", "FLAP Handle", "UP")], 
             self.is_acked, 
-            self.check_flaps_retracted_send_signal) if self.states[("AFTER TAKEOFF", "FLAP Handle", "UP")].autonomy_role == "supporter" else self.dummy_action())
+            lambda: self.check_flaps_retracted_send_signal() if self.states[("AFTER TAKEOFF", "FLAP Handle", "UP")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "FLAP Handle", "UP")], 
@@ -740,7 +733,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")], 
             self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "ORDER START")], 
-            lambda: self.allow_transition() if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")].autonomy_role == "performer" else self.is_acked(),
+            lambda: self.allow_transition() if self.states[("AFTER TAKEOFF", "Next Checklist", "ENGINE FAILURE/PRECAUTIONARY SHUTDOWN")].autonomy_role == "performer" else self.is_acked(),
             self.dummy_action,
             lambda: self.on_speak_action(self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "ORDER START")].callout) if self.states[("ENGINE FAILURE/PRECAUTIONARY SHUTDOWN", "Checklist", "ORDER START")].autonomy_role == "performer" else self.dummy_action()))
         
@@ -808,7 +801,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")], 
             self.states[finished_key], 
-            self.is_engine_not_failed if self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")].autonomy_role == "performer" else self.is_acked(), 
+            lambda: self.is_engine_not_failed() if self.states[("AFTER TAKEOFF", "Checklist", "ANNOUNCE COMPLETED")].autonomy_role == "performer" else self.is_acked(), 
             self.dummy_action))
 
         self.agent = Echo()

@@ -186,7 +186,11 @@ class FSMWorker:
             transition_start = self.start_performance_timer("transition_check")
             transition_found = False
             
-            for t in fsm.transitions:
+            for i, t in enumerate(fsm.transitions):
+                if t is None:
+                    print(f"ERROR: Transition at index {i} is None! Total transitions: {len(fsm.transitions)}")
+                    print(f"Current state: {fsm.current_state.procedure} {fsm.current_state.task_object} {fsm.current_state.value}")
+                    continue
                 if t.from_state == fsm.current_state:
                     # Time the condition check
                     condition_start = self.start_performance_timer("condition_check")
