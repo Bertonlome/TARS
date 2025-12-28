@@ -30,6 +30,7 @@
 [x] AP ON + trim + counter 30s should be independent of the FSM in a dedicated thread
 [ ] We need to be able to activate/deactivate help from the briefing page
 [ ] Action that sets a parameter should check the parameter before announcing parameter set
+[ ] Need to set the comm frequency or add the behaviour to TARS
 
 [ ] Add attention getter web agent
 [ ] Add Tutorial for flight scenario with imm act item, and TARS interaction

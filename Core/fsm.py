@@ -55,6 +55,16 @@ class FiniteStateMachine:
         self.state_history = []  # Track state history for going back
 
     def add_transition(self, transition):
+        if transition is None:
+            print("WARNING: Attempted to add None transition to FSM!")
+            import traceback
+            traceback.print_stack()
+            return
+        if transition.from_state is None or transition.to_state is None:
+            print(f"WARNING: Transition with None state detected! from_state={transition.from_state}, to_state={transition.to_state}")
+            import traceback
+            traceback.print_stack()
+            return
         self.transitions.append(transition)
     
     def force_next_state(self):

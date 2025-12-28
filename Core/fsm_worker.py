@@ -187,6 +187,8 @@ class FSMWorker:
             transition_found = False
             
             for t in fsm.transitions:
+                if t is None:  # Skip None transitions
+                    continue
                 if t.from_state == fsm.current_state:
                     # Time the condition check
                     condition_start = self.start_performance_timer("condition_check")
@@ -327,6 +329,8 @@ class FSMWorker:
         # Find the expected transition from current state
         expected_transition = None
         for t in fsm.transitions:
+            if t is None:  # Skip None transitions
+                continue
             if t.from_state == current_state:
                 expected_transition = t
                 break
