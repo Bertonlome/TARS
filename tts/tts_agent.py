@@ -14,6 +14,8 @@ import queue
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from Core.igs_utils import start_with_device_fallback
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tts.echo_tts import Echo
 from tts import tts
@@ -111,8 +113,8 @@ def main():
     # Observe inputs
     igs.observe_input("text_to_speak", tts_agent.on_text_to_speak, None)
     
-    # Start Ingescape
-    igs.start_with_device(network_device, port)
+    # Start Ingescape with device fallback
+    start_with_device_fallback(igs, port)
     
     print(f"✓ TTS Agent '{agent_name}' started on {network_device}:{port}")
     print("  Inputs: text_to_speak")

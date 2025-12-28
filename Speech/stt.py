@@ -8,6 +8,10 @@ import os
 import threading
 from echo_speech import *
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Core.igs_utils import start_with_device_fallback
+
 import platform
 if platform.system() == "Linux":
     DEFAULT_DEVICE = "wlp0s20f3"
@@ -226,7 +230,7 @@ if __name__ == "__main__":
     igs.log_set_console_level(igs.LOG_INFO)
 
     try:
-        igs.start_with_device(device, port)
+        start_with_device_fallback(igs, port)
     except Exception as e:
         print(f"❌ Failed to start Ingescape agent: {e}")
         import traceback

@@ -15,6 +15,7 @@ except ImportError:
     print("ERROR: ingescape module not found")
     sys.exit(1)
 
+from Core.igs_utils import start_with_device_fallback
 from Core.message_protocol import decode_json_to_dict
 from main import MainWindow
 
@@ -126,8 +127,8 @@ class GUIAgent(QObject):
     
     def start(self):
         """Start the GUI agent"""
-        print(f"🚀 Starting GUI Agent on {self.device}:{self.port}")
-        igs.start_with_device(self.device, self.port)
+        print(f"🚀 Starting GUI Agent on port {self.port}")
+        start_with_device_fallback(igs, self.port)
         print(f"✅ GUI Agent started successfully")
     
     def stop(self):

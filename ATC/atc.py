@@ -10,6 +10,10 @@ import pyttsx3
 import numpy as np
 from echo_atc import *
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Core.igs_utils import start_with_device_fallback
+
 # Choose sensible default network device name depending on host OS.
 # Linux typically uses interface names like 'wlp0s20f3'; Windows GUI name is 'Wi-Fi'.
 import platform
@@ -261,7 +265,7 @@ if __name__ == "__main__":
     igs.log_set_console_level(igs.LOG_INFO)
 
     try:
-        igs.start_with_device(device, port)
+        start_with_device_fallback(igs, port)
     except Exception as e:
         print(f"❌ Failed to start Ingescape agent: {e}")
         import traceback

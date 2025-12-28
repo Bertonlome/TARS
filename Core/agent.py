@@ -1,11 +1,3 @@
-from argparse import Action
-from curses.ascii import alt
-from dbm import dumb
-from doctest import master
-from operator import is_
-#from os import wait
-from pickle import INT
-import stat
 import threading
 import time
 import signal
@@ -14,15 +6,11 @@ import traceback
 from pathlib import Path
 from Core.echo import *
 from Core.fsm import FiniteStateMachine, State, Transition
-from Core.speech_commands import match_command, match_all_commands
-from Core.message_protocol import encode_state_to_json, create_alert_message, create_condition_message, create_interaction_message
+from Core.speech_commands import match_all_commands
+from Core.message_protocol import encode_state_to_json, create_alert_message, create_interaction_message
+from Core.igs_utils import start_with_device_fallback
 import csv
-import json
-import time as time_module
 import re
-
-from annotated_types import T
-from ingescape import output_create
 
 # Direct import for better IDE support
 try:
@@ -2080,7 +2068,9 @@ class TarsAgent:
 
         igs.log_set_console(True)
         igs.log_set_console_level(igs.LOG_INFO)
-        igs.start_with_device(self.device, self.port)
+        
+        # Try multiple network devices in fallback order
+        start_with_device_fallback(igs, self.port)
 
     def set_tts_completion_event(self, event):
         """Set the threading.Event used to track TTS completion"""
