@@ -788,7 +788,7 @@ class MainWindow(QMainWindow):
             if not self.ui.cancel_task_button_2.isVisible():
                 home_page.show_button(self.ui.cancel_task_button_2, "red")
         elif current_state_obj.autonomy_role == "supporter" :
-            home_page.show_label(self.ui.c_t_prog_widget_2)
+            home_page.hide_label(self.ui.c_t_prog_widget_2)
             home_page.show_label(self.ui.c_t_human_pilot_icon_flight)
             # Only reset button style if it's currently hidden (new task starting)
             if not self.ui.cancel_task_button_2.isVisible():
@@ -805,7 +805,7 @@ class MainWindow(QMainWindow):
         elif current_state_obj.autonomy_role == "supporter":
             # Human is performer - show human icon, hide TARS icon
             self.ui.c_t_human_pilot_icon_flight.show()
-            self.ui.c_t_tars_icon_flight.show()
+            self.ui.c_t_tars_icon_flight.hide()
 
         # Handle next task autonomy role display (home page)
         if next_state_obj is not None:
@@ -816,7 +816,7 @@ class MainWindow(QMainWindow):
                 home_page.show_label(self.ui.n_t_prog_widget_2)
                 home_page.hide_label(self.ui.n_t_human_pilot_icon_flight)
             elif next_state_obj.autonomy_role == "supporter" :
-                home_page.show_label(self.ui.n_t_prog_widget_2)
+                home_page.hide_label(self.ui.n_t_prog_widget_2)
                 home_page.show_label(self.ui.n_t_human_pilot_icon_flight)
         else:
             home_page.hide_label(self.ui.n_t_prog_widget_2)
@@ -832,7 +832,7 @@ class MainWindow(QMainWindow):
                 self.ui.n_t_human_pilot_icon_flight.hide()
             elif next_state_obj.autonomy_role == "supporter":
                 self.ui.n_t_human_pilot_icon_flight.show()
-                self.ui.n_t_tars_icon_flight.show()
+                self.ui.n_t_tars_icon_flight.hide()
         else:
             # No next task - hide both icons
             self.ui.n_t_tars_icon_flight.hide()

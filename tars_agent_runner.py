@@ -88,7 +88,7 @@ def main():
     tts_event = threading.Event()
     tts_event.set()  # Initially set (no TTS in progress)
     tars_agent.tts_completion_event = tts_event
-    
+
     # Set up observer for TTS speaking status from TTS agent
     import ingescape as igs
     
@@ -110,6 +110,20 @@ def main():
                 tars_agent.tts_completion_event.set()
     
     igs.observe_input("tts_is_speaking", on_tts_speaking_changed, None)
+    
+    # Initialize outputs after a short delay to ensure agent is fully started
+    def initialize_outputs():
+        """Initialize Ingescape outputs once agent is ready"""
+        igs.output_set_string("current_procedure", "IDLE")
+        igs.output_set_string("current_task_object", "Idle")
+        igs.output_set_string("current_task_value", "Waiting")
+        igs.output_set_string("current_task_autonomy_role", "None")
+        igs.output_set_string("current_task_human_role", "None")
+        print(f"📤 Published current_state: IDLE - Idle")
+    
+    # Schedule output initialization for 1 second after agent start
+    timer = threading.Timer(1.0, initialize_outputs)
+    timer.start()
     
     # Set up FSM worker callbacks to publish via Ingescape
     def on_state_changed(state):

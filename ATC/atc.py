@@ -70,6 +70,9 @@ def apply_radio_effect(audio_data, samplerate):
 def speak_with_radio_effect(text):
     """Speak text using TTS with radio-static effect"""
     try:
+        # Set is_speaking to true
+        igs.output_set_bool("is_speaking", True)
+        
         print(f"📻 ATC (TTS): {text}")
         
         # Generate TTS to temporary file (platform-independent)
@@ -105,6 +108,9 @@ def speak_with_radio_effect(text):
         print(f"❌ Error in TTS with radio effect: {e}")
         import traceback
         traceback.print_exc()
+    finally:
+        # Set is_speaking back to false
+        igs.output_set_bool("is_speaking", False)
 
 def signal_handler(signal_received, frame):
     global is_interrupted
@@ -124,12 +130,16 @@ def on_freeze_callback(is_frozen, my_data):
 def play_audio_file(file_path):
     """Play audio file (blocking)"""
     try:
+        # Set is_speaking to true
+        igs.output_set_bool("is_speaking", True)
+        
         # Get absolute path
         script_dir = os.path.dirname(os.path.abspath(__file__))
         abs_path = os.path.join(script_dir, file_path)
         
         if not os.path.exists(abs_path):
             print(f"⚠️  Audio file not found: {abs_path}")
+            igs.output_set_bool("is_speaking", False)
             return
         
         print(f"🔊 Playing: {abs_path}")
@@ -141,17 +151,24 @@ def play_audio_file(file_path):
         print(f"❌ Error playing audio file {file_path}: {e}")
         import traceback
         traceback.print_exc()
+    finally:
+        # Set is_speaking back to false
+        igs.output_set_bool("is_speaking", False)
 
 def play_audio_async(file_path):
     """Play audio file in background thread (non-blocking)"""
     def _play():
         try:
+            # Set is_speaking to true
+            igs.output_set_bool("is_speaking", True)
+            
             # Get absolute path
             script_dir = os.path.dirname(os.path.abspath(__file__))
             abs_path = os.path.join(script_dir, file_path)
             
             if not os.path.exists(abs_path):
                 print(f"⚠️  Audio file not found: {abs_path}")
+                igs.output_set_bool("is_speaking", False)
                 return
             
             print(f"🔊 Playing (async): {abs_path}")
@@ -163,6 +180,9 @@ def play_audio_async(file_path):
             print(f"❌ Error playing audio: {e}")
             import traceback
             traceback.print_exc()
+        finally:
+            # Set is_speaking back to false
+            igs.output_set_bool("is_speaking", False)
     
     thread = threading.Thread(target=_play, daemon=True)
     thread.start()
@@ -255,6 +275,7 @@ if __name__ == "__main__":
     igs.input_create("request_vectors", igs.IMPULSION_T, None)
     igs.input_create("custom_speech", igs.STRING_T, None)
     igs.output_create("speech_output", igs.STRING_T, None)
+    igs.output_create("is_speaking", igs.BOOL_T, False)
     igs.observe_input("request_takeoff_clearance", impulsion_input_callback, agent)
     igs.observe_input("declare_mayday", impulsion_input_callback, agent)
     igs.observe_input("declare_panpan", impulsion_input_callback, agent)
