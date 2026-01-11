@@ -208,7 +208,7 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
             print(f"📡 Received: {name}")
             play_audio_file("audio/atis_alpha.mp3")
         if name == "request_takeoff_clearance":
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, wind zero-niner-zero at four, runway zero-six left, cleared for takeoff. Maintain runway heading, climb to 5000ft, Proceed direct AGMEB then OMEKI. Departure on one-one-eight decimal niner. Good flight."
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, wind zero-niner-zero-at-four, runway zero-six-left, cleared for-takeoff. Maintain runway-heading, climb to-5000ft, Proceed direct-AGMEB-then-OMEKI. Departure on-one-one-eight-decimal-niner. Good-flight."
             print(f"📡 Received: {name}")
             play_audio_file("audio/takeoff_clearance.mp3")
         elif name == "declare_mayday":

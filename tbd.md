@@ -31,6 +31,7 @@
 [ ] We need to be able to activate/deactivate help from the briefing page
 [ ] Action that sets a parameter should check the parameter before announcing parameter set
 [ ] Need to set the comm frequency or add the behaviour to TARS
+[ ] Need to remove "directo to agmeb then ameki" in the clearance to simplify with "straight-out departure"
 
 [ ] Add attention getter web agent
 [ ] Add Tutorial for flight scenario with imm act item, and TARS interaction
