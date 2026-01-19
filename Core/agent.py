@@ -31,7 +31,7 @@ elif platform.system() == "Windows":
 else:
     DEFAULT_DEVICE = "wlps"
 
-CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_PILOT_PERF.csv"
+CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF.csv"
 ### PARAMETERS ###
 TO_PITCH = 10  # Takeoff pitch target in degrees
 SAFE_ALTITUDE = 1500  # Safe altitude to climb to after engine failure
@@ -2444,7 +2444,7 @@ class TarsAgent:
             time.sleep(1)  # Wait until throttle is set to idle
     
     def check_winds_send_signal(self):
-        msg = create_interaction_message(self.INTERACTION_WINDS_HEADER, self.INTERACTION_WINDS_DATA)
+        msg = create_interaction_message(self.INTERACTION_WINDS_HEADER, self.INTERACTION_WINDS_DATA, left_button="EDIT", right_button="CONFIRM")
         igs.output_set_string("interaction_message", msg)
         if self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role == "performer":
             self.on_speak_action(self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].callout)

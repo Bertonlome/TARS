@@ -1,14 +1,14 @@
 Procedure,Classification,Type,Category,Task Object,Value,Human Role,Autonomy Role,Information Requirement,Constraint Type,Time constraint (in s),Execution Type,interaction,Time to Initiate Action,Time after Ending Action,Callout
-BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Takeoff clearance,CONFIRM,performer,supporter,"ATC clearance status, checklist completion status.",,,,,14,10,"Cessna Charlie Papa Oscar Lima Yankee cleared for takeoff, will maintain runway heading, climb to 5000ft proceed direct AGMEB then OMEKI"
-BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Pitot-Static Switch,PITOT-STATIC,performer,supporter,Pitot-static switch status,,,,pitot_static_switch,2,2,
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Takeoff clearance,CONFIRM,performer,supporter,"ATC clearance status, checklist completion status.",,,,,14,0,"Cessna Charlie Papa Oscar Lima Yankee cleared for takeoff, will maintain runway heading, climb to 5000ft proceed direct AGMEB then OMEKI"
+BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,Pitot-Static Switch,PITOT-STATIC,performer,supporter,Pitot-static switch status,,,,pitot_static_switch,0,0,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ENGINE ANTI-ICE Switches,AS REQUIRED,performer,supporter,"Outside air temperature, engine anti-ice switch position.",,,,engine_anti_ice_requirement,0,is_acked,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,WINDSHIELD ANTI-ICE Switches,AS REQUIRED,performer,supporter,"Windshield anti-ice switch position, current weather conditions.",,,,windshield_anti_ice_requirement,0,is_acked,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,PAX SAFETY Switch,PAX SAFETY,performer,supporter,"PAX SAFETY switch position, checklist status.",,,,pax_safety_switch,0,is_acked,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,LANDING Light Switch,AS DESIRED,performer,supporter,"Current runway conditions, weather, and aircraft status.",,,,landing_light_as_required,0,is_acked,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ANTI-COLL Light Switch,ON,performer,supporter,"ANTI-COLL light switch position, checklist status.",,,,anti_coll_light_switch,0,is_acked,
 BEFORE TAKEOFF,NORM,Checklist,Parameter Check,EICAS,CHECKED,performer,,EICAS visible,,,,,0,is_acked,
-LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,performer,supporter,"Wind speed, direction, runway alignment.",,,,display_winds_and_ack,2,5,"Wind report from METAR : wind calm, zero niner zero degrees at four knots"
-LINE-UP AND HOLD,NORM,SOP,Autopilot Mgmt,Select Altitude,PRESET AS CLEARED,performer,supporter,ATC clearance,,,,alt_preset_as_cleared,2,2,
+LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,performer,supporter,"Wind speed, direction, runway alignment.",,,,display_winds_and_ack,0,is_acked,"Wind report from METAR : wind calm, zero niner zero degrees at four knots"
+LINE-UP AND HOLD,NORM,SOP,Autopilot Mgmt,Select Altitude,PRESET AS CLEARED,performer,supporter,ATC clearance,,,,alt_preset_as_cleared,0,is_acked,
 TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,,"CAS status, system alerts, checklist progress.",,,,,0,is_acked,
 TAKEOFF,NORM,Checklist,Flight Control,THROTTLES,TO Detent,performer,supporter,"Throttle position, engine parameters, runway conditions.",,,,display_fadec,0,is_sensed,
 TAKEOFF,NORM,Checklist,System Check,FADEC bug,CHECK TO,performer,supporter,"FADEC status, engine parameters, TARS action log.",,,,display_eng_spool_evenly,1,1,FADEC normal

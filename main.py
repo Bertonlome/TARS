@@ -868,8 +868,9 @@ class MainWindow(QMainWindow):
             self.ui.int_panel_left_button_flight.hide()
         else :
             self.set_interaction_text(current_state_obj.task_object + "    " + current_state_obj.value)
-            self.ui.int_panel_right_button.hide()
+            self.ui.int_panel_right_button.setText("CHECK")
             #self.ui.int_panel_right_button_flight.hide()
+            self.ui.int_panel_right_button_flight.setText("CHECK")
             self.ui.int_panel_left_button.hide()
             self.ui.int_panel_left_button_flight.hide()
     
