@@ -136,6 +136,7 @@ def main():
             state_json = encode_state_to_json(state)
             igs.output_set_string("current_state", state_json)
             igs.output_set_string("current_procedure", state.procedure)
+            igs.output_set_string("interaction_message", "")
             igs.output_set_string("current_task_object", state.task_object)
             igs.output_set_string("current_task_value", str(state.value))
             igs.output_set_string("current_task_autonomy_role", str(state.autonomy_role))

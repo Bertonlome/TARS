@@ -36,17 +36,13 @@
 [ ] Add attention getter web agent
 [ ] Add Tutorial for flight scenario with imm act item, and TARS interaction
 [ ] Get access to the flight panel of the flight sim
-[ ] allow the motion
 [ ] Set up eye-tracking cameras
 [ ] if unable to get camera feed from the eye tracker retrieve the feed from the webcam
 [ ] How to evaluate workload ? 
 
-In windows if pyttsx3 is in a subprocess it will take the first queued message but never finish it, we need to treat pyttsx3 as the shared interface GUI, it should have an input somewhere like tts_input and TARS core sends string through it.
-
-
 For the task taxonomy and workflow, in the HAT simulation, to compare workflows we need to have a real distinction between task execution
 for instance
 Check winds, if performer==human and supporter is automatically added then the performer==TARS doesn't "add" any new config, because in that case TARS cannot jump by itself to the next task, it is not autonomous, so we could say it's orange in performer but it doesn't add any new information, might as well just consider tars is a possible supporter.
-So in my use case, I don't really understand the orange color coding... my though is that if it's orange then it's not autonomous then it's not a performer
+So in my use case, I don't really understand the orange color coding... my thought is that if it's orange then it's not autonomous then it's not a performer
 
-The fact that TARS is a memory aid is a de-facto yellow support... Analys need to choose to represent that or not.
+The fact that TARS is a memory aid is a de-facto yellow support... Analysis need to choose to represent that or not.
