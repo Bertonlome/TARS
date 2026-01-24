@@ -203,6 +203,9 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
     assert isinstance(agent_object, Echo)
     
     try:
+        if name == "Reset":
+            agent_object.speech_output_o = ""
+            print(f"📡 Received: {name} - Resetting speech output")
         if name == "request_ATIS":
             agent_object.speech_output_o = "Montreal Trudeau International Airport Information Alpha. One five zero zero Zulu. Wind zero nine zero at four knots. Visibility one statute mile in fog. Ceiling one thousand five hundred overcast. Temperature five, dewpoint four. Altimeter two niner niner two. Runway surfaces dry. Departing and arriving runway in use is zero six left. Advise on initial contact you have Information Alpha."
             print(f"📡 Received: {name}")
@@ -269,6 +272,8 @@ if __name__ == "__main__":
     igs.observe_agent_events(on_agent_event_callback, agent)
     igs.observe_freeze(on_freeze_callback, agent)
 
+
+    igs.input_create("Reset", igs.IMPULSION_T, None)
     igs.input_create("request_ATIS", igs.IMPULSION_T, None)
     igs.input_create("request_takeoff_clearance", igs.IMPULSION_T, None)
     igs.input_create("declare_mayday", igs.IMPULSION_T, None)
@@ -277,6 +282,7 @@ if __name__ == "__main__":
     igs.input_create("custom_speech", igs.STRING_T, None)
     igs.output_create("speech_output", igs.STRING_T, None)
     igs.output_create("is_speaking", igs.BOOL_T, False)
+    igs.observe_input("Reset", impulsion_input_callback, agent)
     igs.observe_input("request_takeoff_clearance", impulsion_input_callback, agent)
     igs.observe_input("declare_mayday", impulsion_input_callback, agent)
     igs.observe_input("declare_panpan", impulsion_input_callback, agent)

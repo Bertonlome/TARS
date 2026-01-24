@@ -1580,6 +1580,12 @@ class TarsAgent:
         agent_object = my_data
         assert isinstance(agent_object, Echo)
         
+        # Reset impulsion - reset FSM and agent state
+        if name == "Reset":
+            print("🔄 RESET impulsion received - resetting agent to IDLE state")
+            self.reset_agent()
+            return
+        
         # GUI Agent → TARS Agent inputs (Phase 6)
         if name == "task_acknowledged":
             print("✅ Task acknowledged from GUI")
@@ -1937,6 +1943,7 @@ class TarsAgent:
         # TTS Agent communication
         igs.output_create("tts_request", igs.STRING_T, None)  # Text to send to TTS agent
 
+        igs.input_create("Reset", igs.IMPULSION_T, None)
         igs.input_create("On_Off", igs.BOOL_T, None)
         igs.input_create("next_step", igs.IMPULSION_T, None)
         igs.input_create("previous_step", igs.IMPULSION_T, None)
@@ -2057,6 +2064,7 @@ class TarsAgent:
         igs.observe_input("heading_sel", self.integer_input_callback, self.agent)  #
 
         # GUI Agent → TARS Agent observers (Phase 6)
+        igs.observe_input("Reset", self.impulsion_input_callback, self.agent)
         igs.observe_input("task_approval", self.bool_input_callback, self.agent)
         igs.observe_input("task_acknowledged", self.impulsion_input_callback, self.agent)
         igs.observe_input("task_cancelled", self.impulsion_input_callback, self.agent)
@@ -2134,6 +2142,60 @@ class TarsAgent:
                 text = text.replace(f"{{{var_name}}}", f"[{var_name_stripped}]")
         
         return text
+
+    def reset_agent(self):
+        """Reset the agent and FSM to initial IDLE state"""
+        print("🔄 Resetting TARS Agent to IDLE state...")
+        
+        # Reset FSM to IDLE state
+        idle_key = ("IDLE", "Idle", "WAITING")
+        if idle_key in self.states:
+            self.fsm.current_state = self.states[idle_key]
+            print(f"  ✓ FSM reset to: {self.fsm.current_state}")
+            
+            # Publish the reset state via Ingescape
+            try:
+                state_data = encode_state_to_json(self.fsm.current_state)
+                igs.output_set_string("current_state", state_data)
+                print(f"  ✓ Published IDLE state to GUI")
+            except Exception as e:
+                print(f"  ❌ Error publishing state: {e}")
+        
+        # Reset agent state variables
+        self.task_acked[0] = False
+        self.is_on_off[0] = False
+        self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED
+        self.follow_vectors_status[0] = ApprovalStatus.NOT_ANSWERED
+        self.engine_failed_side = "None"
+        self.engine_spool_alert_sent = False
+        
+        # Reset threading events
+        if self.countdown_completion_event:
+            self.countdown_completion_event.set()  # Clear any pending countdowns
+        if self.tts_completion_event:
+            self.tts_completion_event.set()  # Clear any pending TTS
+        
+        # Stop any running threads
+        if self.trim_thread and self.trim_thread.is_alive():
+            self.trim_stop_event.set()
+            self.trim_thread.join(timeout=1.0)
+            self.trim_stop_event.clear()
+            print("  ✓ Stopped trim thread")
+        
+        if self.atc_thread and self.atc_thread.is_alive():
+            self.atc_stop_event.set()
+            self.atc_thread.join(timeout=1.0)
+            self.atc_stop_event.clear()
+            print("  ✓ Stopped ATC thread")
+        
+        # Clear interaction messages
+        igs.output_set_string("interaction_message", create_interaction_message("", ""))
+        igs.output_set_string("current_task_object", "")
+        igs.output_set_string("current_task_value", "")
+        igs.output_set_string("current_task_autonomy_role", "")
+        igs.output_set_string("current_task_human_role", "")
+        
+        print("✅ Agent reset complete - ready for new procedure")
 
     def on_speak_action(self, speak_message=None, sleep=True):
         print(f"Action: {self.fsm.current_state}")
