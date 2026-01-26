@@ -31,8 +31,10 @@ elif platform.system() == "Windows":
 else:
     DEFAULT_DEVICE = "wlps"
 
+#CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_PILOT_PERF_NO_SUPPORT.csv"
 CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF.csv"
 ### PARAMETERS ###
+ALLOW_PARALLEL_ATC = True  # Enable/disable parallel ATC thread execution
 TO_PITCH = 10  # Takeoff pitch target in degrees
 SAFE_ALTITUDE = 1500  # Safe altitude to climb to after engine failure
 V_ONE = 90  # Takeoff decision speed
@@ -172,8 +174,8 @@ class TarsAgent:
             self.states[("IDLE", "Idle", "WAITING")], 
             self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
             self.is_started, 
-            lambda: self.on_display_clearance_action() if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role in ("performer", "supporter") else self.dummy_action(),
-            lambda: igs.output_set_impulsion("request_takeoff_clearance")))
+            transition_action=lambda: igs.output_set_impulsion("request_takeoff_clearance"),
+            action=lambda: self.request_takeoff_clearance_action() if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role in ("performer", "supporter") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
@@ -185,7 +187,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
             self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
-            lambda: self.is_pitot_heat_on() if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role in ("performer") else self.is_acked(),
+            lambda: self.is_pitot_heat_on() if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer" else self.is_acked(),
             action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_ENGINE_ANTI_ICE)) if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
@@ -203,7 +205,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")], 
             self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")], 
-            lambda: self.is_pax_safety_on() if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role in ("performer") else self.is_acked(),
+            lambda: self.is_pax_safety_on() if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer" else self.is_acked(),
             action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_LANDING_LIGHT_RUNWAY)) if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "supporter" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
@@ -215,7 +217,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")], 
             self.states[("BEFORE TAKEOFF", "EICAS", "CHECKED")], 
-            lambda: self.is_anti_coll_lights_on() if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role in ("performer") else self.is_acked(), 
+            lambda: self.is_anti_coll_lights_on() if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role == "performer" else self.is_acked(), 
             self.dummy_action))
         
         self.fsm.add_transition(Transition(
@@ -2393,7 +2395,19 @@ class TarsAgent:
             msg = create_interaction_message("", "Yaw damper engaged.")
             igs.output_set_string("interaction_message", msg)
     
+    def request_takeoff_clearance_action(self):
+        """Request takeoff clearance - uses parallel thread if ALLOW_PARALLEL_ATC and performer"""
+        autonomy_role = self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role
+        
+        if ALLOW_PARALLEL_ATC and autonomy_role == "performer":
+            # Use parallel ATC thread for non-blocking communication
+            self.contact_atc_action("takeoff_clearance")
+        else:
+            # Original blocking implementation for supporter or when parallel ATC disabled
+            self.on_display_clearance_action()
+    
     def on_display_clearance_action(self):
+        """Original blocking clearance display - used by supporter or when parallel ATC disabled"""
         igs.output_set_string("interaction_message", create_interaction_message("C-POLY, Montréal Tower, wind zero-niner-zero at four, runway zero-six left, cleared for takeoff. Maintain runway heading, climb to 5000ft, Proceed direct AGMEB then OMEKI. Departure on one-one-eight decimal niner. Good flight.", "CLEARANCE RECEIVED:\nWIND: 090 4KTS\nRWY: 06L\nCLIMB: 5000FT\nHEADING: RUNWAY HDG\nDEPARTURE: AGMEB THEN OMEKI\nCOM: 118.9"))  
         if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role == "performer":
             time.sleep(5)
@@ -2428,7 +2442,24 @@ class TarsAgent:
         """Background worker thread for ATC communication"""
         try:
             print(f"Contacting ATC with message: {message}")
-            if message == "mayday":
+            if message == "takeoff_clearance":
+                # Request takeoff clearance
+                #igs.output_set_impulsion("request_takeoff_clearance")
+                
+                # Wait for ATC response (interruptible)
+                if not self.atc_stop_event.wait(timeout=17):
+                    # Display clearance message
+                    #igs.output_set_string("interaction_message", create_interaction_message(
+                    #    "C-POLY, Montréal Tower, wind zero-niner-zero at four, runway zero-six left, cleared for takeoff. Maintain runway heading, climb to 5000ft, Proceed direct AGMEB then OMEKI. Departure on one-one-eight decimal niner. Good flight.", 
+                    #    "CLEARANCE RECEIVED:\nWIND: 090 4KTS\nRWY: 06L\nCLIMB: 5000FT\nHEADING: RUNWAY HDG\nDEPARTURE: AGMEB THEN OMEKI\nCOM: 118.9"))
+                    
+                    # Speak readback callout
+                    if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role == "performer":
+                        self.on_speak_action(self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].callout)
+                else:
+                    print("🛑 Takeoff clearance communication interrupted")
+            
+            elif message == "mayday":
                 if self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].autonomy_role == "performer":
                     self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].callout) 
                     igs.output_set_impulsion("declare_mayday")
