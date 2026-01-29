@@ -31,10 +31,11 @@ elif platform.system() == "Windows":
 else:
     DEFAULT_DEVICE = "wlps"
 
-#CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_PILOT_PERF_NO_SUPPORT.csv"
-CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF.csv"
+CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF_DELAY.csv"
+#CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF.csv"
 ### PARAMETERS ###
 ALLOW_PARALLEL_ATC = True  # Enable/disable parallel ATC thread execution
+TARS_RELIABLE = True
 TO_PITCH = 10  # Takeoff pitch target in degrees
 SAFE_ALTITUDE = 1500  # Safe altitude to climb to after engine failure
 V_ONE = 90  # Takeoff decision speed
@@ -1191,15 +1192,23 @@ class TarsAgent:
     def check_pitot_heat_send_signals(self):
         if self.agent.pitot_heat_i is not None:
             if self.agent.pitot_heat_i:
-                msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
-                igs.output_set_string("interaction_message", msg)
-                if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
-                    self.on_speak_action("Pitot heat is ON")
-            else:
-                msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
-                igs.output_set_string("interaction_message", msg)
-                if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
-                    self.on_speak_action("Pitot heat is OFF")
+                if TARS_RELIABLE:
+                    msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
+                    igs.output_set_string("interaction_message", msg)
+                    if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
+                        self.on_speak_action("Pitot heat is ON")
+                else:
+                    msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
+                    igs.output_set_string("interaction_message", msg)
+            elif not self.agent.pitot_heat_i:
+                if TARS_RELIABLE:
+                    msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
+                    igs.output_set_string("interaction_message", msg)
+                    if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
+                        self.on_speak_action("Pitot heat is OFF")
+                else:
+                    msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
+                    igs.output_set_string("interaction_message", msg)
     
     def check_airspeed_alive_send_signal(self):
                 msg = create_interaction_message(f"Airspeed: {self.agent.airspeed_i:.1f} kts", "Airspeed indicator is alive.")
@@ -2548,11 +2557,16 @@ class TarsAgent:
             igs.output_set_string("interaction_message", interaction_json)
             if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
                 self.on_speak_action("PAX SAFETY Switch is OFF")
-        else:
+        elif self.agent.pax_safety_i is not None and self.agent.pax_safety_i >= 1:
             interaction_json = create_interaction_message("", "PAX SAFETY Switch is ON")
             igs.output_set_string("interaction_message", interaction_json)
             if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
                 self.on_speak_action("PAX SAFETY Switch is ON")
+        else:
+            interaction_json = create_interaction_message("", "PAX SAFETY Switch state is UNKNOWN")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
+                self.on_speak_action("PAX SAFETY Switch state is UNKNOWN")
     
     def check_fadec_bug_to_send_signal(self):
         if self.agent.n1_match_bug_i is not None:
@@ -2584,10 +2598,10 @@ class TarsAgent:
         if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer":
             self.on_speak_action(f"Setting altitude preset to {self.CLEARED_ALTITUDE} feet as cleared by ATC.")
             igs.output_set_int("alt_sel", self.CLEARED_ALTITUDE)
-            time.sleep(1)  # Wait a moment
-            msg = create_interaction_message("", f"Altitude preset set to {self.CLEARED_ALTITUDE} feet as cleared by ATC.")
+            #time.sleep(1)  # Wait a moment
+            msg = create_interaction_message("", f"Cleared to altitude {self.CLEARED_ALTITUDE} ft from ATC.")
             igs.output_set_string("interaction_message", msg)
-            time.sleep(2)
+            #time.sleep(2)
         else:
             igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_ALT_PRESET)) 
 
