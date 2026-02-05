@@ -8,6 +8,11 @@ import time
 import traceback
 from typing import Callable, Optional, Dict, Any, TYPE_CHECKING
 
+try:
+    import ingescape as igs
+except ImportError:
+    igs = None
+
 if TYPE_CHECKING:
     from Core.agent import TarsAgent
 
@@ -224,6 +229,13 @@ class FSMWorker:
                                 traceback.print_exc()
                             trans_action_time = self.stop_performance_timer("transition_action", trans_action_start)
                             print(f"  → transition_action took {trans_action_time*1000:.2f}ms")
+                            
+                            # Output timing to Ingescape
+                            if igs is not None:
+                                try:
+                                    igs.output_set_string("action_time", f"transition_action:{trans_action_time*1000:.2f}")
+                                except Exception as e:
+                                    print(f"Error setting action_time output: {e}")
                         
                         # Change state
                         fsm.current_state = t.to_state
@@ -252,6 +264,11 @@ class FSMWorker:
                             delay = self.get_delay_before_action(fsm.current_state)
                             if delay > 0:
                                 print(f"⏳ Waiting {delay}s before action (delay_before_action)")
+                                if igs is not None:
+                                    try:
+                                        igs.output_set_string("action_time", f"delay_before_action:{delay*1000:.2f}")
+                                    except Exception as e:
+                                        print(f"Error setting action_time output: {e}")
                                 # Use agent's countdown event for waiting
                                 if hasattr(self.agent, 'countdown_completion_event') and self.agent.countdown_completion_event is not None:
                                     self.agent.countdown_completion_event.clear()
@@ -282,6 +299,11 @@ class FSMWorker:
                                     action_result = False
                                 action_time = self.stop_performance_timer("action_execution", action_start)
                                 print(f"  → action took {action_time*1000:.2f}ms")
+                                if igs is not None:
+                                    try:
+                                        igs.output_set_string("action_time", f"action:{action_time*1000:.2f}")
+                                    except Exception as e:
+                                        print(f"Error setting action_time output: {e}")
                             
                             # If it was a speech action, wait for TTS to complete
                             if action_result is True and self.agent.tts_completion_event:
@@ -290,12 +312,22 @@ class FSMWorker:
                                 self.agent.tts_completion_event.wait(timeout=30)  # Block until TTS finishes (30s max)
                                 wait_time = time.time() - wait_start
                                 print(f"✅ TTS completed after {wait_time:.2f}s")
+                                if igs is not None:
+                                    try:
+                                        igs.output_set_string("action_time", f"tts_time:{wait_time*1000:.2f}")
+                                    except Exception as e:
+                                        print(f"Error setting action_time output: {e}")
                             
                             # Wait after action
                             delay = self.get_delay_after_action(fsm.current_state)
                             if delay and delay > 0:
                                 print(f"⏳ Waiting {delay}s after action (delay_after_action)")
                                 time.sleep(delay + 0.2)  # + 0.2 delay for UI
+                                if igs is not None:
+                                    try:
+                                        igs.output_set_string("action_time", f"delay_after_action:{delay*1000:.2f}")
+                                    except Exception as e:
+                                        print(f"Error setting action_time output: {e}")
                         
                         # Reset action_performed flag for next use
                         if hasattr(t, 'action_performed'):

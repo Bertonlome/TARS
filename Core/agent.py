@@ -237,7 +237,7 @@ class TarsAgent:
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")], 
             lambda: self.allow_transition() if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer" else self.is_acked(),
-            self.dummy_action))
+            action= lambda: self.send_reset_signal()))
         
         # TAKEOFF Procedure
         self.fsm.add_transition(Transition(
@@ -1950,6 +1950,8 @@ class TarsAgent:
         igs.output_create("emergency_procedure_inject", igs.STRING_T, None)  # Emergency procedure name
         igs.output_create("interaction_message", igs.STRING_T, None)  # JSON interaction panel message
         igs.output_create("alt_sel", igs.INTEGER_T, None)  # Altitude select in feet
+        igs.output_create("end_signal", igs.IMPULSION_T, None)  # Impulsion to signal end of procedure
+        igs.output_create("action_time", igs.STRING_T, None)  # Time taken to perform last action
         
         # TTS Agent communication
         igs.output_create("tts_request", igs.STRING_T, None)  # Text to send to TTS agent
@@ -2207,6 +2209,15 @@ class TarsAgent:
         igs.output_set_string("current_task_human_role", "")
         
         print("✅ Agent reset complete - ready for new procedure")
+
+    def send_reset_signal(self):
+        """Set the reset signal to trigger agent output reset"""
+        igs.output_set_string("interaction_message", create_interaction_message("", ""))
+        #igs.output_set_string("current_task_object", "")
+        #igs.output_set_string("current_task_value", "")
+        #igs.output_set_string("current_task_autonomy_role", "")
+        #igs.output_set_string("current_task_human_role", "")
+        igs.output_set_impulsion("end_signal")
 
     def on_speak_action(self, speak_message=None, sleep=True):
         print(f"Action: {self.fsm.current_state}")

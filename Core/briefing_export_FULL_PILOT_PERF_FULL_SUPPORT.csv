@@ -9,7 +9,7 @@ BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ANTI-COLL Light Switch,ON,performer
 BEFORE TAKEOFF,NORM,Checklist,Parameter Check,EICAS,CHECKED,performer,,EICAS visible,,,,,0,is_acked,
 LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,performer,supporter,"Wind speed, direction, runway alignment.",,,,display_winds_and_ack,0,is_acked,"Wind report from METAR : wind calm, zero niner zero degrees at four knots"
 LINE-UP AND HOLD,NORM,SOP,Autopilot Mgmt,Select Altitude,PRESET AS CLEARED,performer,supporter,ATC clearance,,,,alt_preset_as_cleared,0,is_acked,
-TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,,"CAS status, system alerts, checklist progress.",,,,,0,is_acked,
+TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,,"CAS status, system alerts, checklist progress.",,,,,2,is_acked,
 TAKEOFF,NORM,Checklist,Flight Control,THROTTLES,TO Detent,performer,supporter,"Throttle position, engine parameters, runway conditions.",,,,display_fadec,0,is_sensed,
 TAKEOFF,NORM,Checklist,System Check,FADEC bug,CHECK TO,performer,supporter,"FADEC status, engine parameters, TARS action log.",,,,display_eng_spool_evenly,1,1,FADEC normal
 TAKEOFF,NORM,Checklist,System Check,Engine spool,CHECK EVEN,performer,supporter,"Engine RPM, temperature, pressure, and spool rate.",,,,display_n1_matches_command_bug,3,2,
