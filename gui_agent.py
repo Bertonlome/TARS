@@ -36,6 +36,7 @@ class GUIAgent(QObject):
     _previous_state_signal = Signal(dict)  # Previous state dict from JSON
     _tts_speak_signal = Signal(str)  # TTS text being spoken
     _tts_finished_signal = Signal(str)  # TTS finished speaking
+    _stt_listening_signal = Signal(bool)  # STT listening status
     _action_about_to_fire_signal = Signal(dict)  # Action about to fire (state dict)
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
@@ -56,6 +57,7 @@ class GUIAgent(QObject):
         self._previous_state_signal.connect(self._on_previous_state_changed)
         self._tts_speak_signal.connect(self.main_window.on_tts_speak)
         self._tts_finished_signal.connect(self.main_window.on_tts_finished)
+        self._stt_listening_signal.connect(self.main_window.on_stt_listening)
         self._action_about_to_fire_signal.connect(self._on_action_about_to_fire)
         
         # Connect MainWindow user action signals to TARS inputs
@@ -86,6 +88,7 @@ class GUIAgent(QObject):
         igs.input_create("condition_restored", igs.STRING_T, None)
         igs.input_create("tts_speaking", igs.BOOL_T, None)
         igs.input_create("tts_text", igs.STRING_T, None)
+        igs.input_create("stt_listening", igs.BOOL_T, None)
         igs.input_create("action_about_to_fire", igs.STRING_T, None)
         igs.input_create("checklist_item_complete", igs.STRING_T, None)
         igs.input_create("emergency_procedure_inject", igs.STRING_T, None)
@@ -105,6 +108,7 @@ class GUIAgent(QObject):
         igs.observe_input("condition_restored", self._on_condition_restored_input, None)
         igs.observe_input("tts_speaking", self._on_tts_speaking_input, None)
         igs.observe_input("tts_text", self._on_tts_text_input, None)
+        igs.observe_input("stt_listening", self._on_stt_listening_input, None)
         igs.observe_input("action_about_to_fire", self._on_action_about_to_fire_input, None)
         igs.observe_input("checklist_item_complete", self._on_checklist_item_complete_input, None)
         igs.observe_input("emergency_procedure_inject", self._on_emergency_procedure_inject_input, None)
@@ -273,6 +277,15 @@ class GUIAgent(QObject):
                 self._tts_finished_signal.emit("")  # Hide speaking animation
         except Exception as e:
             print(f"Error processing tts_text: {e}")
+    
+    def _on_stt_listening_input(self, io_type, name, value_type, value, my_data):
+        """Handle STT listening status from STT agent"""
+        try:
+            is_listening = bool(value)
+            print(f"🎤 STT listening: {is_listening}")
+            self._stt_listening_signal.emit(is_listening)  # Update visual state
+        except Exception as e:
+            print(f"Error processing stt_listening: {e}")
     
     def _on_action_about_to_fire_input(self, io_type, name, value_type, value, my_data):
         """Handle action about to fire notification from TARS"""

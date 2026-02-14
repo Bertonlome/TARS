@@ -157,7 +157,7 @@ class MainWindow(QMainWindow):
         # Start STT (Speech-to-Text) subprocess
         self.stt_process: subprocess.Popen | None = None
         self.stt_monitor_timer = None
-        #self.start_stt_subprocess()
+        self.start_stt_subprocess()
         
         # Start ATC (Air Traffic Control) subprocess
         self.atc_process: subprocess.Popen | None = None
@@ -491,6 +491,19 @@ class MainWindow(QMainWindow):
         self.ui.tars_picture.setPixmap(pixmap)
         self.ui.tars_output_speech_label.show()
         self.ui.tars_output_speech_label.setText(f"\"{text}\"")
+    
+    @QtCore.Slot(bool)
+    def on_stt_listening(self, is_listening):
+        """Handle STT listening status change"""
+        print(f"🎧 STT Listening: {is_listening}")  # Debug
+        if is_listening:
+            # Show listening image when STT is active
+            pixmap = QPixmap("images/images/TARS_female_listening.png")
+            self.ui.tars_picture.setPixmap(pixmap)
+        else:
+            # Return to normal image when STT stops
+            pixmap = QPixmap("images/images/TARS_female.png")
+            self.ui.tars_picture.setPixmap(pixmap)
     
     @QtCore.Slot(object, str)
     def handle_condition_violation(self, state_obj, condition_name):

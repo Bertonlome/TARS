@@ -3,14 +3,12 @@
 
 """
 TTS Agent - Standalone Ingescape Agent for Text-to-Speech
-Receives text via Ingescape and speaks it using pyttsx3
+Receives text via Ingescape and speaks it using Silero TTS
 """
 
 import sys
 import ingescape as igs
 from pathlib import Path
-import threading
-import queue
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -26,73 +24,51 @@ class TTSAgent:
     
     def __init__(self):
         self.echo = Echo()
-        self.speech_queue = queue.Queue()
-        self.is_running = True
         
-        # Start TTS worker thread
-        self.worker_thread = threading.Thread(target=self._tts_worker, daemon=True)
-        self.worker_thread.start()
+        # Register callbacks with TTS module to track speaking status
+        tts.register_speak_callback(self._on_tts_started)
+        tts.register_finished_callback(self._on_tts_finished)
         
-    def _tts_worker(self):
-        """Worker thread that processes TTS requests"""
-        while self.is_running:
-            try:
-                text = self.speech_queue.get(timeout=0.1)
-                if text is None:
-                    break
-                    
-                # Set speaking status
-                self.echo.is_speaking_o = True
-                self.echo.current_text_o = text
-                print(f"🔊 TTS speaking: {text[:50]}...")
-                
-                # Speak the text (blocking)
-                tts.speak_wait(text)
-                
-                # Wait for TTS to complete
-                tts._speech_queue.join()
-                
-                # Clear speaking status
-                self.echo.is_speaking_o = False
-                self.echo.current_text_o = ""
-                print(f"✓ TTS finished")
-                
-                self.speech_queue.task_done()
-                
-            except queue.Empty:
-                continue
-            except Exception as e:
-                print(f"❌ TTS worker error: {e}")
-                self.echo.is_speaking_o = False
-                self.echo.current_text_o = ""
+    def _on_tts_started(self, text):
+        """Called when TTS starts speaking"""
+        igs.output_set_bool("is_speaking", True)
+        igs.output_set_string("current_text", text)
+        print(f"🔊 TTS speaking: {text[:50]}...")
+        
+    def _on_tts_finished(self, text):
+        """Called when TTS finishes speaking"""
+        igs.output_set_bool("is_speaking", False)
+        igs.output_set_string("current_text", "")
+        print(f"✓ TTS finished")
     
     def on_text_to_speak(self, ioType, name, valueType, value, myData):
         """Called when text_to_speak input is received"""
         if value and isinstance(value, str) and value.strip():
             print(f"📥 TTS received: {value[:50]}...")
-            self.speech_queue.put(value)
+            # Queue the text for speaking (non-blocking)
+            tts.speak_wait(value)
     
     def shutdown(self):
         """Clean shutdown"""
         print("Shutting down TTS agent...")
-        self.is_running = False
-        self.speech_queue.put(None)
-        if self.worker_thread.is_alive():
-            self.worker_thread.join(timeout=2)
         tts.shutdown()
 
 
 def main():
     """Main entry point for TTS agent"""
     
-    if len(sys.argv) < 4:
-        print("Usage: python tts_agent.py <agent_name> <network_device> <port>")
-        print("Example: python tts_agent.py TTS_Agent en0 5670")
-        sys.exit(1)
+    # Default values
+    agent_name = "TTS_Agent"
+    network_device = "wlp0s20f3"
+    port = 5670
     
-    agent_name = sys.argv[1]
-    network_device = sys.argv[2]
-    port = int(sys.argv[3])
+    # Allow command-line override if provided
+    if len(sys.argv) >= 2:
+        agent_name = sys.argv[1]
+    if len(sys.argv) >= 3:
+        network_device = sys.argv[2]
+    if len(sys.argv) >= 4:
+        port = int(sys.argv[3])
     
     # Agent creation and initialization
     igs.agent_set_name(agent_name)

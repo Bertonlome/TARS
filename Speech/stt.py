@@ -1,6 +1,7 @@
 import signal as sig_module
 from vosk import Model, KaldiRecognizer
 import sounddevice as sd
+import soundfile as sf
 import json
 import time
 import sys
@@ -41,6 +42,23 @@ current_recognizer = None  # Current active recognizer instance
 recognizer_lock = threading.Lock()  # Thread safety for recognizer access
 ptt_start_time = None  # Track when PTT was pressed
 MIN_PTT_DURATION = 1.0  # Minimum 1 second PTT press
+MAX_RECORDING_DURATION = 5.0  # Maximum 5 second recording timeout
+timeout_timer = None  # Timer for automatic timeout
+
+def play_sound_async(sound_filename):
+    """Play a sound effect asynchronously (non-blocking)"""
+    def _play():
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(script_dir)
+            sound_path = os.path.join(project_root, "sounds", sound_filename)
+            if os.path.exists(sound_path):
+                data, samplerate = sf.read(sound_path)
+                sd.play(data, samplerate)
+        except Exception:
+            pass  # Silently ignore audio errors
+    
+    threading.Thread(target=_play, daemon=True).start()
 
 def signal_handler(signal_received, frame):
     global is_interrupted
@@ -57,8 +75,81 @@ def on_freeze_callback(is_frozen, my_data):
     assert isinstance(agent_object, Echo)
     # add code here if needed
 
+def stop_recording():
+    """Stop recording and process results"""
+    global is_recording, ptt_start_time, current_recognizer, timeout_timer
+    
+    # Cancel timeout timer if active
+    if timeout_timer is not None:
+        timeout_timer.cancel()
+        timeout_timer = None
+    
+    # Check minimum duration
+    elapsed_time = time.time() - ptt_start_time if ptt_start_time else 0
+    
+    if elapsed_time < MIN_PTT_DURATION:
+        wait_time = MIN_PTT_DURATION - elapsed_time
+        time.sleep(wait_time)
+        elapsed_time = MIN_PTT_DURATION
+    
+    # Stop recording and get final result
+    is_recording = False
+    ptt_start_time = None
+    igs.output_set_bool("is_listening", False)  # Signal that STT stopped listening
+    
+    with recognizer_lock:
+        if current_recognizer is None:
+            print("⚠️  No recognizer available")
+            return
+        
+        if audio_frame_count > 0:
+            # Try to get any recognized text
+            try:
+                # Try FinalResult first
+                final_result = json.loads(current_recognizer.FinalResult())
+                text = final_result.get("text", "").strip()
+                
+                if text:
+                    print(f"📝 Recognized: {text}")
+                    igs.output_set_string("speech_output", text)
+                else:
+                    # No final text, try partial
+                    partial_result = json.loads(current_recognizer.PartialResult())
+                    text = partial_result.get("partial", "").strip()
+                    if text:
+                        print(f"📝 Recognized (partial): {text}")
+                        igs.output_set_string("speech_output", text)
+                    else:
+                        print("⚠️  No speech detected")
+                        
+            except Exception as vosk_error:
+                # FinalResult failed, try partial
+                print(f"⚠️  Using partial result due to: {vosk_error}")
+                try:
+                    partial_result = json.loads(current_recognizer.PartialResult())
+                    text = partial_result.get("partial", "").strip()
+                    if text:
+                        print(f"📝 Recognized (partial): {text}")
+                        igs.output_set_string("speech_output", text)
+                    else:
+                        print("⚠️  No speech in partial result")
+                except Exception as partial_error:
+                    print(f"❌ Partial result error: {partial_error}")
+        else:
+            print("⚠️  No audio data received")
+        
+        # Clear recognizer reference after use
+        current_recognizer = None
+
+def on_recording_timeout():
+    """Called when recording timeout expires"""
+    global is_recording
+    if is_recording:
+        print("⏱️  Recording timeout reached (5s), stopping...")
+        stop_recording()
+
 def bool_input_callback(io_type, name, value_type, value, my_data):
-    global is_recording, stream, current_recognizer, has_audio_data, audio_frame_count, recognizer_lock, ptt_start_time
+    global is_recording, stream, current_recognizer, has_audio_data, audio_frame_count, recognizer_lock, ptt_start_time, timeout_timer
     agent_object = my_data
     assert isinstance(agent_object, Echo)
     
@@ -67,9 +158,13 @@ def bool_input_callback(io_type, name, value_type, value, my_data):
         
         try:
             if value and not is_recording:
+                # Play listening sound effect
+                play_sound_async("STT_listening.mp3")
+                
                 # Start recording - create NEW recognizer for this session
                 print("🎤 Recording started...")
                 ptt_start_time = time.time()  # Record start time
+                igs.output_set_bool("is_listening", True)  # Signal that STT is listening
                 
                 with recognizer_lock:
                     # Create fresh recognizer instance
@@ -78,68 +173,23 @@ def bool_input_callback(io_type, name, value_type, value, my_data):
                     has_audio_data = False
                     audio_frame_count = 0
                 
+                # Start timeout timer
+                timeout_timer = threading.Timer(MAX_RECORDING_DURATION, on_recording_timeout)
+                timeout_timer.start()
+                
             elif not value and is_recording:
-                # Check minimum duration
-                elapsed_time = time.time() - ptt_start_time if ptt_start_time else 0
-                
-                if elapsed_time < MIN_PTT_DURATION:
-                    wait_time = MIN_PTT_DURATION - elapsed_time
-                    time.sleep(wait_time)
-                    elapsed_time = MIN_PTT_DURATION
-                
-                # Stop recording and get final result
-                is_recording = False
-                ptt_start_time = None
-                
-                with recognizer_lock:
-                    if current_recognizer is None:
-                        print("⚠️  No recognizer available")
-                        return
-                    
-                    if audio_frame_count > 0:
-                        # Try to get any recognized text
-                        try:
-                            # Try FinalResult first
-                            final_result = json.loads(current_recognizer.FinalResult())
-                            text = final_result.get("text", "").strip()
-                            
-                            if text:
-                                print(f"📝 Recognized: {text}")
-                                igs.output_set_string("speech_output", text)
-                            else:
-                                # No final text, try partial
-                                partial_result = json.loads(current_recognizer.PartialResult())
-                                text = partial_result.get("partial", "").strip()
-                                if text:
-                                    print(f"📝 Recognized (partial): {text}")
-                                    igs.output_set_string("speech_output", text)
-                                else:
-                                    print("⚠️  No speech detected")
-                                    
-                        except Exception as vosk_error:
-                            # FinalResult failed, try partial
-                            print(f"⚠️  Using partial result due to: {vosk_error}")
-                            try:
-                                partial_result = json.loads(current_recognizer.PartialResult())
-                                text = partial_result.get("partial", "").strip()
-                                if text:
-                                    print(f"📝 Recognized (partial): {text}")
-                                    igs.output_set_string("speech_output", text)
-                                else:
-                                    print("⚠️  No speech in partial result")
-                            except Exception as partial_error:
-                                print(f"❌ Partial result error: {partial_error}")
-                    else:
-                        print("⚠️  No audio data received")
-                    
-                    # Clear recognizer reference after use
-                    current_recognizer = None
+                # User manually stopped recording
+                stop_recording()
                     
         except Exception as e:
             print(f"❌ Error in push_to_talk callback: {e}")
             import traceback
             traceback.print_exc()
             is_recording = False
+            igs.output_set_bool("is_listening", False)  # Ensure listening is off on error
+            if timeout_timer is not None:
+                timeout_timer.cancel()
+                timeout_timer = None
             with recognizer_lock:
                 current_recognizer = None
 
@@ -225,6 +275,7 @@ if __name__ == "__main__":
 
     igs.input_create("push_to_talk", igs.BOOL_T, None)
     igs.output_create("speech_output", igs.STRING_T, None)
+    igs.output_create("is_listening", igs.BOOL_T, False)
     igs.observe_input("push_to_talk", bool_input_callback, agent)
     igs.log_set_console(True)
     igs.log_set_console_level(igs.LOG_INFO)

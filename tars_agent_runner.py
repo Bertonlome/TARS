@@ -8,7 +8,10 @@ import signal
 import sys
 import os
 import time
+import threading
 from pathlib import Path
+import soundfile as sf
+import sounddevice as sd
 
 # Add project root to path
 project_root = Path(__file__).parent
@@ -132,6 +135,18 @@ def main():
         import ingescape as igs
         
         try:
+            # Play swipe sound effect asynchronously
+            def play_swipe_sound():
+                try:
+                    sound_path = os.path.join(project_root, "sounds", "swipe_sfx.mp3")
+                    if os.path.exists(sound_path):
+                        data, samplerate = sf.read(sound_path)
+                        sd.play(data, samplerate)
+                except Exception as e:
+                    pass  # Silently ignore audio errors
+            
+            threading.Thread(target=play_swipe_sound, daemon=True).start()
+            
             # Publish current state
             state_json = encode_state_to_json(state)
             igs.output_set_string("current_state", state_json)

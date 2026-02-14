@@ -198,6 +198,34 @@ def string_input_callback(io_type, name, value_type, value, my_data):
         thread = threading.Thread(target=speak_with_radio_effect, args=(value,), daemon=True)
         thread.start()
 
+def integer_input_callback(io_type, name, value_type, value, my_data):
+    agent_object = my_data
+    assert isinstance(agent_object, Echo)
+    
+    try:
+        if name == "declare_mayday":
+            print(f"📡 Received: {name} with delay={value}s")
+            time.sleep(value)  # Use integer value for delay
+            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Mayday. Continue runway heading. You are cleared to return runway zero-six left to land. Emergency vehicles are standing by."
+            play_audio_async("audio/roger_mayday.mp3")
+        elif name == "declare_panpan":
+            print(f"📡 Received: {name} with delay={value}s")
+            time.sleep(value)  # Use integer value for delay
+            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Pan-Pan. Continue runway heading. Advise if you require vectors for an approach to runway zero-six left."
+            play_audio_async("audio/panpan_no_vectors.mp3")
+        elif name == "request_vectors":
+            print(f"📡 Received: {name} with delay={value}s")
+            time.sleep(value)  # Use integer value for delay
+            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger. Turn right heading one-five-zero, descend and maintain three thousand feet. Expect ILS approach runway zero-six left."
+            play_audio_async("audio/first_vectors.mp3")
+            time.sleep(60 * 5)  # Simulate delay for vectoring (keep this as-is)
+            agent_object.speech_output_o = "C-POLY, Montréal Tower, turn right heading three-three-zero, when established, cleared ILS runway zero-six left."
+            play_audio_async("audio/second_vectors.mp3")
+    except Exception as e:
+        print(f"❌ Error in integer callback: {e}")
+        import traceback
+        traceback.print_exc()
+
 def impulsion_input_callback(io_type, name, value_type, value, my_data):
     agent_object = my_data
     assert isinstance(agent_object, Echo)
@@ -215,24 +243,6 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
             agent_object.speech_output_o = "C-POLY, Montreal-Tower, wind-0-9-0-at-4, cleared-for-takeoff runway-zero-six-left. Climb-to-5000ft."
             print(f"📡 Received: {name}")
             play_audio_file("audio/takeoff_clearance.mp3")
-        elif name == "declare_mayday":
-            time.sleep(20) # Simulate delay before responding
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Mayday. Continue runway heading. You are cleared to return runway zero-six left to land. Emergency vehicles are standing by."
-            print(f"📡 Received: {name}")
-            play_audio_async("audio/roger_mayday.mp3")
-        elif name == "declare_panpan":
-            time.sleep(20) # Simulate delay before responding
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Pan-Pan. Continue runway heading. Advise if you require vectors for an approach to runway zero-six left."
-            print(f"📡 Received: {name}")
-            play_audio_async("audio/panpan_no_vectors.mp3")
-        elif name == "request_vectors":
-            time.sleep(25) # Simulate delay before responding
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger. Turn right heading one-five-zero, descend and maintain three thousand feet. Expect ILS approach runway zero-six left."
-            print(f"📡 Received: {name}")
-            play_audio_async("audio/first_vectors.mp3")
-            time.sleep(60 * 5)  # Simulate delay for vectoring
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, turn right heading three-three-zero, when established, cleared ILS runway zero-six left."
-            play_audio_async("audio/second_vectors.mp3")
     except Exception as e:
         print(f"❌ Error in impulsion callback: {e}")
         import traceback
@@ -276,17 +286,17 @@ if __name__ == "__main__":
     igs.input_create("Reset", igs.IMPULSION_T, None)
     igs.input_create("request_ATIS", igs.IMPULSION_T, None)
     igs.input_create("request_takeoff_clearance", igs.IMPULSION_T, None)
-    igs.input_create("declare_mayday", igs.IMPULSION_T, None)
-    igs.input_create("declare_panpan", igs.IMPULSION_T, None)
-    igs.input_create("request_vectors", igs.IMPULSION_T, None)
+    igs.input_create("declare_mayday", igs.INTEGER_T, None)
+    igs.input_create("declare_panpan", igs.INTEGER_T, None)
+    igs.input_create("request_vectors", igs.INTEGER_T, None)
     igs.input_create("custom_speech", igs.STRING_T, None)
     igs.output_create("speech_output", igs.STRING_T, None)
     igs.output_create("is_speaking", igs.BOOL_T, False)
     igs.observe_input("Reset", impulsion_input_callback, agent)
     igs.observe_input("request_takeoff_clearance", impulsion_input_callback, agent)
-    igs.observe_input("declare_mayday", impulsion_input_callback, agent)
-    igs.observe_input("declare_panpan", impulsion_input_callback, agent)
-    igs.observe_input("request_vectors", impulsion_input_callback, agent)
+    igs.observe_input("declare_mayday", integer_input_callback, agent)
+    igs.observe_input("declare_panpan", integer_input_callback, agent)
+    igs.observe_input("request_vectors", integer_input_callback, agent)
     igs.observe_input("request_ATIS", impulsion_input_callback, agent)
     igs.observe_input("custom_speech", string_input_callback, agent)
     igs.log_set_console(True)
