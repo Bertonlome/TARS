@@ -290,19 +290,20 @@ def _tts_worker():
         
         try:
             # Format the text with variable interpolation
-            formatted_text = format_callout(text)
+            display_text = format_callout(text)
             
-            # Convert acronyms first
-            formatted_text = convert_acronyms(formatted_text)
+            # Convert acronyms first (for audio only)
+            formatted_text = convert_acronyms(display_text)
             
-            # Convert letters and numbers to proper pronunciation
+            # Convert letters and numbers to proper pronunciation (for audio only)
             formatted_text = convert_letters_and_numbers(formatted_text)
             
-            # Fire speaking callbacks right before speaking
+            # Fire speaking callbacks with the human-readable text (pre-pronunciation transforms)
+            # so the UI displays "ATC" instead of "ay tee cee"
             # (identical behaviour whether audio comes from cache or the model)
             for cb in _speak_callbacks:
                 try:
-                    cb(formatted_text)
+                    cb(display_text)
                 except Exception as e:
                     print(f"Error in TTS speak callback: {e}")
             

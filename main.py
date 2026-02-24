@@ -262,6 +262,10 @@ class MainWindow(QMainWindow):
         widgets.btn_home.setStyleSheet(UIFunctions.selectMenu(widgets.btn_home.styleSheet())) # type: ignore
         widgets = self.ui
         
+        # INITIALIZE SPEECH LOG (replaces tars_output_speech_label)
+        # ///////////////////////////////////////////////////////////////
+        self._init_speech_log()
+
         # INITIALIZE GUI AGENT (Phase 4 & 6)
         # ///////////////////////////////////////////////////////////////
         # GUI Agent wraps this MainWindow and bridges TARS ↔ GUI via Ingescape
@@ -271,7 +275,24 @@ class MainWindow(QMainWindow):
         
     # End of init
     # /////////////////////////////////////////////////////////////
-    
+
+    def _init_speech_log(self):
+        """Replace tars_output_speech_label with the SpeechLogWidget chat panel."""
+        layout = self.ui.row_1_col_1_container          # QVBoxLayout
+        label  = self.ui.tars_output_speech_label       # QLabel to remove
+        idx    = layout.indexOf(label)
+        layout.removeWidget(label)
+        label.hide()
+        label.setParent(None)
+
+        from widgets.speech_log import SpeechLogWidget
+        self.speech_log = SpeechLogWidget(self.ui.row_1_col_1_container_2)
+        self.speech_log.setMinimumSize(480, 180)
+        # Expand horizontally so it fills the column nicely
+        from PySide6.QtWidgets import QSizePolicy
+        self.speech_log.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout.insertWidget(idx, self.speech_log, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+
     def setup_page_connections(self):
         """
         Setup signal connections between MainWindow and pages
@@ -493,11 +514,11 @@ class MainWindow(QMainWindow):
     @QtCore.Slot(str)
     def on_tts_speak(self, text):
         print(f"🎤 TTS Speaking: {text}")  # Debug
-        # Use direct file path as fallback since Qt resources aren't working
         pixmap = QPixmap("images/images/TARS_female_speaking.png")
         self.ui.tars_picture.setPixmap(pixmap)
-        self.ui.tars_output_speech_label.show()
-        self.ui.tars_output_speech_label.setText(f"\"{text}\"")
+        # Append to the speech log (right-aligned, blue)
+        if hasattr(self, 'speech_log'):
+            self.speech_log.append_tars_message(text)
     
     @QtCore.Slot(bool)
     def on_stt_listening(self, is_listening):
@@ -569,9 +590,34 @@ class MainWindow(QMainWindow):
             print(f"  → Task marked restored in timeline for procedure {state_obj.procedure}")
     
     @QtCore.Slot(str)
+    def on_atc_speech(self, text):
+        """Handle ATC speech output for display in the speech log."""
+        print(f"📻 ATC Speech: {text}")
+        if hasattr(self, 'speech_log'):
+            self.speech_log.append_atc_message(text)
+
+    @QtCore.Slot(str)
+    def on_pilot_speech(self, text):
+        """Handle pilot STT recognized text for display in the speech log."""
+        print(f"🎙️ Pilot speech: {text}")
+        if hasattr(self, 'speech_log'):
+            self.speech_log.append_pilot_message(text)
+
+    @QtCore.Slot(str)
+    def on_state_divider(self, label):
+        """Insert a state-transition divider in the speech log."""
+        if hasattr(self, 'speech_log'):
+            self.speech_log.append_state_divider(label)
+
+    @QtCore.Slot()
+    def reset_speech_log(self):
+        """Clear the speech log (called on TARS agent reset)."""
+        if hasattr(self, 'speech_log'):
+            self.speech_log.clear_log()
+
+    @QtCore.Slot(str)
     def on_tts_finished(self, text):
         print(f"✅ TTS Finished: {text}")  # Debug
-        # Use direct file path as fallback since Qt resources aren't working
         pixmap = QPixmap("images/images/TARS_female.png")
         self.ui.tars_picture.setPixmap(pixmap)
 

@@ -38,6 +38,10 @@ class GUIAgent(QObject):
     _tts_finished_signal = Signal(str)  # TTS finished speaking
     _stt_listening_signal = Signal(bool)  # STT listening status
     _action_about_to_fire_signal = Signal(dict)  # Action about to fire (state dict)
+    _atc_speech_signal = Signal(str)   # ATC speech_output for the log
+    _stt_speech_signal = Signal(str)   # Pilot STT recognized text for the log
+    _state_divider_signal = Signal(str) # FSM state transition divider for the log
+    _reset_speech_log_signal = Signal()  # Clear log on TARS reset
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
@@ -59,6 +63,10 @@ class GUIAgent(QObject):
         self._tts_finished_signal.connect(self.main_window.on_tts_finished)
         self._stt_listening_signal.connect(self.main_window.on_stt_listening)
         self._action_about_to_fire_signal.connect(self._on_action_about_to_fire)
+        self._atc_speech_signal.connect(self.main_window.on_atc_speech)
+        self._stt_speech_signal.connect(self.main_window.on_pilot_speech)
+        self._state_divider_signal.connect(self.main_window.on_state_divider)
+        self._reset_speech_log_signal.connect(self.main_window.reset_speech_log)
         
         # Connect MainWindow user action signals to TARS inputs
         self._connect_ui_to_tars()
@@ -93,6 +101,8 @@ class GUIAgent(QObject):
         igs.input_create("checklist_item_complete", igs.STRING_T, None)
         igs.input_create("emergency_procedure_inject", igs.STRING_T, None)
         igs.input_create("interaction_message", igs.STRING_T, None)
+        igs.input_create("atc_speech_output", igs.STRING_T, None)  # ATC speech_output feed
+        igs.input_create("stt_speech_output", igs.STRING_T, None)   # STT recognized text feed
         
         # Observe inputs
         igs.observe_input("current_state", self._on_current_state_input, None)
@@ -113,6 +123,12 @@ class GUIAgent(QObject):
         igs.observe_input("checklist_item_complete", self._on_checklist_item_complete_input, None)
         igs.observe_input("emergency_procedure_inject", self._on_emergency_procedure_inject_input, None)
         igs.observe_input("interaction_message", self._on_interaction_message_input, None)
+        igs.observe_input("atc_speech_output", self._on_atc_speech_output_input, None)
+        igs.observe_input("stt_speech_output", self._on_stt_speech_output_input, None)
+        # Map ATC_Agent.speech_output → our atc_speech_output input
+        igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
+        # Map Speech_to_Text_Agent.speech_output → our stt_speech_output input
+        igs.mapping_add("stt_speech_output", "Speech_to_Text_Agent", "speech_output")
         
         # Create outputs (send to TARS)
         igs.output_create("task_approval", igs.BOOL_T, None)
@@ -144,6 +160,23 @@ class GUIAgent(QObject):
     # TARS → GUI: Ingescape input callbacks (run in Ingescape thread)
     # ========================================================================
     
+    def _on_atc_speech_output_input(self, io_type, name, value_type, value, my_data):
+        """Handle ATC speech_output — forward to the chat log (left side)."""
+        try:
+            if value and isinstance(value, str) and value.strip():
+                self._atc_speech_signal.emit(value.strip())
+        except Exception as e:
+            print(f"Error processing atc_speech_output: {e}")
+
+    def _on_stt_speech_output_input(self, io_type, name, value_type, value, my_data):
+        """Handle STT recognized text — forward to the chat log as pilot bubble."""
+        try:
+            if value and isinstance(value, str) and value.strip():
+                print(f"🎤 Pilot speech logged: {value.strip()}")
+                self._stt_speech_signal.emit(value.strip())
+        except Exception as e:
+            print(f"Error processing stt_speech_output: {e}")
+
     def _on_alert_input(self, io_type, name, value_type, value, my_data):
         """Handle alert message from TARS"""
         try:
@@ -187,6 +220,12 @@ class GUIAgent(QObject):
         try:
             state_data = json.loads(value)
             self._state_changed_signal.emit(state_data)
+            # Emit a divider for the speech log (skip IDLE — shown on reset)
+            procedure   = state_data.get('procedure', '')
+            task_object = state_data.get('task_object', '')
+            if procedure and procedure != 'IDLE' and task_object and task_object != 'Idle':
+                divider_label = f"{procedure}  ›  {task_object}"
+                self._state_divider_signal.emit(divider_label)
         except Exception as e:
             print(f"Error processing current state: {e}")
     
@@ -424,6 +463,10 @@ class GUIAgent(QObject):
             monitor_scope=state_data.get('monitor_scope'),
         )
         
+        # If returning to IDLE, clear the speech log
+        if state_data.get('task_object') == 'Idle' and state_data.get('procedure') == 'IDLE':
+            self._reset_speech_log_signal.emit()
+
         # Call MainWindow's update_state method
         self.main_window.update_state(state)
     
