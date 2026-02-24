@@ -1,6 +1,8 @@
 import threading
 import queue
 import re
+import hashlib
+from pathlib import Path
 from typing import Any
 import sounddevice as sd
 import numpy as np
@@ -35,6 +37,51 @@ except Exception as e:
     print(f"❌ Failed to initialize Silero TTS: {e}")
     print("   Please install: pip install torch sounddevice")
     raise
+
+# ---------------------------------------------------------------------------
+# Audio cache
+# ---------------------------------------------------------------------------
+# Cache lives at  tts/cache/  relative to this file.
+# Each entry is a <md5-of-processed-text>.npy file storing a float32 array.
+# The cache key is derived from the *fully-processed* text (after variable
+# interpolation, acronym expansion and letter/digit conversion) so that
+# identical spoken sentences always hit the same cache entry regardless of
+# the raw caller text.
+
+_CACHE_DIR = Path(__file__).parent / "cache"
+_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _cache_key(text: str) -> str:
+    """Return a hex digest that uniquely identifies *text*."""
+    return hashlib.md5(text.encode("utf-8")).hexdigest()
+
+
+def _cache_path(text: str) -> Path:
+    """Return the .npy cache file path for *text*."""
+    return _CACHE_DIR / f"{_cache_key(text)}.npy"
+
+
+def _load_from_cache(text: str) -> "np.ndarray | None":
+    """Load cached audio for *text*, or return None if not cached."""
+    path = _cache_path(text)
+    if path.exists():
+        try:
+            return np.load(str(path))
+        except Exception as e:
+            print(f"⚠️  TTS cache read error ({path.name}): {e}")
+    return None
+
+
+def _save_to_cache(text: str, audio: np.ndarray) -> None:
+    """Persist *audio* to the cache directory for later retrieval."""
+    path = _cache_path(text)
+    try:
+        np.save(str(path), audio)
+        print(f"💾 TTS cached: {path.name}")
+    except Exception as e:
+        print(f"⚠️  TTS cache write error ({path.name}): {e}")
+
 
 _speech_queue = queue.Queue()
 
@@ -252,34 +299,46 @@ def _tts_worker():
             formatted_text = convert_letters_and_numbers(formatted_text)
             
             # Fire speaking callbacks right before speaking
+            # (identical behaviour whether audio comes from cache or the model)
             for cb in _speak_callbacks:
                 try:
                     cb(formatted_text)
                 except Exception as e:
                     print(f"Error in TTS speak callback: {e}")
             
-            # Generate speech with Silero
-            audio = _tts_model.apply_tts(
-                text=formatted_text,
-                speaker=_speaker,
-                sample_rate=_sample_rate
-            )
+            # ------------------------------------------------------------------
+            # Cache lookup
+            # ------------------------------------------------------------------
+            audio = _load_from_cache(formatted_text)
+            if audio is not None:
+                print(f"🎵 TTS cache hit: playing cached audio")
+            else:
+                # Generate speech with Silero
+                print(f"🔊 TTS generating: {formatted_text[:60]}...")
+                audio = _tts_model.apply_tts(
+                    text=formatted_text,
+                    speaker=_speaker,
+                    sample_rate=_sample_rate
+                )
+                
+                # Convert to numpy array if it's a tensor
+                if torch.is_tensor(audio):
+                    audio = audio.cpu().numpy()
+                
+                # Ensure audio is in correct format (float32, values between -1 and 1)
+                if audio.dtype != np.float32:
+                    audio = audio.astype(np.float32)
+                
+                # Add silence padding at the end to prevent truncation (300ms)
+                silence_duration = 0.3  # seconds
+                silence_samples = int(_sample_rate * silence_duration)
+                silence = np.zeros(silence_samples, dtype=np.float32)
+                audio = np.concatenate([audio, silence])
+                
+                # Persist to cache so future calls skip the model
+                _save_to_cache(formatted_text, audio)
             
-            # Convert to numpy array if it's a tensor
-            if torch.is_tensor(audio):
-                audio = audio.cpu().numpy()
-            
-            # Ensure audio is in correct format (float32, values between -1 and 1)
-            if audio.dtype != np.float32:
-                audio = audio.astype(np.float32)
-            
-            # Add silence padding at the end to prevent truncation (300ms)
-            silence_duration = 0.3  # seconds
-            silence_samples = int(_sample_rate * silence_duration)
-            silence = np.zeros(silence_samples, dtype=np.float32)
-            audio = np.concatenate([audio, silence])
-            
-            # Play audio (blocking)
+            # Play audio (blocking) — same for both cached and freshly generated
             sd.play(audio, _sample_rate)
             sd.wait()
             
