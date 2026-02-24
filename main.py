@@ -395,26 +395,33 @@ class MainWindow(QMainWindow):
                 delay_after = state_obj.delay_after_action
                 try:
                     if delay_after == "is_acked":
-                        tick_duration = 60000  # Show for 60 seconds if waiting for acknowledgment
+                        # Short tick (2 s) so spinner appears quickly while FSM waits on pilot ack
+                        tick_duration = 2000
                     else:
                         delay_after_ms = int(float(delay_after) * 1000)
                         # Show tick for at least 3 seconds, or delay_after duration (whichever is longer)
                         tick_duration = max(3000, delay_after_ms) if delay_after_ms > 0 else 3000
                     
                     if home_page.current_circular_countdown is not None:
-                        # For supporter tasks, show immediately since they may transition quickly
-                        # For performer tasks, delay slightly to sync with TTS/action completion
+                        # After the tick mark, always start the spinner so the pilot
+                        # sees the agent is now waiting for the transition condition.
                         if state_obj.autonomy_role == "supporter":
-                            home_page.current_circular_countdown.show_task_fired(tick_duration)
+                            home_page.current_circular_countdown.show_task_fired(tick_duration, then_spin=True)
                         else:
-                            home_page.current_circular_countdown.schedule_task_fired(1000, tick_duration)
+                            home_page.current_circular_countdown.schedule_task_fired(1000, tick_duration, then_spin=True)
                 except (ValueError, TypeError):
                     # If conversion fails, show for default 3 seconds
                     if home_page.current_circular_countdown is not None:
                         if state_obj.autonomy_role == "supporter":
-                            home_page.current_circular_countdown.show_task_fired(3000)
+                            home_page.current_circular_countdown.show_task_fired(3000, then_spin=True)
                         else:
-                            home_page.current_circular_countdown.schedule_task_fired(1000, 3000)
+                            home_page.current_circular_countdown.schedule_task_fired(1000, 3000, then_spin=True)
+            elif state_obj.delay_after_action == "is_acked":
+                # State with no/empty autonomy_role but FSM waits for pilot ack after the action —
+                # show spinner directly (countdown has already finished at this point)
+                if home_page.current_circular_countdown is not None:
+                    home_page.current_circular_countdown.show()
+                    home_page.current_circular_countdown.set_spinning()
 
     def get_home_page(self) -> HomePage | None:
         """
@@ -653,11 +660,13 @@ class MainWindow(QMainWindow):
             except (ValueError, TypeError, AttributeError):
                 self.ui.c_t_s_value_2.setText("0")
         elif current_state_obj.autonomy_role != "performer":
-            # Human task with no numeric delay - hide countdown, immediate completion
+            # Human task with no numeric delay - show spinner (agent waiting for pilot)
             if home_page.current_circular_countdown:
-                home_page.current_circular_countdown.hide()
+                home_page.current_circular_countdown.show()
+                home_page.current_circular_countdown.set_spinning()
             if flight_page.current_circular_countdown:
-                flight_page.current_circular_countdown.hide()
+                flight_page.current_circular_countdown.show()
+                flight_page.current_circular_countdown.set_spinning()
             home_page.handle_human_task()
             flight_page.handle_human_task()
             self.ui.c_t_s_value_2.setText("Human")
