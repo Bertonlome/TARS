@@ -7,20 +7,20 @@ BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,PAX SAFETY Switch,PAX SAFETY,perfor
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,LANDING Light Switch,AS DESIRED,performer,supporter,"Current runway conditions, weather, and aircraft status.",,,,landing_light_as_required,0,is_acked,
 BEFORE TAKEOFF,NORM,Checklist,Switch / Lever,ANTI-COLL Light Switch,ON,performer,supporter,"ANTI-COLL light switch position, checklist status.",,,,anti_coll_light_switch,0,is_acked,
 BEFORE TAKEOFF,NORM,Checklist,Parameter Check,EICAS,CHECKED,performer,,EICAS visible,,,,,0,is_acked,
-LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,performer,supporter,"Wind speed, direction, runway alignment.",,,,display_winds_and_ack,2,5,"Wind report from METAR : wind calm, 090 degrees at 4 knots"
+LINE-UP AND HOLD,NORM,SOP,Environment Check,Winds,CHECK,performer,supporter,"Wind speed, direction, runway alignment.",,,,display_winds_and_ack,2,0,"Wind report from METAR : wind calm, 090 degrees at 4 knots"
 LINE-UP AND HOLD,NORM,SOP,Autopilot Mgmt,Select Altitude,PRESET AS CLEARED,supporter,performer,ATC clearance,,,,alt_preset_as_cleared,2,2,
 TAKEOFF,NORM,Checklist,System Check,CAS,CHECK CLEAR,performer,,"CAS status, system alerts, checklist progress.",,,,,0,is_acked,
 TAKEOFF,NORM,Checklist,Flight Control,THROTTLES,TO Detent,performer,supporter,"Throttle position, engine parameters, runway conditions.",,,,display_fadec,0,is_sensed,
 TAKEOFF,NORM,Checklist,System Check,FADEC bug,CHECK TO,,performer,"FADEC status, engine parameters, TARS action log.",,,,display_eng_spool_evenly,1,1,FADEC normal
 TAKEOFF,NORM,Checklist,System Check,Engine spool,CHECK EVEN,,performer,"Engine RPM, temperature, pressure, and spool rate.",,,,display_n1_matches_command_bug,3,0,
 TAKEOFF,NORM,SOP,Callout,"""Airspeed's alive""",ANNOUNCE,,performer,"Current airspeed, runway conditions, aircraft weight.",,,,,0,0,Airspeed is alive
-TAKEOFF,NORM,SOP,Callout,"""70 kts""",ANNOUNCE,,performer,"Airspeed, current phase of takeoff.",,,,,0,0,70  knots
+TAKEOFF,NORM,SOP,Callout,"""70 kts""",ANNOUNCE,,performer,"Airspeed, current phase of takeoff.",,,,,0,0,seventy  knots
 TAKEOFF,NORM,SOP,Callout,"""V1""",ANNOUNCE,,performer,"Current airspeed, runway length, aircraft weight, wind conditions.",,,,,0,0,V1
 TAKEOFF,NORM,SOP,Callout,"""Rotate""",ANNOUNCE,,performer,"Airspeed, runway length, aircraft weight, wind conditions.",,,,,0,0,Rotate
 TAKEOFF,NORM,Checklist,Flight Control,Pitch,MAINTAIN 10°,performer,supporter,"Current pitch angle, target pitch, airspeed, altitude.",,,,,3,0,
 TAKEOFF,NORM,Checklist,Parameter Check,Climb rate,CHECK POSITIVE,,performer,"Current climb rate, target climb rate, altitude, airspeed.",,,,,0,1,
 TAKEOFF,NORM,Checklist,Switch / Lever,LANDING GEAR,UP,performer,,"Gear position, airspeed, altitude, climb rate.",,,,,0,1,"Gear up"
-ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Navigation,Climb,TO A SAFE ALTITUDE,performer,supporter,,,,,eng_failure_aft_v1_memo_items,2,2,Climb to {SAFE_ALTITUDE}
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Navigation,Climb,TO A SAFE ALTITUDE,performer,supporter,,,,,eng_failure_aft_v1_memo_items,2,2,Climb to {SAFE_ALTITUDE} aim for {V_ENR} knots
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Flight Director,SET TO MODE,,performer,"Current flight director mode, engine status, autopilot engagement.",,,,,1,2,"Flight director on, takeoff mode"
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Flight Control,Pitch,MAINTAIN 10°,performer,supporter,"Current pitch angle, engine status, autopilot engagement.",,,,eng_failure_aft_v1_memo_items,0,2,Maintain {TO_PITCH} degrees
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Switch / Lever,LANDING GEAR,UP,performer,supporter,"Engine status, gear position, airspeed, altitude.",,,,eng_failure_aft_v1_memo_items,0,2,
@@ -29,7 +29,7 @@ ENG FAILURE DURING TAKEOFF,EMER,SOP,Flight Control,Rudder,TRIM,supporter,perform
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Callout,Alarm,ANNOUNCE,,performer,"Engine status, alarm type, current flight phase.",,,,,0,5,"Arming Speed mode to FLC {V_ENR} knots"
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Check,SAFE ALTITUDE REACHED,,performer,"Current altitude, agreed safe altitude",,,,eng_failure_aft_v1_memo_items,0,is_sensed,Arming heading mode to {RUNWAY_HEADING} degrees
 ENGINE FIRE,EMER,Memory Item,Switch / Lever,Throttle (affected engine),IDLE,performer,supporter,"Engine status, throttle position, fire warning.",,,,engine_fire_memo_items,0,is_sensed,Will engage autopilot on your approval
-ENGINE FIRE,EMER,SOP,Switch / Lever,Chrono,START,,performer,"Engine status, fire detection, extinguisher status, ATC communication status.",,,,engine_fire_memo_items,4,0,"Alarm {engine_failed_side} Engine Fire, low oil pressure {engine_failed_side}"
+ENGINE FIRE,EMER,SOP,Switch / Lever,Chrono,START,,performer,"Engine status, fire detection, extinguisher status, ATC communication status.",,,,engine_fire_memo_items,4,0,"Alarm {engine_failed_side} Engine Fire, low oil pressure {engine_failed_side}, do you confirm ?"
 ENGINE FIRE,EMER,Memory Item,System Check,Engine FIRE LIGHT,CHECK ON AFTER 15s,performer,supporter,"Engine fire status, checklist progress, TARS action log.",,,,engine_fire_memo_items,15,is_acked,"Safe altitude {SAFE_ALTITUDE} feet reached"
 ENGINE FIRE,EMER,Memory Item,Switch / Lever,Illuminated ENGINE FIRE Switch,LIFT COVER AND PUSH,performer,,"Engine fire status, TARS communication readiness, ATC frequency.",,,,engine_fire_memo_items,0,5,Throttle {engine_failed_side} engine IDLE
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,SET SPD MODE,,performer,"Current airspeed, target speed, engine status.",,,,,0,5,"Three, Two, One, top Chrono"

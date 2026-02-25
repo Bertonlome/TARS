@@ -15,13 +15,13 @@ TAKEOFF,NORM,Checklist,System Check,FADEC bug,CHECK TO,performer,,"FADEC status,
 TAKEOFF,NORM,Checklist,System Check,Engine spool,CHECK EVEN,performer,,"Engine RPM, temperature, pressure, and spool rate.",,,,display_n1_matches_command_bug,3,2,FADEC normal
 TAKEOFF,NORM,SOP,Callout,"""Airspeed's alive""",ANNOUNCE,performer,,"Current airspeed, runway conditions, aircraft weight.",,,,,0,0,
 TAKEOFF,NORM,SOP,Callout,"""70 kts""",ANNOUNCE,performer,,"Airspeed, current phase of takeoff.",,,,,0,0,Airspeed is alive
-TAKEOFF,NORM,SOP,Callout,"""V1""",ANNOUNCE,performer,,"Current airspeed, runway length, aircraft weight, wind conditions.",,,,,0,0,70  knots
+TAKEOFF,NORM,SOP,Callout,"""V1""",ANNOUNCE,performer,,"Current airspeed, runway length, aircraft weight, wind conditions.",,,,,0,0,seventy  knots
 TAKEOFF,NORM,SOP,Callout,"""Rotate""",ANNOUNCE,performer,,"Airspeed, runway length, aircraft weight, wind conditions.",,,,,0,0,V1
 TAKEOFF,NORM,Checklist,Flight Control,Pitch,MAINTAIN 10°,performer,,"Current pitch angle, target pitch, airspeed, altitude.",,,,,3,0,Rotate
 TAKEOFF,NORM,Checklist,Parameter Check,Climb rate,CHECK POSITIVE,performer,,"Current climb rate, target climb rate, altitude, airspeed.",,,,,0,1,
 TAKEOFF,NORM,Checklist,Switch / Lever,LANDING GEAR,UP,performer,,"Gear position, airspeed, altitude, climb rate.",,,,,0,1,
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Navigation,Climb,TO A SAFE ALTITUDE,performer,,,,,,eng_failure_aft_v1_memo_items,2,2,Gear up
-ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Flight Director,SET TO MODE,performer,,"Current flight director mode, engine status, autopilot engagement.",,,,,1,2,"Climb to {SAFE_ALTITUDE}"
+ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Flight Director,SET TO MODE,performer,,"Current flight director mode, engine status, autopilot engagement.",,,,,1,2,"Climb to {SAFE_ALTITUDE} aim for {V_ENR} knots"
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Flight Control,Pitch,MAINTAIN 10°,performer,,"Current pitch angle, engine status, autopilot engagement.",,,,eng_failure_aft_v1_memo_items,0,2,"Flight director on, takeoff mode"
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Switch / Lever,LANDING GEAR,UP,performer,,"Engine status, gear position, airspeed, altitude.",,,,eng_failure_aft_v1_memo_items,0,2,Maintain {TO_PITCH} degrees
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Parameter Check,Airspeed,CHECK V2,performer,,"Current airspeed, V2 speed, engine status.",,,,eng_failure_aft_v1_memo_items,0,2,
@@ -30,7 +30,7 @@ ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,SET SPD MODE,perfor
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,SET HDG MODE,performer,,"Current heading, target heading, engine status.",,,,,0,5,Arming Speed mode to FLC {V_ENR} knots
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Autopilot Mgmt,Autopilot,ENGAGE,performer,,"Engine status, autopilot mode, runway length remaining.",,,,allow_engage_ap,1,3,Arming heading mode to {RUNWAY_HEADING} degrees
 ENG FAILURE DURING TAKEOFF,EMER,SOP,Callout,Alarm,ANNOUNCE,performer,,"Engine status, alarm type, current flight phase.",,,,,0,5,"Will engage autopilot on your approval"
-ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Check,SAFE ALTITUDE REACHED,performer,,"Current altitude, agreed safe altitude",,,,eng_failure_aft_v1_memo_items,0,is_sensed,"Alarm {engine_failed_side} Engine Fire, low oil pressure {engine_failed_side}"
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Check,SAFE ALTITUDE REACHED,performer,,"Current altitude, agreed safe altitude",,,,eng_failure_aft_v1_memo_items,0,is_sensed,"Alarm {engine_failed_side} Engine Fire, low oil pressure {engine_failed_side}, do you confirm ?"
 ENGINE FIRE,EMER,Memory Item,Switch / Lever,Throttle (affected engine),IDLE,performer,,"Engine status, throttle position, fire warning.",,,,engine_fire_memo_items,0,is_sensed,Safe altitude {SAFE_ALTITUDE} feet reached
 ENGINE FIRE,EMER,SOP,Switch / Lever,Chrono,START,performer,,"Engine status, fire detection, extinguisher status, ATC communication status.",,,,engine_fire_memo_items,4,0,"Throttle {engine_failed_side} engine IDLE"
 ENGINE FIRE,EMER,Memory Item,System Check,Engine FIRE LIGHT,CHECK ON AFTER 15s,performer,,"Engine fire status, checklist progress, TARS action log.",,,,engine_fire_memo_items,15,is_acked,"Three, Two, One, top Chrono"

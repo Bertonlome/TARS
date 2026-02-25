@@ -44,7 +44,7 @@ SAFE_ALTITUDE = 1500  # Safe altitude to climb to after engine failure
 V_ONE = 90  # Takeoff decision speed
 V_ROTATE = 90  # Rotation speed
 V_TWO = 97  # Climb speed
-V_ENR = 118 # single engine climb speed
+V_ENR = 120 # single engine climb speed
 AIRSPEED_ALIVE_THRESHOLD = 40  # Minimum airspeed to consider "alive"
 SEVENTY_KTS = 70  # 70 knots speed
 RUNWAY_HEADING = 57 # Runway heading for alignment
@@ -247,7 +247,7 @@ class TarsAgent:
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")],
             self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
             self.is_acked, 
-            transition_action=lambda: self.takeoff_throttles_action_dev_mode()))
+            transition_action= self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
@@ -1618,7 +1618,7 @@ class TarsAgent:
         if name == "task_acknowledged":
             print("✅ Task acknowledged from GUI")
             self.task_acked[0] = True
-            self._play_sound_async("doubletick_sfx.mp3")
+            #self._play_sound_async("doubletick_sfx.mp3")
             
         elif name == "task_cancelled":
             print("❌ Task cancelled by user - reclaiming authority")
@@ -1798,6 +1798,8 @@ class TarsAgent:
             agent_object.latitude_i = value
         elif name == "longitude":
             agent_object.longitude_i = value
+        elif name == "autopilot_airspeed":
+            agent_object.autopilot_airspeed_i = value
         
         # EVENT-DRIVEN CONDITION MONITORING
         # Check if this input affects any monitored conditions
@@ -1972,6 +1974,8 @@ class TarsAgent:
         igs.output_create("alt_sel", igs.INTEGER_T, None)  # Altitude select in feet
         igs.output_create("end_signal", igs.IMPULSION_T, None)  # Impulsion to signal end of procedure
         igs.output_create("action_time", igs.STRING_T, None)  # Time taken to perform last action
+        igs.output_create("nose_down", igs.IMPULSION_T, None)  # Impulsion to command nose down maneuver
+        igs.output_create("nose_up", igs.IMPULSION_T, None)  # Impulsion to command nose up maneuver
         
         # TTS Agent communication
         igs.output_create("tts_request", igs.STRING_T, None)  # Text to send to TTS agent
@@ -2029,6 +2033,7 @@ class TarsAgent:
         igs.input_create("anti_coll_lights", igs.BOOL_T, None)  # Anti-collision lights on/off
         igs.input_create("alt_sel", igs.INTEGER_T, None)  # Altitude select in feet
         igs.input_create("heading_sel", igs.INTEGER_T, None)  # Heading select in degrees
+        igs.input_create("autopilot_airspeed", igs.DOUBLE_T, None)  # Airspeed set for autopilot
 
         # GUI Agent → TARS Agent inputs (Phase 6: from message_protocol.py)
         igs.input_create("task_approval", igs.BOOL_T, None)  # User approved/denied current task
@@ -2040,13 +2045,11 @@ class TarsAgent:
         igs.input_create("force_state_jump", igs.STRING_T, None)  # Force jump to specific state (from UI clicks)
         igs.input_create("countdown_complete", igs.IMPULSION_T, None)  # Countdown timer reached zero
         
-        # TTS Agent status monitoring (only need is_speaking to know when speech finishes)
-        igs.input_create("tts_is_speaking", igs.BOOL_T, None)  # TTS agent speaking status
-
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("next_step", self.impulsion_input_callback, self.agent)
         igs.observe_input("previous_step", self.impulsion_input_callback, self.agent)
         igs.observe_input("airspeed", self.double_input_callback, self.agent)
+        igs.observe_input("autopilot_airspeed", self.double_input_callback, self.agent)
         igs.observe_input("pitch", self.double_input_callback, self.agent)
         igs.observe_input("roll", self.double_input_callback, self.agent)
         igs.observe_input("heading", self.double_input_callback, self.agent)
@@ -2106,6 +2109,70 @@ class TarsAgent:
         igs.observe_input("emergency_inject", self.string_input_callback, self.agent)
         igs.observe_input("force_state_jump", self.string_input_callback, self.agent)
         igs.observe_input("countdown_complete", self.impulsion_input_callback, self.agent)
+
+        # Map Aircraft outputs → our inputs
+        igs.mapping_add("airspeed", "Aircraft", "airspeed")
+        igs.mapping_add("pitch", "Aircraft", "pitch")
+        igs.mapping_add("roll", "Aircraft", "Roll")
+        igs.mapping_add("heading", "Aircraft", "heading")
+        igs.mapping_add("control_rudder", "Aircraft", "controlYaw")
+        igs.mapping_add("vertical_speed", "Aircraft", "verticalSpeed")
+        igs.mapping_add("latitude", "Aircraft", "latitude")
+        igs.mapping_add("longitude", "Aircraft", "longitude")
+        igs.mapping_add("altitude", "Aircraft", "altitude")
+        igs.mapping_add("control_throttle", "Aircraft", "controlThrottle")
+        igs.mapping_add("control_flaps", "Aircraft", "controlFlaps")
+        igs.mapping_add("control_gear", "Aircraft", "controlGear")
+        igs.mapping_add("speed_brakes", "Aircraft", "speedBrakes")
+        igs.mapping_add("park_brake", "Aircraft", "park_brake")
+        igs.mapping_add("l_throttle", "Aircraft", "l_throttle")
+        igs.mapping_add("r_throttle", "Aircraft", "r_throttle")
+        igs.mapping_add("n1_match_bug", "Aircraft", "n1_match_bug")
+        igs.mapping_add("slip", "Aircraft", "slip")
+        igs.mapping_add("pax_safety", "Aircraft", "pax_safety")
+        igs.mapping_add("master_warning", "Aircraft", "master_warning")
+        igs.mapping_add("master_caution", "Aircraft", "Master_caution")
+        igs.mapping_add("flight_director", "Aircraft", "flight_director")
+        igs.mapping_add("speed_mode", "Aircraft", "speed_mode")
+        igs.mapping_add("heading_mode", "Aircraft", "heading_mode")
+        igs.mapping_add("fuel_boost_l", "Aircraft", "fuel_boost_l")
+        igs.mapping_add("fuel_boost_r", "Aircraft", "fuel_boost_r")
+        igs.mapping_add("test_knob", "Aircraft", "test_knob")
+        igs.mapping_add("autopilot_heading_set", "Aircraft", "autopilot_heading_set")
+        igs.mapping_add("yaw_damper", "Aircraft", "yaw_damper")
+        igs.mapping_add("l_ign_switch", "Aircraft", "l_ign_switch")
+        igs.mapping_add("r_ign_switch", "Aircraft", "r_ign_switch")
+        igs.mapping_add("l_gen_switch", "Aircraft", "l_gen_switch")
+        igs.mapping_add("r_gen_switch", "Aircraft", "r_gen_switch")
+        igs.mapping_add("transfer_knob", "Aircraft", "transfer_knob")
+        igs.mapping_add("e1_n1_percent", "Aircraft", "e1_n1_percent")
+        igs.mapping_add("e2_n1_percent", "Aircraft", "e2_n1_percent")
+        igs.mapping_add("engine_fire_l", "Aircraft", "engine_fire_l")
+        igs.mapping_add("engine_fire_r", "Aircraft", "engine_fire_r")
+        igs.mapping_add("cabin_altitude", "Aircraft", "cabin_altitude")
+        igs.mapping_add("l_gen_load", "Aircraft", "l_gen_load")
+        igs.mapping_add("r_gen_load", "Aircraft", "r_gen_load")
+        igs.mapping_add("pitot_heat", "Aircraft", "pitot_heat")
+        igs.mapping_add("trim_rudder", "Aircraft", "trim_rudder")
+        igs.mapping_add("l_bottle_arm", "Aircraft", "l_bottle_arm")
+        igs.mapping_add("r_bottle_arm", "Aircraft", "r_bottle_arm")
+        igs.mapping_add("anti_coll_lights", "Aircraft", "anti_coll_light")
+        igs.mapping_add("alt_sel", "Aircraft", "alt_sel")
+        igs.mapping_add("heading_sel", "Aircraft", "heading_sel")
+        igs.mapping_add("autopilot_airspeed", "Aircraft", "autopilot_airspeed")
+        # Map Shared Interface outputs → our inputs
+        igs.mapping_add("previous_step", "Shared Interface", "previous_step")
+        igs.mapping_add("next_step", "Shared Interface", "next_step")
+        igs.mapping_add("task_approval", "Shared Interface", "task_approval")
+        igs.mapping_add("task_acknowledged", "Shared Interface", "task_acknowledged")
+        igs.mapping_add("task_cancelled", "Shared Interface", "task_cancelled")
+        igs.mapping_add("start_procedure", "Shared Interface", "start_procedure")
+        igs.mapping_add("stop_procedure", "Shared Interface", "stop_procedure")
+        igs.mapping_add("emergency_inject", "Shared Interface", "emergency_inject")
+        igs.mapping_add("countdown_complete", "Shared Interface", "countdown_complete")
+        igs.mapping_add("force_state_jump", "Shared Interface", "force_state_jump")
+        # Map Speech_to_Text_Agent.speech_output → our speech_input
+        igs.mapping_add("speech_input", "Speech_to_Text_Agent", "speech_output")
 
         igs.log_set_console(True)
         igs.log_set_console_level(igs.LOG_INFO)
@@ -2250,11 +2317,6 @@ class TarsAgent:
             return True
         return False
     
-    def takeoff_throttles_action_dev_mode(self):
-        print("will set Throttle to TOGA (1.0) in dev mode.")
-        igs.output_set_double("autopilot_state", 1.0)  # Set throttle to TOGA (1.0)
-        print("Throttle set to TOGA (1.0).")
-    
     def arm_speed_mode_send_signal(self):
         if self.speed_mode == 2:
             return  # Already armed
@@ -2264,6 +2326,15 @@ class TarsAgent:
         if self.agent.alt_sel_i is not None and self.agent.alt_sel_i != self.CLEARED_ALTITUDE:
             igs.output_set_int("alt_sel", self.CLEARED_ALTITUDE)
         igs.output_set_double("speed_mode", 1.0)  # Arm speed mode
+        if self.agent.autopilot_airspeed_i is not None:
+            while (abs(self.agent.autopilot_airspeed_i - self.V_ENR) > 2):  # Wait until airspeed is close to V_ENR
+                if self.agent.autopilot_airspeed_i > self.V_ENR:
+                    igs.output_set_impulsion("nose_down")  # Command nose down to increase speed
+                    print(f"Current airspeed: {self.agent.autopilot_airspeed_i} - commanding nose down to increase speed")
+                elif self.agent.autopilot_airspeed_i < self.V_ENR:
+                    igs.output_set_impulsion("nose_up")  # Command nose up to reduce speed
+                    print(f"Current airspeed: {self.agent.autopilot_airspeed_i} - commanding nose up to reduce speed")
+                time.sleep(0.1)  # Check every 100ms
         self.on_speak_action("Speed mode armed.")
         msg = create_interaction_message("", "Speed mode armed.")
         igs.output_set_string("interaction_message", msg)
@@ -2403,6 +2474,7 @@ class TarsAgent:
     
     def send_vector_signals(self):
         igs.output_set_string("interaction_message", create_interaction_message(self.get_vectors_atc_string(), self.get_vectors_prompt(), left_button="DENY", right_button="APPROVE"))
+        self.on_speak_action("Do you want me to set the heading and altitude following ATC vectors?")
     
     def set_heading_action(self):
         if self.agent.autopilot_heading_set_i is not None and self.VECTOR_HEADING is not None:

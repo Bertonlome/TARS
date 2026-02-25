@@ -33,6 +33,10 @@ class SpeechLogWidget(QWidget):
     PILOT_BG_COLOR   = "rgba(85, 204, 119, 20)"
     PILOT_BORDER     = "rgba(85, 204, 119, 70)"
 
+    # Typewriter speed for ATC animated reveal (words per second).
+    # Tune to match audio elocution pace: 2.0 ≈ slow/clear ATC, 3.0 ≈ normal speech.
+    ATC_TYPEWRITER_SPEED: float = 0.5
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._setup_ui()
@@ -100,23 +104,42 @@ class SpeechLogWidget(QWidget):
         text = text.strip()
         if not text:
             return
-        bubble = self._make_bubble(text, "TARS")
+        bubble, _ = self._make_bubble(text, "TARS")
         self._insert_bubble(bubble)
 
     def append_atc_message(self, text: str):
-        """Add an ATC message bubble (left-aligned, orange)."""
+        """Add an ATC message bubble — delegates to the animated variant."""
+        self.append_atc_message_animated(text)
+
+    def append_atc_message_animated(self, text: str, speed_rate: float | None = None):
+        """
+        Add an ATC message bubble that reveals its text word-by-word.
+
+        Args:
+            text:       The full message string.
+            speed_rate: Words per second. Defaults to ATC_TYPEWRITER_SPEED.
+                        Tune to match the audio elocution pace.
+        """
         text = text.strip()
         if not text:
             return
-        bubble = self._make_bubble(text, "ATC")
+        if speed_rate is None:
+            speed_rate = self.ATC_TYPEWRITER_SPEED
+
+        # Build bubble with an empty placeholder — the animation fills it in.
+        bubble, msg_lbl = self._make_bubble("", "ATC")
         self._insert_bubble(bubble)
+
+        words = text.split()
+        interval_ms = max(40, int(1000 / speed_rate))
+        self._reveal_next_word(msg_lbl, words, interval_ms, 0)
 
     def append_pilot_message(self, text: str):
         """Add a pilot STT bubble (left-aligned, green)."""
         text = text.strip()
         if not text:
             return
-        bubble = self._make_bubble(text, "You (pilot)")
+        bubble, _ = self._make_bubble(text, "You (pilot)")
         self._insert_bubble(bubble)
 
     def append_state_divider(self, label: str):
@@ -170,8 +193,12 @@ class SpeechLogWidget(QWidget):
         row_layout.addWidget(_line())
         return row
 
-    def _make_bubble(self, text: str, sender: str) -> QWidget:
-        """Build a single row widget containing a styled bubble."""
+    def _make_bubble(self, text: str, sender: str) -> tuple["QWidget", "QLabel"]:
+        """Build a single row widget containing a styled bubble.
+
+        Returns:
+            (row_widget, msg_label) — callers that animate need the label ref.
+        """
         is_tars  = (sender == "TARS")
         is_pilot = (sender == "You (pilot)")
 
@@ -239,7 +266,24 @@ class SpeechLogWidget(QWidget):
             row_layout.addWidget(bubble)
             row_layout.addStretch()
 
-        return row
+        return row, msg_lbl
+
+    def _reveal_next_word(self, label: "QLabel", words: list, interval_ms: int, index: int):
+        """Recursively reveal one more word every interval_ms milliseconds."""
+        if index > len(words):
+            return
+        visible = words[:index]
+        if index == 0:
+            label.setText("")                               # blank on first tick
+        elif index < len(words):
+            label.setText("“" + " ".join(visible) + "…”")   # trailing ellipsis while typing
+        else:
+            label.setText("“" + " ".join(visible) + "”")    # closing quote when done
+        if index <= len(words):
+            QTimer.singleShot(
+                interval_ms,
+                lambda: self._reveal_next_word(label, words, interval_ms, index + 1)
+            )
 
     def _insert_bubble(self, bubble: QWidget):
         """Insert bubble before the trailing stretch and scroll to bottom."""

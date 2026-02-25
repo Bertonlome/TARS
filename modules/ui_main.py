@@ -1079,7 +1079,7 @@ class Ui_MainWindow(object):
 
         self.tars_picture = QLabel(self.row_1_col_1_container_2)
         self.tars_picture.setObjectName(u"tars_picture")
-        self.tars_picture.setMaximumSize(QSize(200, 200))
+        self.tars_picture.setMaximumSize(QSize(150, 150))
         self.tars_picture.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
         self.tars_picture.setScaledContents(True)
 
@@ -2839,7 +2839,7 @@ class Ui_MainWindow(object):
         self.toolBox.addItem(self.page_2, u"Payload and weight")
         self.page_3 = QWidget()
         self.page_3.setObjectName(u"page_3")
-        self.page_3.setGeometry(QRect(0, 0, 2325, 1106))
+        self.page_3.setGeometry(QRect(0, 0, 2325, 348))
         self.page_3_layout = QVBoxLayout(self.page_3)
         self.page_3_layout.setObjectName(u"page_3_layout")
         self.label_5 = QLabel(self.page_3)

@@ -129,6 +129,23 @@ class GUIAgent(QObject):
         igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
         # Map Speech_to_Text_Agent.speech_output → our stt_speech_output input
         igs.mapping_add("stt_speech_output", "Speech_to_Text_Agent", "speech_output")
+        # Map TARS_Agent outputs → our inputs
+        igs.mapping_add("current_state", "TARS_Agent", "current_state")
+        igs.mapping_add("next_state", "TARS_Agent", "next_state")
+        igs.mapping_add("previous_state", "TARS_Agent", "previous_state")
+        igs.mapping_add("countdown_current", "TARS_Agent", "countdown_current")
+        igs.mapping_add("countdown_next", "TARS_Agent", "countdown_next")
+        igs.mapping_add("countdown_max_current", "TARS_Agent", "countdown_max_current")
+        igs.mapping_add("countdown_max_next", "TARS_Agent", "countdown_max_next")
+        igs.mapping_add("alert", "TARS_Agent", "alert")
+        igs.mapping_add("alert_clear", "TARS_Agent", "alert_clear")
+        igs.mapping_add("condition_violated", "TARS_Agent", "condition_violated")
+        igs.mapping_add("condition_restored", "TARS_Agent", "condition_restored")
+        igs.mapping_add("action_about_to_fire", "TARS_Agent", "action_about_to_fire")
+        igs.mapping_add("checklist_item_complete", "TARS_Agent", "checklist_item_complete")
+        igs.mapping_add("emergency_procedure_inject", "TARS_Agent", "emergency_procedure_inject")
+        # Map Speech_to_Text_Agent.is_listening → our stt_listening input
+        igs.mapping_add("stt_listening", "Speech_to_Text_Agent", "is_listening")
         
         # Create outputs (send to TARS)
         igs.output_create("task_approval", igs.BOOL_T, None)

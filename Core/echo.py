@@ -73,6 +73,7 @@ class Echo(metaclass=Singleton):
         self.anti_coll_lights_i = None  # Anti-collision lights on/off
         self.alt_sel_i = None  # Altitude select in feet
         self.heading_sel_i = None  # Heading select in degrees
+        self.autopilot_airspeed_i = None  # Airspeed set for autopilot
 
         # outputs
         self.pax_safety_o = None

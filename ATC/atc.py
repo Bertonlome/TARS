@@ -206,20 +206,20 @@ def integer_input_callback(io_type, name, value_type, value, my_data):
         if name == "declare_mayday":
             print(f"📡 Received: {name} with delay={value}s")
             time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Mayday. Continue runway heading. You are cleared to return runway zero-six left to land. Emergency vehicles are standing by."
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Mayday. Continue-runway-heading. You-are-cleared-to-return-runway-zero-six-left-to-land. Emergency-vehicles-are-standing-by."
             play_audio_async("audio/roger_mayday.mp3")
         elif name == "declare_panpan":
             print(f"📡 Received: {name} with delay={value}s")
             time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger Pan-Pan. Continue runway heading. Advise if you require vectors for an approach to runway zero-six left."
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Pan-Pan. Continue-runway-heading. Advise-if-you-require-vectors-for-an-approach-to-runway-zero-six-left."
             play_audio_async("audio/panpan_no_vectors.mp3")
         elif name == "request_vectors":
             print(f"📡 Received: {name} with delay={value}s")
             time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, roger. Turn right heading one-five-zero, descend and maintain three thousand feet. Expect ILS approach runway zero-six left."
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger. Turn-right-heading-one-five-zero, descend-and-maintain-three-thousand-feet. Expect-ILS-approach-runway-zero-six-left."
             play_audio_async("audio/first_vectors.mp3")
             time.sleep(60 * 5)  # Simulate delay for vectoring (keep this as-is)
-            agent_object.speech_output_o = "C-POLY, Montréal Tower, turn right heading three-three-zero, when established, cleared ILS runway zero-six left."
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, turn-right-heading-three-three-zero, when-established, cleared-ILS-runway-zero-six-left."
             play_audio_async("audio/second_vectors.mp3")
     except Exception as e:
         print(f"❌ Error in integer callback: {e}")
@@ -235,7 +235,7 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
             agent_object.speech_output_o = ""
             print(f"📡 Received: {name} - Resetting speech output")
         if name == "request_ATIS":
-            agent_object.speech_output_o = "Montreal Trudeau International Airport Information Alpha. One five zero zero Zulu. Wind zero nine zero at four knots. Visibility one statute mile in fog. Ceiling one thousand five hundred overcast. Temperature five, dewpoint four. Altimeter two niner niner two. Runway surfaces dry. Departing and arriving runway in use is zero six left. Advise on initial contact you have Information Alpha."
+            agent_object.speech_output_o = "Montreal-Trudeau-International-Airport-Information-Alpha. One-five-zero-zero-Zulu. Wind-zero-nine-zero-at-four-knots. Visibility-one-statute-mile-in-fog. Ceiling-one-thousand-five-hundred-overcast. Temperature-five, dewpoint-four. Altimeter-two-niner-niner-two. Runway-surfaces-dry. Departing-and-arriving-runway-in-use-is-zero-six-left. Advise-on-initial-contact-you-have-Information-Alpha."
             print(f"📡 Received: {name}")
             play_audio_file("audio/atis_alpha.mp3")
         if name == "request_takeoff_clearance":
@@ -299,6 +299,8 @@ if __name__ == "__main__":
     igs.observe_input("request_vectors", integer_input_callback, agent)
     igs.observe_input("request_ATIS", impulsion_input_callback, agent)
     igs.observe_input("custom_speech", string_input_callback, agent)
+
+    igs.mapping.add("request_takeoff_clearance", "TARS_Agent", "request_takeoff_clearance")
     igs.log_set_console(True)
     igs.log_set_console_level(igs.LOG_INFO)
 

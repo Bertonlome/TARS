@@ -88,6 +88,7 @@ def main():
     
     # Observe inputs
     igs.observe_input("text_to_speak", tts_agent.on_text_to_speak, None)
+    igs.mapping_add("text_to_speak", "TARS_Agent", "tts_request")
     
     # Start Ingescape with device fallback
     start_with_device_fallback(igs, port)

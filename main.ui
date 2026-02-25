@@ -1862,8 +1862,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
                               <widget class="QLabel" name="tars_picture">
                                <property name="maximumSize">
                                 <size>
-                                 <width>200</width>
-                                 <height>200</height>
+                                 <width>150</width>
+                                 <height>150</height>
                                 </size>
                                </property>
                                <property name="text">
@@ -5128,7 +5128,7 @@ RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
                                 <x>0</x>
                                 <y>0</y>
                                 <width>2325</width>
-                                <height>1106</height>
+                                <height>348</height>
                                </rect>
                               </property>
                               <attribute name="label">
