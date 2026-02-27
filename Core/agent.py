@@ -384,7 +384,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Rudder", "TRIM")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")], 
-            lambda: self.is_slip_skid_centered() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
+            lambda: self.is_allowed() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_SET_SPD_MODE, "")) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action= lambda: (self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].callout), self.arm_speed_mode_send_signal()) if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "SET SPD MODE")].autonomy_role == "performer" else self.dummy_action())) 
 
@@ -1630,8 +1630,34 @@ class TarsAgent:
             self.is_on_off[0] = True
             
         elif name == "stop_procedure":
-            print("⏸️  Stop procedure requested from GUI")
+            print("🛑  Emergency stop requested from GUI")
             self.is_on_off[0] = False
+
+            # Unblock any waiting events so threads can exit cleanly
+            if self.countdown_completion_event:
+                self.countdown_completion_event.set()
+            if self.tts_completion_event:
+                self.tts_completion_event.set()
+
+            # Stop trim thread
+            if self.trim_thread and self.trim_thread.is_alive():
+                self.trim_stop_event.set()
+                print("  ✓ Trim stop event sent")
+
+            # Stop ATC thread
+            if self.atc_thread and self.atc_thread.is_alive():
+                self.atc_stop_event.set()
+                print("  ✓ ATC stop event sent")
+
+            # Stop FSM worker loop and skip any in-progress action
+            if hasattr(self, 'fsm_worker') and self.fsm_worker is not None:
+                self.fsm_worker.should_stop = True
+                self.fsm_worker.skip_current_action = True
+                print("  ✓ FSM worker stop requested")
+
+            # Reset agent state to IDLE
+            self.reset_agent()
+            print("  ✓ Emergency stop complete - agent reset to IDLE")
             
         elif name == "countdown_complete":
             print("⏱️  Countdown complete signal received from GUI")
@@ -2559,7 +2585,7 @@ class TarsAgent:
                 #igs.output_set_impulsion("request_takeoff_clearance")
                 
                 # Wait for ATC response (interruptible)
-                if not self.atc_stop_event.wait(timeout=17):
+                if not self.atc_stop_event.wait(timeout=15):
                     # Display clearance message
                     #igs.output_set_string("interaction_message", create_interaction_message(
                     #    "C-POLY, Montréal Tower, wind zero-niner-zero at four, runway zero-six left, cleared for takeoff. Maintain runway heading, climb to 5000ft, Proceed direct AGMEB then OMEKI. Departure on one-one-eight decimal niner. Good flight.", 
@@ -2691,11 +2717,16 @@ class TarsAgent:
             igs.output_set_string("interaction_message", interaction_json)
             if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role == "performer":
                 self.on_speak_action("ANTI-COLLISION Lights are OFF")
-        else:
+        elif self.agent.anti_coll_lights_i is not None and self.agent.anti_coll_lights_i == True:
             interaction_json = create_interaction_message("", "ANTI-COLLISION Lights are ON")
             igs.output_set_string("interaction_message", interaction_json)
             if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role == "performer":
                 self.on_speak_action("ANTI-COLLISION Lights are ON")
+        else:
+            interaction_json = create_interaction_message("", "ANTI-COLLISION Lights state is UNKNOWN")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role == "performer":
+                self.on_speak_action("ANTI-COLLISION Lights state is UNKNOWN")
     
     def select_altitude_action(self):
         if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer":

@@ -29,6 +29,7 @@ class TaskPageBase(BasePage):
     countdown_zero_signal = QtCore.Signal()
     next_step_signal = QtCore.Signal()  # Signal to jump to next state
     previous_step_signal = QtCore.Signal()  # Signal to jump to previous state
+    stop_all_signal = QtCore.Signal()  # Emergency stop - halt FSM and all threads
     
     def __init__(self, widgets: 'Ui_MainWindow', main_window: 'MainWindow'):
         super().__init__(widgets, main_window)

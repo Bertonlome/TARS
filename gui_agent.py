@@ -154,6 +154,7 @@ class GUIAgent(QObject):
         igs.output_create("task_override", igs.IMPULSION_T, None)  # Force next state transition
         igs.output_create("start_procedure", igs.IMPULSION_T, None)
         igs.output_create("stop_procedure", igs.IMPULSION_T, None)
+        igs.output_create("tts_stop", igs.IMPULSION_T, None)  # Stop TTS playback immediately
         igs.output_create("emergency_inject", igs.STRING_T, None)
         igs.output_create("force_state_jump", igs.STRING_T, None)
         igs.output_create("countdown_complete", igs.IMPULSION_T, None)
@@ -573,6 +574,10 @@ class GUIAgent(QObject):
             home_page.next_step_signal.connect(self._send_next_step)
             home_page.previous_step_signal.connect(self._send_previous_step)
         
+        # Emergency stop button
+        if home_page is not None and hasattr(home_page, 'stop_all_signal'):
+            home_page.stop_all_signal.connect(self._send_stop_procedure)
+
         # Task completion - FlightPage (same signals)
         flight_page = self.main_window.page_manager.get_page('flight')
         if flight_page:
@@ -624,6 +629,13 @@ class GUIAgent(QObject):
         """Send previous_step impulsion to TARS (dev mode navigation)"""
         igs.output_set_impulsion("previous_step")
         print("⏮️ Sent previous_step to TARS (jump to previous state)")
+
+    def _send_stop_procedure(self):
+        """Send emergency stop impulsion to TARS - halts FSM, all background threads and TTS"""
+        igs.output_set_impulsion("stop_procedure")
+        print("🛑 Sent stop_procedure to TARS (emergency stop)")
+        igs.output_set_impulsion("tts_stop")
+        print("🛑 Sent tts_stop to TTS agent (halt audio)")
     
     def send_force_state_jump(self, procedure: str, task_object: str, value: str):
         """Force TARS FSM to jump to specific state (from UI clicks)"""

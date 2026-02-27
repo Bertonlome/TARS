@@ -378,6 +378,34 @@ def speak_wait(text: str):
     """Queue text to be spoken."""
     _speech_queue.put(text)
 
+def stop():
+    """Immediately stop current TTS playback and discard any queued speech."""
+    # Stop sounddevice audio stream immediately
+    try:
+        sd.stop()
+    except Exception:
+        pass
+
+    # Drain all pending items from the queue
+    drained = 0
+    while True:
+        try:
+            _speech_queue.get_nowait()
+            _speech_queue.task_done()
+            drained += 1
+        except queue.Empty:
+            break
+
+    if drained:
+        print(f"🛑 TTS stop: drained {drained} queued item(s)")
+
+    # Fire finished callbacks so is_speaking resets to False
+    for cb in _finished_callbacks:
+        try:
+            cb("")
+        except Exception:
+            pass
+
 def shutdown():
     """Call this on program exit to cleanly stop the TTS thread."""
     _speech_queue.put(None)

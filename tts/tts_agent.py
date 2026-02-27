@@ -47,6 +47,13 @@ class TTSAgent:
             print(f"📥 TTS received: {value[:50]}...")
             # Queue the text for speaking (non-blocking)
             tts.speak_wait(value)
+
+    def on_tts_stop(self, ioType, name, valueType, value, myData):
+        """Called when a stop impulsion is received - halt playback immediately"""
+        print("🛑 TTS stop received - halting playback")
+        tts.stop()
+        igs.output_set_bool("is_speaking", False)
+        igs.output_set_string("current_text", "")
     
     def shutdown(self):
         """Clean shutdown"""
@@ -86,9 +93,14 @@ def main():
     # Create agent instance
     tts_agent = TTSAgent()
     
+    # Define stop input
+    igs.input_create("tts_stop", igs.IMPULSION_T, None)
+
     # Observe inputs
     igs.observe_input("text_to_speak", tts_agent.on_text_to_speak, None)
+    igs.observe_input("tts_stop", tts_agent.on_tts_stop, None)
     igs.mapping_add("text_to_speak", "TARS_Agent", "tts_request")
+    igs.mapping_add("tts_stop", "Shared Interface", "tts_stop")
     
     # Start Ingescape with device fallback
     start_with_device_fallback(igs, port)

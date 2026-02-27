@@ -277,7 +277,7 @@ if __name__ == "__main__":
     igs.output_create("speech_output", igs.STRING_T, None)
     igs.output_create("is_listening", igs.BOOL_T, False)
     igs.observe_input("push_to_talk", bool_input_callback, agent)
-    igs.mapping.add("push_to_talk", "Aircraft", "ptt")
+    igs.mapping_add("push_to_talk", "Aircraft", "ptt")
     igs.log_set_console(True)
     igs.log_set_console_level(igs.LOG_INFO)
 

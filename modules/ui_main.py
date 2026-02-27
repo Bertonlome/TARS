@@ -1030,6 +1030,8 @@ class Ui_MainWindow(object):
         self.row_1_col_1_container.setSpacing(16)
         self.row_1_col_1_container.setObjectName(u"row_1_col_1_container")
         self.row_1_col_1_container.setContentsMargins(50, -1, 50, -1)
+        self.horizontalLayout_24 = QHBoxLayout()
+        self.horizontalLayout_24.setObjectName(u"horizontalLayout_24")
         self.status_container_H = QWidget(self.row_1_col_1_container_2)
         self.status_container_H.setObjectName(u"status_container_H")
         sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
@@ -1060,7 +1062,28 @@ class Ui_MainWindow(object):
         self.tars_status_container.addWidget(self.tars_status_label, 0, Qt.AlignmentFlag.AlignHCenter)
 
 
-        self.row_1_col_1_container.addWidget(self.status_container_H, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.horizontalLayout_24.addWidget(self.status_container_H)
+
+        self.stop_button = QPushButton(self.row_1_col_1_container_2)
+        self.stop_button.setObjectName(u"stop_button")
+        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        sizePolicy4.setHorizontalStretch(0)
+        sizePolicy4.setVerticalStretch(0)
+        sizePolicy4.setHeightForWidth(self.stop_button.sizePolicy().hasHeightForWidth())
+        self.stop_button.setSizePolicy(sizePolicy4)
+        self.stop_button.setStyleSheet(u"padding: 10px 20px;\n"
+"border: 2px solid rgba(235, 0, 20, 255);\n"
+"border-radius: 5px;\n"
+"background-color: rgba(33, 37, 43, 255);\n"
+"font: 600 16pt \"JetBrains Mono\";")
+        icon4 = QIcon()
+        icon4.addFile(u":/icons/images/icons/alarm-noack-iec.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.stop_button.setIcon(icon4)
+
+        self.horizontalLayout_24.addWidget(self.stop_button)
+
+
+        self.row_1_col_1_container.addLayout(self.horizontalLayout_24)
 
         self.tars_output_speech_label = QLabel(self.row_1_col_1_container_2)
         self.tars_output_speech_label.setObjectName(u"tars_output_speech_label")
@@ -1158,11 +1181,11 @@ class Ui_MainWindow(object):
 
         self.previous_task_container = QWidget(self.previous_task_container_6)
         self.previous_task_container.setObjectName(u"previous_task_container")
-        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
-        sizePolicy4.setHorizontalStretch(0)
-        sizePolicy4.setVerticalStretch(0)
-        sizePolicy4.setHeightForWidth(self.previous_task_container.sizePolicy().hasHeightForWidth())
-        self.previous_task_container.setSizePolicy(sizePolicy4)
+        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
+        sizePolicy5.setHorizontalStretch(0)
+        sizePolicy5.setVerticalStretch(0)
+        sizePolicy5.setHeightForWidth(self.previous_task_container.sizePolicy().hasHeightForWidth())
+        self.previous_task_container.setSizePolicy(sizePolicy5)
         self.previous_task_container.setMaximumSize(QSize(600, 16777215))
         self.p_t_container_2 = QVBoxLayout(self.previous_task_container)
         self.p_t_container_2.setObjectName(u"p_t_container_2")
@@ -1262,11 +1285,8 @@ class Ui_MainWindow(object):
 
         self.check_radio_button = QRadioButton(self.current_task_container_3)
         self.check_radio_button.setObjectName(u"check_radio_button")
-        sizePolicy5 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-        sizePolicy5.setHorizontalStretch(0)
-        sizePolicy5.setVerticalStretch(0)
-        sizePolicy5.setHeightForWidth(self.check_radio_button.sizePolicy().hasHeightForWidth())
-        self.check_radio_button.setSizePolicy(sizePolicy5)
+        sizePolicy4.setHeightForWidth(self.check_radio_button.sizePolicy().hasHeightForWidth())
+        self.check_radio_button.setSizePolicy(sizePolicy4)
         font5 = QFont()
         font5.setFamilies([u"JetBrains Mono"])
         font5.setPointSize(16)
@@ -1291,8 +1311,6 @@ class Ui_MainWindow(object):
 "    border-radius: 5px;\n"
 "    background-color: rgba(33, 37, 43, 255);\n"
 "font: 600 16pt \"JetBrains Mono\";")
-        icon4 = QIcon()
-        icon4.addFile(u":/icons/images/icons/alarm-noack-iec.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.cancel_task_button_2.setIcon(icon4)
 
         self.current_task_container_4.addWidget(self.cancel_task_button_2)
@@ -1341,8 +1359,8 @@ class Ui_MainWindow(object):
 
         self.next_task_container = QWidget(self.next_task_container_6)
         self.next_task_container.setObjectName(u"next_task_container")
-        sizePolicy4.setHeightForWidth(self.next_task_container.sizePolicy().hasHeightForWidth())
-        self.next_task_container.setSizePolicy(sizePolicy4)
+        sizePolicy5.setHeightForWidth(self.next_task_container.sizePolicy().hasHeightForWidth())
+        self.next_task_container.setSizePolicy(sizePolicy5)
         self.next_task_container.setMaximumSize(QSize(600, 16777215))
         self.n_t_container_2 = QVBoxLayout(self.next_task_container)
         self.n_t_container_2.setObjectName(u"n_t_container_2")
@@ -1718,8 +1736,8 @@ class Ui_MainWindow(object):
 
         self.previous_task_container_flight_3 = QWidget(self.previous_task_container_flight_2)
         self.previous_task_container_flight_3.setObjectName(u"previous_task_container_flight_3")
-        sizePolicy4.setHeightForWidth(self.previous_task_container_flight_3.sizePolicy().hasHeightForWidth())
-        self.previous_task_container_flight_3.setSizePolicy(sizePolicy4)
+        sizePolicy5.setHeightForWidth(self.previous_task_container_flight_3.sizePolicy().hasHeightForWidth())
+        self.previous_task_container_flight_3.setSizePolicy(sizePolicy5)
         self.previous_task_container_flight_3.setMaximumSize(QSize(600, 16777215))
         self.p_t_container_3 = QVBoxLayout(self.previous_task_container_flight_3)
         self.p_t_container_3.setObjectName(u"p_t_container_3")
@@ -1975,8 +1993,8 @@ class Ui_MainWindow(object):
 
         self.next_task_container_flight_3 = QWidget(self.next_task_container_flight_2)
         self.next_task_container_flight_3.setObjectName(u"next_task_container_flight_3")
-        sizePolicy4.setHeightForWidth(self.next_task_container_flight_3.sizePolicy().hasHeightForWidth())
-        self.next_task_container_flight_3.setSizePolicy(sizePolicy4)
+        sizePolicy5.setHeightForWidth(self.next_task_container_flight_3.sizePolicy().hasHeightForWidth())
+        self.next_task_container_flight_3.setSizePolicy(sizePolicy5)
         self.next_task_container_flight_3.setMaximumSize(QSize(600, 16777215))
         self.n_t_container_3 = QVBoxLayout(self.next_task_container_flight_3)
         self.n_t_container_3.setObjectName(u"n_t_container_3")
@@ -2839,7 +2857,7 @@ class Ui_MainWindow(object):
         self.toolBox.addItem(self.page_2, u"Payload and weight")
         self.page_3 = QWidget()
         self.page_3.setObjectName(u"page_3")
-        self.page_3.setGeometry(QRect(0, 0, 2325, 348))
+        self.page_3.setGeometry(QRect(0, 0, 2325, 1106))
         self.page_3_layout = QVBoxLayout(self.page_3)
         self.page_3_layout.setObjectName(u"page_3_layout")
         self.label_5 = QLabel(self.page_3)
@@ -3177,6 +3195,7 @@ class Ui_MainWindow(object):
         self.closeAppBtn.setText("")
         self.tars_status_icon.setText("")
         self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"TARS RUNNING", None))
+        self.stop_button.setText(QCoreApplication.translate("MainWindow", u"STOP", None))
         self.tars_output_speech_label.setText("")
         self.tars_picture.setText("")
         self.alert_icon_2.setText("")

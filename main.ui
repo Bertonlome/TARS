@@ -1776,57 +1776,85 @@ li.checked::marker { content: &quot;\2612&quot;; }
                              <property name="rightMargin">
                               <number>50</number>
                              </property>
-                             <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                              <widget class="QWidget" name="status_container_H" native="true">
-                               <property name="sizePolicy">
-                                <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
-                                 <horstretch>250</horstretch>
-                                 <verstretch>0</verstretch>
-                                </sizepolicy>
-                               </property>
-                               <property name="minimumSize">
-                                <size>
-                                 <width>0</width>
-                                 <height>0</height>
-                                </size>
-                               </property>
-                               <property name="styleSheet">
-                                <string notr="true">QWidget#status_container_H {
+                             <item>
+                              <layout class="QHBoxLayout" name="horizontalLayout_24">
+                               <item>
+                                <widget class="QWidget" name="status_container_H" native="true">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+                                   <horstretch>250</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="minimumSize">
+                                  <size>
+                                   <width>0</width>
+                                   <height>0</height>
+                                  </size>
+                                 </property>
+                                 <property name="styleSheet">
+                                  <string notr="true">QWidget#status_container_H {
     border: 2px solid #36DF71;
     border-radius: 10px;
     background-color: rgba(33,37,43,255);
 }
 </string>
-                               </property>
-                               <layout class="QHBoxLayout" name="tars_status_container">
-                                <property name="leftMargin">
-                                 <number>20</number>
-                                </property>
-                                <property name="rightMargin">
-                                 <number>20</number>
-                                </property>
-                                <item alignment="Qt::AlignmentFlag::AlignLeft">
-                                 <widget class="QLabel" name="tars_status_icon">
-                                  <property name="text">
-                                   <string/>
+                                 </property>
+                                 <layout class="QHBoxLayout" name="tars_status_container">
+                                  <property name="leftMargin">
+                                   <number>20</number>
                                   </property>
-                                  <property name="pixmap">
-                                   <pixmap resource="resources.qrc">:/icons/images/icons/cil-check-circle.png</pixmap>
+                                  <property name="rightMargin">
+                                   <number>20</number>
                                   </property>
-                                 </widget>
-                                </item>
-                                <item alignment="Qt::AlignmentFlag::AlignHCenter">
-                                 <widget class="QLabel" name="tars_status_label">
-                                  <property name="styleSheet">
-                                   <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
-                                  </property>
-                                  <property name="text">
-                                   <string>TARS RUNNING</string>
-                                  </property>
-                                 </widget>
-                                </item>
-                               </layout>
-                              </widget>
+                                  <item alignment="Qt::AlignmentFlag::AlignLeft">
+                                   <widget class="QLabel" name="tars_status_icon">
+                                    <property name="text">
+                                     <string/>
+                                    </property>
+                                    <property name="pixmap">
+                                     <pixmap resource="resources.qrc">:/icons/images/icons/cil-check-circle.png</pixmap>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                  <item alignment="Qt::AlignmentFlag::AlignHCenter">
+                                   <widget class="QLabel" name="tars_status_label">
+                                    <property name="styleSheet">
+                                     <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
+                                    </property>
+                                    <property name="text">
+                                     <string>TARS RUNNING</string>
+                                    </property>
+                                   </widget>
+                                  </item>
+                                 </layout>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="QPushButton" name="stop_button">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="styleSheet">
+                                  <string notr="true">padding: 10px 20px;
+border: 2px solid rgba(235, 0, 20, 255);
+border-radius: 5px;
+background-color: rgba(33, 37, 43, 255);
+font: 600 16pt &quot;JetBrains Mono&quot;;</string>
+                                 </property>
+                                 <property name="text">
+                                  <string>STOP</string>
+                                 </property>
+                                 <property name="icon">
+                                  <iconset resource="resources.qrc">
+                                   <normaloff>:/icons/images/icons/alarm-noack-iec.svg</normaloff>:/icons/images/icons/alarm-noack-iec.svg</iconset>
+                                 </property>
+                                </widget>
+                               </item>
+                              </layout>
                              </item>
                              <item alignment="Qt::AlignmentFlag::AlignHCenter">
                               <widget class="QLabel" name="tars_output_speech_label">
@@ -5128,7 +5156,7 @@ RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
                                 <x>0</x>
                                 <y>0</y>
                                 <width>2325</width>
-                                <height>348</height>
+                                <height>1106</height>
                                </rect>
                               </property>
                               <attribute name="label">

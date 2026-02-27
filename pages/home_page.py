@@ -256,6 +256,10 @@ class HomePage(TaskPageBase):
         """
         self.widgets.check_radio_button.setStyleSheet(radio_style)
         
+        # Connect emergency stop button
+        if hasattr(self.widgets, 'stop_button'):
+            self.widgets.stop_button.clicked.connect(self.stop_all_signal.emit)
+
         # Setup task timeline widget
         self._setup_task_timeline()
 

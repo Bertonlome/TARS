@@ -242,7 +242,7 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
             # old clearance = "C-POLY, Montréal-Tower, wind zero-nine-zero-at-four,  cleared-for-takeoff runway zero-six-left. Maintain runway heading, climb to-five-thousand-feet. Proceed direct-AGMEB-then-OMEKI. Departure on one-one-eight-decimal-niner. Good-flight."
             agent_object.speech_output_o = "C-POLY, Montreal-Tower, wind-0-9-0-at-4, cleared-for-takeoff runway-zero-six-left. Climb-to-5000ft."
             print(f"📡 Received: {name}")
-            play_audio_file("audio/takeoff_clearance.mp3")
+            play_audio_file("audio/takeoff_clearance_short.mp3")
     except Exception as e:
         print(f"❌ Error in impulsion callback: {e}")
         import traceback
@@ -300,7 +300,7 @@ if __name__ == "__main__":
     igs.observe_input("request_ATIS", impulsion_input_callback, agent)
     igs.observe_input("custom_speech", string_input_callback, agent)
 
-    igs.mapping.add("request_takeoff_clearance", "TARS_Agent", "request_takeoff_clearance")
+    igs.mapping_add("request_takeoff_clearance", "TARS_Agent", "request_takeoff_clearance")
     igs.log_set_console(True)
     igs.log_set_console_level(igs.LOG_INFO)
 
