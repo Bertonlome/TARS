@@ -616,6 +616,11 @@ class MainWindow(QMainWindow):
             self.speech_log.clear_log()
 
     @QtCore.Slot(str)
+    def on_tars_status(self, text: str):
+        """Update the TARS status label from any thread via signal."""
+        self.ui.tars_status_label.setText(text)
+
+    @QtCore.Slot(str)
     def on_tts_finished(self, text):
         print(f"✅ TTS Finished: {text}")  # Debug
         pixmap = QPixmap("images/images/TARS_female.png")

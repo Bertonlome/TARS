@@ -247,6 +247,7 @@ class TarsAgent:
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")],
             self.states[("TAKEOFF", "THROTTLES", "TO Detent")], 
             self.is_acked, 
+            action= lambda: self.recap_takeoff_speeds() if self.states[("TAKEOFF", "THROTTLES", "TO Detent")].autonomy_role in ("supporter", "performer") else self.dummy_action(),
             transition_action= self.dummy_action()))
         
         self.fsm.add_transition(Transition(
@@ -265,7 +266,7 @@ class TarsAgent:
             self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")], 
             self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")], 
             lambda: self.is_engine_spool_even() if self.states[("TAKEOFF", "Engine spool", "CHECK EVEN")].autonomy_role in ("supporter", "performer") else self.is_acked(),
-            action= lambda: self.check_airspeed_alive_send_signal if self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.dummy_action()))
+            action= lambda: self.check_airspeed_alive_send_signal() if self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")], 
@@ -1212,6 +1213,9 @@ class TarsAgent:
                 else:
                     msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
                     igs.output_set_string("interaction_message", msg)
+        else:
+            msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat status unknown.")
+            igs.output_set_string("interaction_message", msg)
     
     def check_airspeed_alive_send_signal(self):
                 msg = create_interaction_message(f"Airspeed: {self.agent.airspeed_i:.1f} kts", "Airspeed indicator is alive.")
@@ -1235,6 +1239,27 @@ class TarsAgent:
                 if self.states[("TAKEOFF", "Positive climb rate", "CHECK")].autonomy_role == "performer":
                     self.on_speak_action("Positive climb rate")
 
+    def recap_takeoff_speeds(self):
+        global V_ONE, V_TWO, V_ROTATE
+        # Determine which speed callouts TARS will perform
+        callout_parts = []
+        if self.states[("TAKEOFF", "\"Airspeed's alive\"", "ANNOUNCE")].autonomy_role == "performer":
+            callout_parts.append("Airspeed's alive")
+        if self.states[("TAKEOFF", "\"70 kts\"", "ANNOUNCE")].autonomy_role == "performer":
+            callout_parts.append("70 knots")
+        if self.states[("TAKEOFF", "\"V1\"", "ANNOUNCE")].autonomy_role == "performer":
+            callout_parts.append("V1")
+
+        tars_info = f"TAKEOFF SPEEDS: V1: {V_ONE} kts VR: {V_ROTATE} kts"
+
+        msg = create_interaction_message("", tars_info)
+        igs.output_set_string("interaction_message", msg)
+
+        if callout_parts:
+            announce_list = ", ".join(callout_parts)
+            self.on_speak_action(f"TARS ready for takeoff. I will announce {announce_list}")
+        else:
+            self.on_speak_action("Takeoff speeds recap")
     
     def check_engine_spool_send_signal(self):
         if self.agent.e1_n1_percent_i is not None and self.agent.e2_n1_percent_i is not None:
@@ -2000,6 +2025,7 @@ class TarsAgent:
         igs.output_create("alt_sel", igs.INTEGER_T, None)  # Altitude select in feet
         igs.output_create("end_signal", igs.IMPULSION_T, None)  # Impulsion to signal end of procedure
         igs.output_create("action_time", igs.STRING_T, None)  # Time taken to perform last action
+        igs.output_create("tars_status", igs.STRING_T, None)  # Human-readable status line for the GUI label
         igs.output_create("nose_down", igs.IMPULSION_T, None)  # Impulsion to command nose down maneuver
         igs.output_create("nose_up", igs.IMPULSION_T, None)  # Impulsion to command nose up maneuver
         
@@ -2440,7 +2466,8 @@ class TarsAgent:
             
             direction_name = "right" if is_left_failure else "left"
             self.on_speak_action(f"Trimming {direction_name} rudder for {self.engine_failed_side.lower()} engine failure.")
-            
+            igs.output_set_string("tars_status", f"Trimming {direction_name}")
+
             stable_start_time = None
             stable_announced = False
             
@@ -2457,6 +2484,7 @@ class TarsAgent:
                     elif time.time() - stable_start_time >= 3.0 and not stable_announced:
                         print(f"✅ Conditions stable for 3 seconds, trim complete - continuing to monitor")
                         #self.on_speak_action("Rudder trim complete")
+                        igs.output_set_string("tars_status", f"Trim {direction_name} - stable")
                         stable_announced = True  # Announce only once
                     # Continue monitoring (don't break) - trim might need adjustment if conditions change
                 else:
@@ -2475,6 +2503,7 @@ class TarsAgent:
                         igs.output_set_double("trim_rudder", current_trim - (0.1 * trim_direction))
                 time.sleep(0.5)
             
+            igs.output_set_string("tars_status", "TARS Agent RUNNING")
             print("🛑 Trim worker thread exiting")
         except Exception as e:
             print(f"❌ Error in trim worker thread: {e}")

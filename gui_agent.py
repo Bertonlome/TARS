@@ -42,6 +42,7 @@ class GUIAgent(QObject):
     _stt_speech_signal = Signal(str)   # Pilot STT recognized text for the log
     _state_divider_signal = Signal(str) # FSM state transition divider for the log
     _reset_speech_log_signal = Signal()  # Clear log on TARS reset
+    _tars_status_signal = Signal(str)  # Status label text update
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
@@ -67,6 +68,7 @@ class GUIAgent(QObject):
         self._stt_speech_signal.connect(self.main_window.on_pilot_speech)
         self._state_divider_signal.connect(self.main_window.on_state_divider)
         self._reset_speech_log_signal.connect(self.main_window.reset_speech_log)
+        self._tars_status_signal.connect(self.main_window.on_tars_status)
         
         # Connect MainWindow user action signals to TARS inputs
         self._connect_ui_to_tars()
@@ -103,6 +105,7 @@ class GUIAgent(QObject):
         igs.input_create("interaction_message", igs.STRING_T, None)
         igs.input_create("atc_speech_output", igs.STRING_T, None)  # ATC speech_output feed
         igs.input_create("stt_speech_output", igs.STRING_T, None)   # STT recognized text feed
+        igs.input_create("tars_status", igs.STRING_T, None)  # TARS status text for the GUI label
         
         # Observe inputs
         igs.observe_input("current_state", self._on_current_state_input, None)
@@ -125,10 +128,13 @@ class GUIAgent(QObject):
         igs.observe_input("interaction_message", self._on_interaction_message_input, None)
         igs.observe_input("atc_speech_output", self._on_atc_speech_output_input, None)
         igs.observe_input("stt_speech_output", self._on_stt_speech_output_input, None)
+        igs.observe_input("tars_status", self._on_tars_status_input, None)
         # Map ATC_Agent.speech_output → our atc_speech_output input
         igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
         # Map Speech_to_Text_Agent.speech_output → our stt_speech_output input
         igs.mapping_add("stt_speech_output", "Speech_to_Text_Agent", "speech_output")
+        # Map TARS_Agent.tars_status → our tars_status input
+        igs.mapping_add("tars_status", "TARS_Agent", "tars_status")
         # Map TARS_Agent outputs → our inputs
         igs.mapping_add("current_state", "TARS_Agent", "current_state")
         igs.mapping_add("next_state", "TARS_Agent", "next_state")
@@ -178,6 +184,14 @@ class GUIAgent(QObject):
     # TARS → GUI: Ingescape input callbacks (run in Ingescape thread)
     # ========================================================================
     
+    def _on_tars_status_input(self, io_type, name, value_type, value, my_data):
+        """Handle tars_status string from TARS agent — update the status label."""
+        try:
+            if value:
+                self._tars_status_signal.emit(str(value))
+        except Exception as e:
+            print(f"Error processing tars_status: {e}")
+
     def _on_atc_speech_output_input(self, io_type, name, value_type, value, my_data):
         """Handle ATC speech_output — forward to the chat log (left side)."""
         try:

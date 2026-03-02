@@ -473,4 +473,4 @@ class CircularCountdown(QWidget):
         font = QFont("JetBrains Mono", 9, QFont.Weight.Light)
         painter.setFont(font)
         text_rect = QtCore.QRectF(0, 0, size, size)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "wait")
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "waiting")
