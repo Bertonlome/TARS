@@ -54,6 +54,11 @@ class TTSAgent:
         tts.stop()
         igs.output_set_bool("is_speaking", False)
         igs.output_set_string("current_text", "")
+
+    def on_repeat_sentence(self, ioType, name, valueType, value, myData):
+        """Called when repeat_sentence impulsion is received - replay last utterance"""
+        print("🔁 repeat_sentence received - replaying last TTS output")
+        tts.repeat_last()
     
     def shutdown(self):
         """Clean shutdown"""
@@ -93,20 +98,23 @@ def main():
     # Create agent instance
     tts_agent = TTSAgent()
     
-    # Define stop input
+    # Define impulsion inputs
     igs.input_create("tts_stop", igs.IMPULSION_T, None)
+    igs.input_create("repeat_sentence", igs.IMPULSION_T, None)
 
     # Observe inputs
     igs.observe_input("text_to_speak", tts_agent.on_text_to_speak, None)
     igs.observe_input("tts_stop", tts_agent.on_tts_stop, None)
+    igs.observe_input("repeat_sentence", tts_agent.on_repeat_sentence, None)
     igs.mapping_add("text_to_speak", "TARS_Agent", "tts_request")
     igs.mapping_add("tts_stop", "Shared Interface", "tts_stop")
+    igs.mapping_add("repeat_sentence", "Shared Interface", "repeat_sentence")
     
     # Start Ingescape with device fallback
     start_with_device_fallback(igs, port)
     
     print(f"✓ TTS Agent '{agent_name}' started on {network_device}:{port}")
-    print("  Inputs: text_to_speak")
+    print("  Inputs: text_to_speak, tts_stop (impulsion), repeat_sentence (impulsion)")
     print("  Outputs: is_speaking, current_text")
     print("  Ready to receive speech requests...")
     

@@ -1975,6 +1975,26 @@ class TarsAgent:
             print(f"🚨 Emergency procedure inject requested: {value}")
             # TODO: Implement emergency procedure injection logic
             
+        elif name == "update_allocation":
+            # Briefing page sent a new role-allocation from the GUI
+            import json
+            try:
+                allocation_list = json.loads(value)
+                updated = 0
+                for entry in allocation_list:
+                    key = (
+                        entry.get('procedure', ''),
+                        entry.get('task_object', ''),
+                        entry.get('value', ''),
+                    )
+                    if key in self.states:
+                        self.states[key].human_role = entry.get('human_role', '')
+                        self.states[key].autonomy_role = entry.get('autonomy_role', '')
+                        updated += 1
+                print(f"✅ update_allocation applied: {updated}/{len(allocation_list)} states patched")
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"❌ Invalid update_allocation payload: {e}")
+
         elif name == "force_state_jump":
             # User clicked on checklist or timeline - force jump to that state
             import json
@@ -2206,6 +2226,7 @@ class TarsAgent:
         igs.input_create("emergency_inject", igs.STRING_T, None)  # Emergency procedure name to inject
         igs.input_create("force_state_jump", igs.STRING_T, None)  # Force jump to specific state (from UI clicks)
         igs.input_create("countdown_complete", igs.IMPULSION_T, None)  # Countdown timer reached zero
+        igs.input_create("update_allocation", igs.STRING_T, None)  # Briefing role-allocation update (JSON list)
         
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("next_step", self.impulsion_input_callback, self.agent)
@@ -2271,6 +2292,7 @@ class TarsAgent:
         igs.observe_input("emergency_inject", self.string_input_callback, self.agent)
         igs.observe_input("force_state_jump", self.string_input_callback, self.agent)
         igs.observe_input("countdown_complete", self.impulsion_input_callback, self.agent)
+        igs.observe_input("update_allocation", self.string_input_callback, self.agent)
 
         # Map Aircraft outputs → our inputs
         igs.mapping_add("airspeed", "Aircraft", "airspeed")
@@ -2333,6 +2355,7 @@ class TarsAgent:
         igs.mapping_add("emergency_inject", "Shared Interface", "emergency_inject")
         igs.mapping_add("countdown_complete", "Shared Interface", "countdown_complete")
         igs.mapping_add("force_state_jump", "Shared Interface", "force_state_jump")
+        igs.mapping_add("update_allocation", "Shared Interface", "update_allocation")
         # Map Speech_to_Text_Agent.speech_output → our speech_input
         igs.mapping_add("speech_input", "Speech_to_Text_Agent", "speech_output")
 

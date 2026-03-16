@@ -1912,23 +1912,33 @@ class BriefingPage(BasePage):
                         'autonomy_role': autonomy_role
                     }
             
-            # Update agent states directly
+            # Build the payload list for transmission
+            payload = [
+                {
+                    'procedure': procedure,
+                    'task_object': task_object,
+                    'value': value,
+                    'human_role': roles['human_role'],
+                    'autonomy_role': roles['autonomy_role'],
+                }
+                for (procedure, task_object, value), roles in allocation_for_agent.items()
+            ]
+
+            # Send to the real TARS subprocess via Ingescape
+            if hasattr(self.main_window, 'gui_agent'):
+                self.main_window.gui_agent.send_allocation_update(payload)
+
+            # Also keep the GUI stub in sync (used for local display / timeline)
             updated_count = 0
             for state_key, roles in allocation_for_agent.items():
                 if state_key in self.main_window.agent.states:
                     state = self.main_window.agent.states[state_key]
-                    
-                    # Check if roles changed
-                    old_human = state.human_role
-                    old_autonomy = state.autonomy_role
                     new_human = roles['human_role']
                     new_autonomy = roles['autonomy_role']
-                    
-                    if old_human != new_human or old_autonomy != new_autonomy:
+                    if state.human_role != new_human or state.autonomy_role != new_autonomy:
                         state.human_role = new_human
                         state.autonomy_role = new_autonomy
                         updated_count += 1
-                        #print(f"Updated {state_key}: H={old_human}→{new_human}, A={old_autonomy}→{new_autonomy}")
             
             # Show success message
             QMessageBox.information(None, "Allocation Sent to Agent", 

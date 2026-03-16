@@ -88,6 +88,9 @@ _speech_queue = queue.Queue()
 # Reference to agent for variable interpolation
 _agent_ref = None
 
+# Last raw text that was queued for speaking (used by repeat_last)
+_last_queued_text: "str | None" = None
+
 # Callbacks for speech events
 _speak_callbacks = []  # Called when speech starts
 _finished_callbacks = []  # Called when speech finishes
@@ -376,6 +379,8 @@ def register_finished_callback(cb):
 
 def speak_wait(text: str):
     """Queue text to be spoken."""
+    global _last_queued_text
+    _last_queued_text = text
     _speech_queue.put(text)
 
 def stop():
@@ -405,6 +410,16 @@ def stop():
             cb("")
         except Exception:
             pass
+
+def repeat_last():
+    """Stop current playback and replay the last spoken sentence from cache."""
+    if _last_queued_text is None:
+        print("⚠️  TTS repeat: nothing has been spoken yet")
+        return
+    print(f"🔁 TTS repeat: replaying last sentence")
+    stop()
+    speak_wait(_last_queued_text)
+
 
 def shutdown():
     """Call this on program exit to cleanly stop the TTS thread."""

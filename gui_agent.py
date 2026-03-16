@@ -171,6 +171,7 @@ class GUIAgent(QObject):
         igs.output_create("emergency_inject", igs.STRING_T, None)
         igs.output_create("force_state_jump", igs.STRING_T, None)
         igs.output_create("countdown_complete", igs.IMPULSION_T, None)
+        igs.output_create("update_allocation", igs.STRING_T, None)
         igs.output_create("next_step", igs.IMPULSION_T, None)  # Jump to next state (dev mode)
         igs.output_create("previous_step", igs.IMPULSION_T, None)  # Jump to previous state (dev mode)
         igs.output_create("request_atis", igs.IMPULSION_T, None)  # Request ATIS from automated radio
@@ -785,6 +786,17 @@ class GUIAgent(QObject):
         })
         igs.output_set_string("force_state_jump", state_json)
         print(f"🎯 Sent force_state_jump to TARS: {procedure} - {task_object} - {value}")
+
+    def send_allocation_update(self, allocation_data: list):
+        """Send a role-allocation update to the TARS subprocess via Ingescape.
+
+        Args:
+            allocation_data: list of dicts with keys procedure, task_object,
+                             value, human_role, autonomy_role.
+        """
+        import json
+        igs.output_set_string("update_allocation", json.dumps(allocation_data))
+        print(f"📤 Sent update_allocation to TARS: {len(allocation_data)} tasks")
 
 
 def create_gui_agent(main_window: MainWindow, 
