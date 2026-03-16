@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from modules.ui_main import Ui_MainWindow
     from main import MainWindow
 
-IA_NAME_FILE = "IA_V3.csv"
+IA_NAME_FILE = "IA_V8.csv"
 
 # ---------------------------- Data ----------------------------
 

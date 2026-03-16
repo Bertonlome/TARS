@@ -52,6 +52,13 @@ class GUIAgent(QObject):
         self.device = device
         self.port = port
         self.no_next_countdown = no_next_countdown
+
+        # Dynamic middle-button tracking (for winds supporter panel)
+        self._middle_buttons = []  # list of dynamically inserted QPushButton widgets
+        # Cached wind-editor parameters (set when interaction message arrives)
+        self._wind_edit_runway_heading = 237
+        self._wind_edit_initial_dir    = 0
+        self._wind_edit_initial_mag    = 0
         
         # Connect internal signals to UI update methods
         self._alert_signal.connect(self._on_alert)
@@ -166,6 +173,7 @@ class GUIAgent(QObject):
         igs.output_create("countdown_complete", igs.IMPULSION_T, None)
         igs.output_create("next_step", igs.IMPULSION_T, None)  # Jump to next state (dev mode)
         igs.output_create("previous_step", igs.IMPULSION_T, None)  # Jump to previous state (dev mode)
+        igs.output_create("request_atis", igs.IMPULSION_T, None)  # Request ATIS from automated radio
         
         print(f"✅ GUI Agent '{self.agent_name}' initialized with Ingescape I/O")
     
@@ -242,6 +250,13 @@ class GUIAgent(QObject):
                 button_config["left_button"] = msg_data["left_button"]
             if "right_button" in msg_data:
                 button_config["right_button"] = msg_data["right_button"]
+
+            # Extract wind-editor metadata and middle_button if present
+            if "middle_button" in msg_data:
+                button_config["middle_button"] = msg_data["middle_button"]
+            for key in ("runway_heading", "initial_wind_dir", "initial_wind_mag"):
+                if key in msg_data:
+                    button_config[key] = msg_data[key]
                 
             self._interaction_message_signal.emit(message, tars_input, button_config)
         except Exception as e:
@@ -412,62 +427,171 @@ class GUIAgent(QObject):
     
     def _on_interaction_message(self, message: str, tars_input: str, button_config: dict):
         """Update interaction panel (main thread)"""
-        # Update both home and flight pages using helper methods
+        # Always clean up previous dynamic middle buttons first
+        self._cleanup_middle_buttons()
+
         self.main_window.set_interaction_text(message)
         self.main_window.set_interaction_tars_input(tars_input, show=bool(tars_input))
-        
-        # Handle button configuration if provided
-        if button_config:
-            home_page = self.main_window.page_manager.get_page('home')
-            flight_page = self.main_window.page_manager.get_page('flight')
-            
-            # Determine if we need approval mode (APPROVE/DENY buttons)
-            # If either button text is APPROVE or DENY, we use approval mode
-            left_text = button_config.get("left_button", "")
-            right_text = button_config.get("right_button", "")
-            use_approval_mode = False
-            if left_text and left_text in ("APPROVE", "DENY"):
-                use_approval_mode = True
-            if right_text and right_text in ("APPROVE", "DENY"):
-                use_approval_mode = True
-            
-            # Reconnect buttons with appropriate handlers
-            if home_page:
-                home_page.connect_int_panel_buttons(default=not use_approval_mode)
-            
-            # Configure left button
-            if "left_button" in button_config:
-                left_btn_text = button_config["left_button"]
-                if left_btn_text is None:  # None = hide
-                    if home_page:
-                        home_page.int_panel_left_button.hide()
-                    if flight_page:
-                        flight_page.int_panel_left_button.hide()
-                elif left_btn_text:  # Non-empty string = show with text
-                    if home_page:
-                        home_page.int_panel_left_button.setText(left_btn_text)
-                        home_page.int_panel_left_button.show()
-                    if flight_page:
-                        flight_page.int_panel_left_button.setText(left_btn_text)
-                        flight_page.int_panel_left_button.show()
-                # Empty string = no change, do nothing
-            
-            # Configure right button
-            if "right_button" in button_config:
-                right_btn_text = button_config["right_button"]
-                if right_btn_text is None:  # None = hide
-                    if home_page:
-                        home_page.int_panel_right_button.hide()
-                    if flight_page:
-                        flight_page.int_panel_right_button.hide()
-                elif right_btn_text:  # Non-empty string = show with text
-                    if home_page:
-                        home_page.int_panel_right_button.setText(right_btn_text)
-                        home_page.int_panel_right_button.show()
-                    if flight_page:
-                        flight_page.int_panel_right_button.setText(right_btn_text)
-                        flight_page.int_panel_right_button.show()
-                # Empty string = no change, do nothing
+
+        if not button_config:
+            return
+
+        home_page   = self.main_window.page_manager.get_page('home')
+        flight_page = self.main_window.page_manager.get_page('flight')
+
+        left_text  = button_config.get("left_button", "")
+        right_text = button_config.get("right_button", "")
+        mid_text   = button_config.get("middle_button", "")
+
+        use_approval_mode = left_text in ("APPROVE", "DENY") or right_text in ("APPROVE", "DENY")
+        if home_page:
+            home_page.connect_int_panel_buttons(default=not use_approval_mode)
+
+        # ---- left button ----
+        if "left_button" in button_config:
+            lbt = button_config["left_button"]
+            if lbt is None:
+                for p in (home_page, flight_page):
+                    if p: p.int_panel_left_button.hide()
+            elif lbt in ("EDIT", "LISTEN TO ATIS"):
+                # Cache wind metadata for later use by the dialog / ATIS request
+                self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
+                self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
+                self._wind_edit_initial_mag    = button_config.get("initial_wind_mag", 4)
+                for p in (home_page, flight_page):
+                    if p is None:
+                        continue
+                    p.int_panel_left_button.setText(lbt)
+                    p.int_panel_left_button.show()
+                    try:
+                        p.int_panel_left_button.clicked.disconnect()
+                    except Exception:
+                        pass
+                    if lbt == "EDIT":
+                        p.int_panel_left_button.clicked.connect(self._open_wind_edit_dialog)
+                    else:  # LISTEN TO ATIS
+                        p.int_panel_left_button.clicked.connect(self._send_request_atis)
+            elif lbt:
+                for p in (home_page, flight_page):
+                    if p:
+                        p.int_panel_left_button.setText(lbt)
+                        p.int_panel_left_button.show()
+
+        # ---- middle button (dynamic) ----
+        if mid_text:
+            self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
+            self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
+            self._wind_edit_initial_mag    = button_config.get("initial_wind_mag", 4)
+            for container_name in ("int_panel_button_container", "int_panel_button_container_flight"):
+                container = getattr(self.main_window.ui, container_name, None)
+                if container is None:
+                    continue
+                layout = container.layout()
+                if layout is None:
+                    continue
+                btn = self._make_middle_button(container, mid_text)
+                layout.insertWidget(1, btn)   # slot 1 = between left (0) and right (last)
+                self._middle_buttons.append(btn)
+
+        # ---- right button ----
+        if "right_button" in button_config:
+            rbt = button_config["right_button"]
+            if rbt is None:
+                for p in (home_page, flight_page):
+                    if p: p.int_panel_right_button.hide()
+            elif rbt:
+                for p in (home_page, flight_page):
+                    if p:
+                        p.int_panel_right_button.setText(rbt)
+                        p.int_panel_right_button.show()
+
+    # ------------------------------------------------------------------
+    # Middle-button helpers
+    # ------------------------------------------------------------------
+    def _cleanup_middle_buttons(self):
+        """Remove any dynamically inserted middle buttons from the layout."""
+        for btn in self._middle_buttons:
+            try:
+                if btn.parent() and btn.parent().layout():
+                    btn.parent().layout().removeWidget(btn)
+                btn.hide()
+                btn.deleteLater()
+            except Exception as e:
+                print(f"Middle button cleanup error: {e}")
+        self._middle_buttons = []
+
+    def _make_middle_button(self, parent, text: str):
+        """Create a styled middle button and wire its action."""
+        from PySide6.QtWidgets import QPushButton
+        from PySide6.QtCore import QSize
+        btn = QPushButton(text, parent)
+        btn.setMinimumSize(QSize(0, 50))
+        btn.setStyleSheet("""
+            QPushButton {
+                font: 700 12pt 'JetBrains Mono';
+                color: #55aaff;
+                background-color: rgb(33, 37, 43);
+                border: 2px solid #55aaff;
+                border-radius: 8px;
+                padding: 4px 12px;
+            }
+            QPushButton:hover  { background-color: rgba(85, 170, 255, 40); }
+            QPushButton:pressed { background-color: rgba(85, 170, 255, 80); }
+        """)
+        if text == "ENTER WIND":
+            btn.clicked.connect(self._open_wind_edit_dialog)
+        btn.show()
+        return btn
+
+    # ------------------------------------------------------------------
+    # Wind editor / ATIS
+    # ------------------------------------------------------------------
+    def _send_request_atis(self):
+        """Send an ATIS request impulsion to the automated radio agent."""
+        igs.output_set_impulsion("request_atis")
+        print("📻 Sent request_atis impulsion")
+
+    def _open_wind_edit_dialog(self):
+        """Open the wind edit popup (called when user clicks EDIT or ENTER WIND)."""
+        from widgets.wind_edit_dialog import WindEditDialog
+        runway_hdg  = self._wind_edit_runway_heading
+        initial_dir = self._wind_edit_initial_dir
+        initial_mag = self._wind_edit_initial_mag
+
+        dlg = WindEditDialog(
+            parent=self.main_window,
+            runway_heading=runway_hdg,
+            initial_dir=initial_dir,
+            initial_mag=initial_mag,
+        )
+        dlg.confirmed.connect(self._on_wind_edit_confirmed)
+        dlg.exec()
+
+    def _on_wind_edit_confirmed(self, direction: int, magnitude: int):
+        """Handle confirmed wind values from the editor dialog."""
+        from widgets.wind_edit_dialog import WindEditDialog
+        runway_hdg = getattr(self, "_wind_edit_runway_heading", 57)
+
+        cw = WindEditDialog.compute_crosswind(direction, magnitude, runway_hdg)
+        crosswind   = cw["crosswind"]
+        headwind    = cw["headwind"]
+        side        = cw["side"]
+
+        headwind_sign = "Headwind" if headwind >= 0 else "Tailwind"
+
+        result_text = (
+            f"WIND {direction:03d}° / {magnitude:02d} kt\n"
+            f"Crosswind: {crosswind:.1f} kt from the {side}\n"
+            f"{headwind_sign} component: {abs(headwind):.1f} kt"
+        )
+
+        self.main_window.set_interaction_tars_input(result_text, show=True)
+        print(
+            f"🌬️  Wind edit confirmed — DIR {direction:03d}° / MAG {magnitude} kt  "
+            f"| XWind {crosswind:.1f} kt {side}  "
+            f"| {headwind_sign} {abs(headwind):.1f} kt  "
+            f"(RWY {runway_hdg}°)"
+        )
     
     def _on_state_changed(self, state_data: dict):
         """Handle state change from TARS (main thread)"""

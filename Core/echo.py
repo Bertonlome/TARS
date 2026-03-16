@@ -74,6 +74,7 @@ class Echo(metaclass=Singleton):
         self.alt_sel_i = None  # Altitude select in feet
         self.heading_sel_i = None  # Heading select in degrees
         self.autopilot_airspeed_i = None  # Airspeed set for autopilot
+        self.fd_pitch_deg_i = None  # Flight director pitch reference in degrees
 
         # outputs
         self.pax_safety_o = None

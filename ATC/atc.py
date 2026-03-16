@@ -206,21 +206,21 @@ def integer_input_callback(io_type, name, value_type, value, my_data):
         if name == "declare_mayday":
             print(f"📡 Received: {name} with delay={value}s")
             time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Mayday. Continue-runway-heading. You-are-cleared-to-return-runway-zero-six-left-to-land. Emergency-vehicles-are-standing-by."
-            play_audio_async("audio/roger_mayday.mp3")
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Mayday. Continue-runway-heading. You-are-cleared-to-return-runway-two-four-right-to-land. Emergency-vehicles-are-standing-by."
+            play_audio_async("audio/mayday.mp3")
         elif name == "declare_panpan":
             print(f"📡 Received: {name} with delay={value}s")
             time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Pan-Pan. Continue-runway-heading. Advise-if-you-require-vectors-for-an-approach-to-runway-zero-six-left."
-            play_audio_async("audio/panpan_no_vectors.mp3")
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Pan-Pan. Continue-runway-heading. Advise-if-you-require-vectors-for-an-approach-to-runway-two-four-right."
+            play_audio_async("audio/roger_panpan_no_vectors.mp3")
         elif name == "request_vectors":
             print(f"📡 Received: {name} with delay={value}s")
             time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger. Turn-right-heading-one-five-zero, descend-and-maintain-three-thousand-feet. Expect-ILS-approach-runway-zero-six-left."
-            play_audio_async("audio/first_vectors.mp3")
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger. Turn-right-heading-one-five-zero, descend-and-maintain-three-thousand-feet. Expect-ILS-approach-runway-two-four-right."
+            play_audio_async("audio/roger_panpan_vectors.mp3")
             time.sleep(60 * 5)  # Simulate delay for vectoring (keep this as-is)
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, turn-right-heading-three-three-zero, when-established, cleared-ILS-runway-zero-six-left."
-            play_audio_async("audio/second_vectors.mp3")
+            agent_object.speech_output_o = "C-POLY, Montréal-Tower, turn-right-heading-zero-six-zero, when-established, cleared-ILS-runway-two-four-right."
+            play_audio_async("audio/second_vectors_after_panpan.mp3")
     except Exception as e:
         print(f"❌ Error in integer callback: {e}")
         import traceback
@@ -235,14 +235,14 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
             agent_object.speech_output_o = ""
             print(f"📡 Received: {name} - Resetting speech output")
         if name == "request_ATIS":
-            agent_object.speech_output_o = "Montreal-Trudeau-International-Airport-Information-Alpha. One-five-zero-zero-Zulu. Wind-zero-nine-zero-at-four-knots. Visibility-one-statute-mile-in-fog. Ceiling-one-thousand-five-hundred-overcast. Temperature-five, dewpoint-four. Altimeter-two-niner-niner-two. Runway-surfaces-dry. Departing-and-arriving-runway-in-use-is-zero-six-left. Advise-on-initial-contact-you-have-Information-Alpha."
+            agent_object.speech_output_o = "Montreal-Trudeau-International-Airport-Information-Alpha. One-five-zero-zero-Zulu. Wind-one-niner-zero-at-four-knots. Visibility-one-statute-mile-in-fog. Ceiling-one-thousand-five-hundred-overcast. Temperature-five, dewpoint-four. Altimeter-two-niner-niner-two. Runway-surfaces-dry. Departing-and-arriving-runway-in-use-is-two-four-right. Advise-on-initial-contact-you-have-Information-Alpha."
             print(f"📡 Received: {name}")
-            play_audio_file("audio/atis_alpha.mp3")
+            play_audio_file("audio/atis_v2.mp3")
         if name == "request_takeoff_clearance":
             # old clearance = "C-POLY, Montréal-Tower, wind zero-nine-zero-at-four,  cleared-for-takeoff runway zero-six-left. Maintain runway heading, climb to-five-thousand-feet. Proceed direct-AGMEB-then-OMEKI. Departure on one-one-eight-decimal-niner. Good-flight."
-            agent_object.speech_output_o = "C-POLY, Montreal-Tower, wind-0-9-0-at-4, cleared-for-takeoff runway-zero-six-left. Climb-to-5000ft."
+            agent_object.speech_output_o = "C-POLY, Montreal-Tower, wind-one-niner-zero-at-four, altimeter-two-niner-niner-two, cleared-for-takeoff runway-two-four-right."
             print(f"📡 Received: {name}")
-            play_audio_file("audio/takeoff_clearance_short.mp3")
+            play_audio_file("audio/takeoff_clearance_24_r_v2.mp3")
     except Exception as e:
         print(f"❌ Error in impulsion callback: {e}")
         import traceback

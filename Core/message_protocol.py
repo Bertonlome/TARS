@@ -348,7 +348,9 @@ def create_condition_message(procedure: str, task_object: str, value: str, condi
 
 
 def create_interaction_message(message: str, tars_input: str = "", 
-                              left_button: str = "", right_button: str = "") -> str:
+                              left_button: str = "", right_button: str = "",
+                              middle_button: str = "",
+                              extra_data: dict = None) -> str:
     """
     Create interaction panel message JSON
     
@@ -357,6 +359,7 @@ def create_interaction_message(message: str, tars_input: str = "",
         tars_input: Optional TARS reasoning/input (empty string = None, preserves existing UI text)
         left_button: Left button text (empty string = no change, None = hide, text = show with text)
         right_button: Right button text (empty string = no change, None = hide, text = show with text)
+        extra_data: Optional dict with additional fields merged into the JSON payload (e.g. runway_heading)
         
     Returns:
         JSON string
@@ -376,6 +379,12 @@ def create_interaction_message(message: str, tars_input: str = "",
         payload["left_button"] = left_button
     if right_button != "":
         payload["right_button"] = right_button
+    if middle_button != "":
+        payload["middle_button"] = middle_button
+
+    # Merge any extra domain-specific metadata
+    if extra_data:
+        payload.update(extra_data)
         
     return json.dumps(payload)
 
