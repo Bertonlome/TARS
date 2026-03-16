@@ -3,6 +3,11 @@ Home Page
 Main landing page for the TARS GUI application
 """
 
+# Set to True to show ALL procedures (NORM + EMER + ABNORM) from startup.
+# Set to False to only show NORM procedures initially; EMER/ABNORM tabs
+# will be injected dynamically as they are triggered during the scenario.
+SHOW_ALL_PROCEDURES = True
+
 from operator import index
 from tabnanny import check
 from pages.task_page_base import TaskPageBase
@@ -430,13 +435,17 @@ class HomePage(TaskPageBase):
                 classification = getattr(state, 'classification', 'NORM')
                 procedures_data.append((state.procedure, classification))
         
-        # Filter: only create tabs for NORM procedures initially
-        normal_procedures = [(name, cls) for name, cls in procedures_data if cls == 'NORM']
-        
-        print(f"Creating timeline tabs for NORMAL procedures: {[p[0] for p in normal_procedures]}")
-        
-        # Create a tab for each normal procedure
-        for procedure_name, classification in normal_procedures:
+        # Filter: only create tabs for NORM procedures initially,
+        # unless SHOW_ALL_PROCEDURES is True (debugging / full-preview mode).
+        if SHOW_ALL_PROCEDURES:
+            displayed_procedures = procedures_data
+            print(f"SHOW_ALL_PROCEDURES=True — creating tabs for ALL procedures: {[p[0] for p in displayed_procedures]}")
+        else:
+            displayed_procedures = [(name, cls) for name, cls in procedures_data if cls == 'NORM']
+            print(f"Creating timeline tabs for NORMAL procedures: {[p[0] for p in displayed_procedures]}")
+
+        # Create a tab for each selected procedure
+        for procedure_name, classification in displayed_procedures:
             self._create_procedure_tab(procedure_name, classification)
             self.discovered_procedures.add(procedure_name)
         

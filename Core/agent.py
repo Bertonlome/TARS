@@ -183,11 +183,17 @@ class TarsAgent:
 
         # CREW BRIEFING Procedure (WANRAM Departure Memo)
         self.fsm.add_transition(Transition(
-            self.states[("IDLE", "Idle", "WAITING")], 
-            self.states[("CREW BRIEFING", "Weather", "BRIEF")], 
-            self.is_started, 
+            self.states[("IDLE", "Idle", "WAITING")],
+            self.states[("CREW BRIEFING", "START", "BRIEFING")],
+            self.is_started,
+            self.dummy_action))
+
+        self.fsm.add_transition(Transition(
+            self.states[("CREW BRIEFING", "START", "BRIEFING")],
+            self.states[("CREW BRIEFING", "Weather", "BRIEF")],
+            self.is_acked,
             action=lambda: self.crew_briefing_action("weather") if self.states[("CREW BRIEFING", "Weather", "BRIEF")].autonomy_role in ("performer", "supporter") else self.dummy_action()))
-        
+
         self.fsm.add_transition(Transition(
             self.states[("CREW BRIEFING", "Weather", "BRIEF")], 
             self.states[("CREW BRIEFING", "Aircraft", "BRIEF")], 
@@ -3018,7 +3024,7 @@ class TarsAgent:
     INTERACTION_FLAPS_UP = "FLAP HANDLE — UP\n\nRetract flap handle to UP position.\nVerify FLAPS indicator shows 0° on EICAS."
 
     # Crew Briefing - WANRAM Departure Memo
-    INTERACTION_CREW_BRIEFING_WEATHER = "WEATHER\n\nTemp 5°C, fog, reduced visibility expected.\nWind 190° at 4 kts, light crosswind from the left for RWY 24R.\nRunway dry, no contamination reported.\nNo gusts, no thunderstorms, no wind shear reports."
+    INTERACTION_CREW_BRIEFING_WEATHER = "WEATHER\nTemp 5°C, fog, reduced visibility expected.\nWind 190° at 4 kts, light crosswind from the left for RWY 24R.\nRunway dry, no contamination reported.\nNo gusts, no thunderstorms, no wind shear reports."
     INTERACTION_CREW_BRIEFING_WEATHER_TARS = "METAR: CYUL 201500Z 19004KT 1SM FG OVC015 05/04 A2992\nCrosswind: 02 kt from the left\nHeadwind: 3.5 kt"
 
     INTERACTION_CREW_BRIEFING_AIRCRAFT = "AIRCRAFT\n\nCessna Citation Mustang (Model 510) light twin-engine jet.\nNo MEL items / tech log issues affecting departure."
