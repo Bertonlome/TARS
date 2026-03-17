@@ -59,6 +59,10 @@ class GUIAgent(QObject):
         self._wind_edit_runway_heading = 237
         self._wind_edit_initial_dir    = 0
         self._wind_edit_initial_mag    = 0
+        # True only when the current state is ENGINE FIRE / Chrono / START
+        self._show_chrono_button: bool = False
+        self._chrono_autonomy_role: str = ""
+        self._chrono_delay_before_action: float = 0
         
         # Connect internal signals to UI update methods
         self._alert_signal.connect(self._on_alert)
@@ -506,6 +510,10 @@ class GUIAgent(QObject):
                         p.int_panel_right_button.setText(rbt)
                         p.int_panel_right_button.show()
 
+        # Re-inject EDIT CHRONO after interaction message cleanup (only for Chrono START state)
+        if self._show_chrono_button:
+            self._inject_chrono_button()
+
     # ------------------------------------------------------------------
     # Middle-button helpers
     # ------------------------------------------------------------------
@@ -541,8 +549,35 @@ class GUIAgent(QObject):
         """)
         if text == "ENTER WIND":
             btn.clicked.connect(self._open_wind_edit_dialog)
+        elif text == "EDIT CHRONO":
+            btn.clicked.connect(self._open_chrono_edit_dialog)
         btn.show()
         return btn
+
+    # ------------------------------------------------------------------
+    # Chrono editor
+    # ------------------------------------------------------------------
+    def _inject_chrono_button(self):
+        """Insert an 'EDIT CHRONO' middle button into both interaction panel containers."""
+        for container_name in ("int_panel_button_container", "int_panel_button_container_flight"):
+            container = getattr(self.main_window.ui, container_name, None)
+            if container is None:
+                continue
+            layout = container.layout()
+            if layout is None:
+                continue
+            btn = self._make_middle_button(container, "EDIT CHRONO")
+            layout.insertWidget(1, btn)
+            self._middle_buttons.append(btn)
+
+    def _open_chrono_edit_dialog(self, auto_delay_ms: int = 0):
+        """Open the self-contained chrono popup. When the countdown ends, send task_acknowledged to TARS."""
+        from widgets.chrono_edit_dialog import ChronoEditDialog
+        auto_start = (self._chrono_autonomy_role == "performer")
+        dlg = ChronoEditDialog(parent=self.main_window, initial_seconds=15,
+                               auto_start=auto_start, auto_start_delay_ms=auto_delay_ms)
+        dlg.completed.connect(self._send_task_acknowledged)
+        dlg.exec()
 
     # ------------------------------------------------------------------
     # Wind editor / ATIS
@@ -624,8 +659,25 @@ class GUIAgent(QObject):
         if state_data.get('task_object') == 'Idle' and state_data.get('procedure') == 'IDLE':
             self._reset_speech_log_signal.emit()
 
+        is_chrono_start = (
+            state.procedure == "ENGINE FIRE"
+            and state.task_object == "Chrono"
+            and state.value == "START"
+        )
+        self._show_chrono_button = is_chrono_start
+        self._chrono_autonomy_role = state.autonomy_role if is_chrono_start else ""
+        self._chrono_delay_before_action = state.delay_before_action if is_chrono_start else 0
+
         # Call MainWindow's update_state method
         self.main_window.update_state(state)
+
+        if self._show_chrono_button:
+            if self._chrono_autonomy_role == "performer":
+                # Open dialog immediately; auto-start fires after delay_before_action
+                self._open_chrono_edit_dialog(auto_delay_ms=int(self._chrono_delay_before_action * 1000))
+            else:
+                # supporter: just show the EDIT CHRONO button
+                self._inject_chrono_button()
     
     def _on_next_state_changed(self, state_data: dict):
         """Handle next state update from TARS (main thread)"""

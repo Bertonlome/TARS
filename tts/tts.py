@@ -2,6 +2,7 @@ import threading
 import queue
 import re
 import hashlib
+import time
 from pathlib import Path
 from typing import Any
 import sounddevice as sd
@@ -90,6 +91,13 @@ _agent_ref = None
 
 # Last raw text that was queued for speaking (used by repeat_last)
 _last_queued_text: "str | None" = None
+
+# Stop-generation counter — incremented by stop() so the worker detects
+# mid-sentence interrupts.  Protected by _stop_generation_lock.
+_stop_generation: int = 0
+_stop_generation_lock = threading.Lock()
+
+
 
 # Callbacks for speech events
 _speak_callbacks = []  # Called when speech starts
@@ -342,19 +350,42 @@ def _tts_worker():
                 # Persist to cache so future calls skip the model
                 _save_to_cache(formatted_text, audio)
             
-            # Play audio (blocking) — same for both cached and freshly generated
+            # Play audio — interruptible via stop().
+            # We capture the current generation counter before starting playback.
+            # stop() increments the counter; polling detects the mismatch and
+            # calls sd.stop() to abort the current sentence.
+            with _stop_generation_lock:
+                my_generation = _stop_generation
+
             sd.play(audio, _sample_rate)
-            sd.wait()
-            
+
+            stopped_early = False
+            while sd.get_stream().active:
+                time.sleep(0.02)
+                with _stop_generation_lock:
+                    if _stop_generation != my_generation:
+                        stopped_early = True
+                        try:
+                            sd.stop()
+                        except Exception:
+                            pass
+                        break
+
             # Mark task as done (for queue.join() synchronization)
             _speech_queue.task_done()
-            
-            # Fire finished callbacks
-            for cb in _finished_callbacks:
-                try:
-                    cb(formatted_text)
-                except Exception as e:
-                    print(f"Error in TTS finished callback: {e}")
+
+            # Fire finished callbacks only if the sentence played to completion
+            # (stopped_early sentences are silently discarded so the next
+            # queued item resumes immediately without a spurious is_speaking
+            # flip-flop)
+            if not stopped_early:
+                for cb in _finished_callbacks:
+                    try:
+                        cb(formatted_text)
+                    except Exception as e:
+                        print(f"Error in TTS finished callback: {e}")
+            else:
+                print(f"⏹️  TTS sentence interrupted — skipping finished callbacks")
                     
         except Exception as e:
             print(f"❌ TTS error: {e}")
@@ -384,14 +415,23 @@ def speak_wait(text: str):
     _speech_queue.put(text)
 
 def stop():
-    """Immediately stop current TTS playback and discard any queued speech."""
-    # Stop sounddevice audio stream immediately
+    """Interrupt the currently playing sentence.
+
+    Increments the stop-generation counter so the worker's polling loop
+    detects the abort and exits immediately.  Any sentences already queued
+    are unaffected and will play after the current one is interrupted.
+    """
+    global _stop_generation
+    with _stop_generation_lock:
+        _stop_generation += 1
     try:
         sd.stop()
     except Exception:
         pass
 
-    # Drain all pending items from the queue
+
+def _drain_queue():
+    """Discard all pending items from the speech queue."""
     drained = 0
     while True:
         try:
@@ -400,24 +440,26 @@ def stop():
             drained += 1
         except queue.Empty:
             break
-
     if drained:
-        print(f"🛑 TTS stop: drained {drained} queued item(s)")
+        print(f"🗑️  TTS queue drained: {drained} item(s) discarded")
 
-    # Fire finished callbacks so is_speaking resets to False
-    for cb in _finished_callbacks:
-        try:
-            cb("")
-        except Exception:
-            pass
 
 def repeat_last():
-    """Stop current playback and replay the last spoken sentence from cache."""
+    """Replay the last spoken sentence from cache.
+
+    Clears any pending queued items so the repeat plays immediately, then
+    re-queues the last sentence.  Does NOT call stop() — the generation
+    counter is left unchanged so the worker's polling loop is not
+    disturbed.  If the user pressed tts_stop before calling this, the
+    worker has already exited its polling loop and is idle at queue.get();
+    calling stop() again here would only corrupt the audio device state
+    with a redundant sd.stop() on an already-closed stream.
+    """
     if _last_queued_text is None:
         print("⚠️  TTS repeat: nothing has been spoken yet")
         return
     print(f"🔁 TTS repeat: replaying last sentence")
-    stop()
+    _drain_queue()  # Clear any pending items so repeat plays next
     speak_wait(_last_queued_text)
 
 
