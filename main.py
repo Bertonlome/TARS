@@ -272,6 +272,15 @@ class MainWindow(QMainWindow):
         from gui_agent import create_gui_agent
         self.gui_agent = create_gui_agent(self, device="wlp0s20f3", port=5670, no_next_countdown=NO_NEXT_COUNTDOWN)
         print("✅ GUI Agent initialized and connected to TARS Agent")
+
+        # TTS speaking state - used to gate the picture click handler
+        self._tts_speaking = False
+
+        # Make tars_picture clickable to interrupt TTS
+        def _tars_picture_clicked(event):
+            if self._tts_speaking and hasattr(self, 'gui_agent'):
+                self.gui_agent.send_tts_stop()
+        self.ui.tars_picture.mousePressEvent = _tars_picture_clicked
         
     # End of init
     # /////////////////////////////////////////////////////////////
@@ -514,8 +523,10 @@ class MainWindow(QMainWindow):
     @QtCore.Slot(str)
     def on_tts_speak(self, text):
         print(f"🎤 TTS Speaking: {text}")  # Debug
+        self._tts_speaking = True
         pixmap = QPixmap("images/images/TARS_female_speaking.png")
         self.ui.tars_picture.setPixmap(pixmap)
+        self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         # Append to the speech log (right-aligned, blue)
         if hasattr(self, 'speech_log'):
             self.speech_log.append_tars_message(text)
@@ -623,8 +634,10 @@ class MainWindow(QMainWindow):
     @QtCore.Slot(str)
     def on_tts_finished(self, text):
         print(f"✅ TTS Finished: {text}")  # Debug
+        self._tts_speaking = False
         pixmap = QPixmap("images/images/TARS_female.png")
         self.ui.tars_picture.setPixmap(pixmap)
+        self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
     @QtCore.Slot(object)
     def update_state(self, current_state_obj):
@@ -674,7 +687,7 @@ class MainWindow(QMainWindow):
         if flight_page.next_countdown_timer is not None:
             flight_page.next_countdown_timer.stop()
         
-        home_page.set_checklist_label_passed(previous_state_obj.procedure, previous_state_obj.task_object, previous_state_obj.value) if previous_state_obj else None
+        home_page.set_checklist_label_passed(previous_state_obj.procedure, previous_state_obj.task_object, previous_state_obj.value, getattr(previous_state_obj, 'autonomy_role', None)) if previous_state_obj else None
 
         home_page.reset_radio_button(self.ui.check_radio_button)
         home_page.connect_int_panel_buttons()
@@ -821,15 +834,18 @@ class MainWindow(QMainWindow):
         
         # Handle previous task autonomy role display (home page)
         if previous_state_obj is not None:
-            if previous_state_obj.autonomy_role != "performer":
-                home_page.show_label(self.ui.p_t_human_pilot_icon_flight)
-                home_page.hide_label(self.ui.p_t_prog_widget_2)
-            else:
+            if previous_state_obj.autonomy_role == "performer":
                 home_page.show_label(self.ui.p_t_prog_widget_2)
-                home_page.hide_label(self.ui.p_t_human_pilot_icon_flight)
+                home_page.hide_label(self.ui.p_t_pilot_icon)
+            elif previous_state_obj.autonomy_role == "supporter":
+                home_page.hide_label(self.ui.p_t_prog_widget_2)
+                home_page.hide_label(self.ui.p_t_pilot_icon)
+            else:
+                home_page.show_label(self.ui.p_t_pilot_icon)
+                home_page.hide_label(self.ui.p_t_prog_widget_2)
         else:
             home_page.hide_label(self.ui.p_t_prog_widget_2)
-            home_page.hide_label(self.ui.p_t_human_pilot_icon_flight)
+            home_page.hide_label(self.ui.p_t_pilot_icon)
         
         # Handle previous task autonomy role display (flight page)
         if previous_state_obj is not None:
@@ -837,8 +853,12 @@ class MainWindow(QMainWindow):
                 # TARS is performer - show TARS icon, hide human icon
                 self.ui.p_t_tars_icon_flight.show()
                 self.ui.p_t_human_pilot_icon_flight.hide()
+            elif previous_state_obj.autonomy_role == "supporter":
+                # TARS is only supporting - hide both icons
+                self.ui.p_t_tars_icon_flight.hide()
+                self.ui.p_t_human_pilot_icon_flight.hide()
             else:
-                # Human is performer - show human icon, hide TARS icon
+                # Human performs - show human icon, hide TARS icon
                 self.ui.p_t_human_pilot_icon_flight.show()
                 self.ui.p_t_tars_icon_flight.hide()
         else:
@@ -851,18 +871,18 @@ class MainWindow(QMainWindow):
 
         # Handle current task autonomy role display and buttons (home page)
         if current_state_obj.autonomy_role != "performer" and current_state_obj.autonomy_role != "supporter":
-            home_page.show_label(self.ui.c_t_human_pilot_icon_flight)
+            home_page.show_label(self.ui.c_t_pilot_icon)
             home_page.hide_label(self.ui.c_t_prog_widget_2)
             home_page.hide_button(self.ui.cancel_task_button_2)
         elif current_state_obj.autonomy_role == "performer" :
             home_page.show_label(self.ui.c_t_prog_widget_2)
-            home_page.hide_label(self.ui.c_t_human_pilot_icon_flight)
+            home_page.hide_label(self.ui.c_t_pilot_icon)
             # Only reset button style if it's currently hidden (new task starting)
             if not self.ui.cancel_task_button_2.isVisible():
                 home_page.show_button(self.ui.cancel_task_button_2, "red")
         elif current_state_obj.autonomy_role == "supporter" :
             home_page.hide_label(self.ui.c_t_prog_widget_2)
-            home_page.show_label(self.ui.c_t_human_pilot_icon_flight)
+            home_page.hide_label(self.ui.c_t_pilot_icon)
             # Only reset button style if it's currently hidden (new task starting)
             if not self.ui.cancel_task_button_2.isVisible():
                 home_page.show_button(self.ui.cancel_task_button_2, "red")
@@ -876,24 +896,24 @@ class MainWindow(QMainWindow):
             self.ui.c_t_tars_icon_flight.show()
             self.ui.c_t_human_pilot_icon_flight.hide()
         elif current_state_obj.autonomy_role == "supporter":
-            # Human is performer - show human icon, hide TARS icon
-            self.ui.c_t_human_pilot_icon_flight.show()
+            # TARS is only supporting - hide both icons
+            self.ui.c_t_human_pilot_icon_flight.hide()
             self.ui.c_t_tars_icon_flight.hide()
 
         # Handle next task autonomy role display (home page)
         if next_state_obj is not None:
             if next_state_obj.autonomy_role != "performer" and next_state_obj.autonomy_role != "supporter":
                 home_page.hide_label(self.ui.n_t_prog_widget_2)
-                home_page.show_label(self.ui.n_t_human_pilot_icon_flight)
+                home_page.show_label(self.ui.n_t_pilot_icon)
             elif next_state_obj.autonomy_role == "performer" :
                 home_page.show_label(self.ui.n_t_prog_widget_2)
-                home_page.hide_label(self.ui.n_t_human_pilot_icon_flight)
+                home_page.hide_label(self.ui.n_t_pilot_icon)
             elif next_state_obj.autonomy_role == "supporter" :
                 home_page.hide_label(self.ui.n_t_prog_widget_2)
-                home_page.show_label(self.ui.n_t_human_pilot_icon_flight)
+                home_page.hide_label(self.ui.n_t_pilot_icon)
         else:
             home_page.hide_label(self.ui.n_t_prog_widget_2)
-            home_page.hide_label(self.ui.n_t_human_pilot_icon_flight)
+            home_page.hide_label(self.ui.n_t_pilot_icon)
         
         # Handle next task autonomy role display (flight page)
         if next_state_obj is not None:
@@ -904,7 +924,8 @@ class MainWindow(QMainWindow):
                 self.ui.n_t_tars_icon_flight.show()
                 self.ui.n_t_human_pilot_icon_flight.hide()
             elif next_state_obj.autonomy_role == "supporter":
-                self.ui.n_t_human_pilot_icon_flight.show()
+                # TARS is only supporting - hide both icons
+                self.ui.n_t_human_pilot_icon_flight.hide()
                 self.ui.n_t_tars_icon_flight.hide()
         else:
             # No next task - hide both icons
@@ -1016,13 +1037,6 @@ class MainWindow(QMainWindow):
         """Return a string with left and right text separated by dashes, aligned to total_width."""
         left = str(left)
         right = str(right)
-        
-        # Replace dynamic text with actual engine side
-        if "affected engine" in left.lower() or "affected side" in left.lower():
-            left = left.replace("affected engine", self.agent.engine_failed_side)
-            left = left.replace("Affected engine", self.agent.engine_failed_side)
-            left = left.replace("affected side", self.agent.engine_failed_side)
-            left = left.replace("Affected side", self.agent.engine_failed_side)
         
         dash_count = max(2, total_width - len(left) - len(right))
         return f"{left}{dash_char * dash_count}{right}"

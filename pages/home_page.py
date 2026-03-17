@@ -53,8 +53,8 @@ class HomePage(TaskPageBase):
                 # Ensure the button is visible in the scroll area
                 scroll_area.ensureWidgetVisible(button, 50, 50)
 
-    def set_checklist_label_passed(self, procedure_name, task_object, value):
-        """Set the checklist button to 'passed' (neutral green, no box)"""
+    def set_checklist_label_passed(self, procedure_name, task_object, value, autonomy_role=None):
+        """Set the checklist button to 'passed' (blue for TARS/performer, green for human)"""
         button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
         if not button:
             return  # or handle the missing button case appropriately
@@ -69,24 +69,25 @@ class HomePage(TaskPageBase):
                 button_text = button_text[:end_index] + ": " + button_text[end_index:]
         #button_text = button_text.replace("-", "")
         button.setText(button_text)
+        color = "#55aaff" if autonomy_role == "performer" else "#55de71"
         if button:
-            button.setStyleSheet("""
-                QPushButton {
+            button.setStyleSheet(f"""
+                QPushButton {{
                     font: 600 12pt 'OCR A';
-                    color: #55de71;
+                    color: {color};
                     text-align: left;
                     border: none;
                     border-radius: 0px;
                     padding: 4px;
                     background-color: transparent;
-                }
-                QPushButton:hover {
+                }}
+                QPushButton:hover {{
                     background-color: rgba(85, 170, 255, 30);
                     border-radius: 5px;
-                }
-                QPushButton:pressed {
+                }}
+                QPushButton:pressed {{
                     background-color: rgba(85, 170, 255, 50);
-                }
+                }}
             """)
     
     def set_checklist_label_violated(self, procedure_name, task_object, value):
@@ -473,12 +474,7 @@ class HomePage(TaskPageBase):
         timeline_widget.task_clicked.connect(self.on_task_clicked)
         
         # Determine tab label based on classification
-        if classification == 'EMER':
-            tab_label = f"️{procedure_name}"
-        elif classification == 'ABNORM':
-            tab_label = f"{procedure_name}"
-        else:
-            tab_label = procedure_name
+        tab_label = procedure_name
         
         # Add widget to tab FIRST before loading data
         # This ensures Qt properly manages the widget hierarchy
@@ -602,13 +598,7 @@ class HomePage(TaskPageBase):
         timeline_widget.task_clicked.connect(self.on_task_clicked)
         
         # Determine tab label based on classification
-        if classification == 'EMER':
-            tab_label = f"⚠️ {procedure_name}"
-        elif classification == 'ABNORM':
-            tab_label = f"{procedure_name}"
-        else:
-            # For normal procedures discovered during runtime (checklists, etc.)
-            tab_label = f"{procedure_name}"
+        tab_label = procedure_name
         
         # Insert tab at specific position (not at the end)
         tab_index = tab_widget.insertTab(insert_position, timeline_widget, tab_label)
@@ -656,15 +646,15 @@ class HomePage(TaskPageBase):
         # Switch to the tab for the current procedure
         if procedure_name != self.current_procedure:
             self.current_procedure = procedure_name
-            
-            # Find and activate the tab for this procedure
+
+            # Find and activate the tab using the stored widget reference (avoids
+            # fragile label-text matching which breaks when labels have emoji prefixes)
             tab_widget = self.widgets.stack_tab_container
-            for i in range(tab_widget.count()):
-                # Remove emoji prefix for comparison
-                tab_text = tab_widget.tabText(i).replace("⚠️ ", "").replace("⚡ ", "").replace("📋 ", "").strip()
-                if tab_text == procedure_name:
-                    tab_widget.setCurrentIndex(i)
-                    break
+            timeline_widget_for_lookup = self.task_timeline_widgets.get(procedure_name)
+            if timeline_widget_for_lookup:
+                idx = tab_widget.indexOf(timeline_widget_for_lookup)
+                if idx >= 0:
+                    tab_widget.setCurrentIndex(idx)
         
         # Get the timeline widget for this procedure
         timeline_widget = self.task_timeline_widgets.get(procedure_name)

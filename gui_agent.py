@@ -827,6 +827,11 @@ class GUIAgent(QObject):
         print("🛑 Sent stop_procedure to TARS (emergency stop)")
         igs.output_set_impulsion("tts_stop")
         print("🛑 Sent tts_stop to TTS agent (halt audio)")
+
+    def send_tts_stop(self):
+        """Send tts_stop impulsion to interrupt current TTS playback immediately"""
+        igs.output_set_impulsion("tts_stop")
+        print("🛑 Sent tts_stop to TTS agent (user interrupted)")
     
     def send_force_state_jump(self, procedure: str, task_object: str, value: str):
         """Force TARS FSM to jump to specific state (from UI clicks)"""

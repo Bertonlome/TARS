@@ -75,6 +75,7 @@ class Echo(metaclass=Singleton):
         self.heading_sel_i = None  # Heading select in degrees
         self.autopilot_airspeed_i = None  # Airspeed set for autopilot
         self.fd_pitch_deg_i = None  # Flight director pitch reference in degrees
+        self.freq_1_i = None  # COM1 frequency (e.g. 11990 = 119.90 MHz)
 
         # outputs
         self.pax_safety_o = None
