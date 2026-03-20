@@ -97,6 +97,40 @@ _last_queued_text: "str | None" = None
 _stop_generation: int = 0
 _stop_generation_lock = threading.Lock()
 
+# Mute flag — when True, incoming sentences are silently discarded unless
+# they are ATC bypass sentences (contain specific callsign keywords).
+_muted: bool = False
+_muted_lock = threading.Lock()
+
+# ATC-speaking gate — cleared while ATC is playing audio so the TTS worker
+# blocks before starting playback; set (clear path) when ATC is idle.
+# Initialised to set so TTS plays immediately when ATC is idle at startup.
+_atc_clear_event = threading.Event()
+_atc_clear_event.set()  # ATC is idle at startup
+
+
+def set_atc_speaking(is_speaking: bool) -> None:
+    """Called by the TTS agent when ATC_Agent.is_speaking changes.
+
+    Blocks the TTS worker while ATC is playing, releases it when ATC stops.
+    """
+    if is_speaking:
+        _atc_clear_event.clear()   # TTS worker will block at the gate
+        print("📵 ATC speaking — TTS playback gated")
+    else:
+        _atc_clear_event.set()     # Wake any waiting TTS worker
+        print("📵 ATC done — TTS playback gate released")
+
+# Keywords that cause a sentence to bypass the mute and always play.
+# These are pilot ATC readbacks that must be audible regardless of mute state.
+_ATC_BYPASS_KEYWORDS = ["C-POLY", "Cessna Charlie Papa Oscar Lima Yankee"]
+
+
+def _is_atc_bypass(text: str) -> bool:
+    """Return True if *text* contains an ATC callsign keyword and must bypass mute."""
+    tl = text.lower()
+    return any(kw.lower() in tl for kw in _ATC_BYPASS_KEYWORDS)
+
 
 
 # Callbacks for speech events
@@ -302,7 +336,27 @@ def _tts_worker():
         try:
             # Format the text with variable interpolation
             display_text = format_callout(text)
-            
+
+            # ---------------------------------------------------------------
+            # Mute check: silently discard non-ATC sentences when muted.
+            # ATC bypass sentences (pilot readbacks) always play.
+            # ---------------------------------------------------------------
+            with _muted_lock:
+                is_muted = _muted
+            if is_muted and not _is_atc_bypass(display_text):
+                print(f"🔇 TTS muted: discarding '{display_text[:50]}'")
+                _speech_queue.task_done()
+                continue
+
+            # ---------------------------------------------------------------
+            # ATC gate: if ATC is currently broadcasting, wait until it stops
+            # before starting our own audio (avoids simultaneous playback).
+            # ---------------------------------------------------------------
+            if not _atc_clear_event.is_set():
+                print("⏳ TTS waiting for ATC to finish...")
+                _atc_clear_event.wait()
+                print("▶️ ATC finished — resuming TTS")
+
             # Convert acronyms first (for audio only)
             formatted_text = convert_acronyms(display_text)
             
@@ -350,26 +404,45 @@ def _tts_worker():
                 # Persist to cache so future calls skip the model
                 _save_to_cache(formatted_text, audio)
             
-            # Play audio — interruptible via stop().
-            # We capture the current generation counter before starting playback.
-            # stop() increments the counter; polling detects the mismatch and
-            # calls sd.stop() to abort the current sentence.
+            # Play audio — mutable via stop().
+            # Each sentence gets its own OutputStream so there is no shared
+            # stream state that can be corrupted.  When stop() is called the
+            # generation counter changes; the callback detects this, outputs
+            # silence and raises CallbackStop to end the stream cleanly.
             with _stop_generation_lock:
                 my_generation = _stop_generation
 
-            sd.play(audio, _sample_rate)
-
+            audio_pos = 0
             stopped_early = False
-            while sd.get_stream().active:
-                time.sleep(0.02)
+            playback_done = threading.Event()
+
+            def _audio_cb(outdata, frames, time_info, status,
+                          _gen=my_generation):
+                nonlocal audio_pos, stopped_early
                 with _stop_generation_lock:
-                    if _stop_generation != my_generation:
-                        stopped_early = True
-                        try:
-                            sd.stop()
-                        except Exception:
-                            pass
-                        break
+                    should_mute = _stop_generation != _gen
+                if should_mute:
+                    stopped_early = True
+                    outdata[:] = 0
+                    raise sd.CallbackStop()
+                remaining = len(audio) - audio_pos
+                chunk = min(frames, remaining)
+                if chunk > 0:
+                    outdata[:chunk, 0] = audio[audio_pos:audio_pos + chunk]
+                    audio_pos += chunk
+                if chunk < frames:
+                    outdata[chunk:] = 0
+                if audio_pos >= len(audio):
+                    raise sd.CallbackStop()
+
+            with sd.OutputStream(
+                samplerate=_sample_rate,
+                channels=1,
+                dtype='float32',
+                callback=_audio_cb,
+                finished_callback=playback_done.set
+            ):
+                playback_done.wait()
 
             # Mark task as done (for queue.join() synchronization)
             _speech_queue.task_done()
@@ -415,19 +488,36 @@ def speak_wait(text: str):
     _speech_queue.put(text)
 
 def stop():
-    """Interrupt the currently playing sentence.
+    """Interrupt the currently playing sentence (one-shot, does not mute future sentences).
 
-    Increments the stop-generation counter so the worker's polling loop
-    detects the abort and exits immediately.  Any sentences already queued
-    are unaffected and will play after the current one is interrupted.
+    Increments the stop-generation counter so the audio callback outputs
+    silence and ends the stream cleanly.  Does NOT call sd.stop() — that
+    would corrupt the PortAudio device state and prevent subsequent
+    sentences from playing.
     """
     global _stop_generation
     with _stop_generation_lock:
         _stop_generation += 1
-    try:
-        sd.stop()
-    except Exception:
-        pass
+
+
+def mute():
+    """Persistently mute TTS: discard all future sentences until unmute() is called.
+
+    Also interrupts the currently playing sentence immediately.
+    ATC bypass sentences (pilot readbacks) will still play through the mute.
+    """
+    global _muted
+    with _muted_lock:
+        _muted = True
+    stop()  # Interrupt the current sentence
+
+
+def unmute():
+    """Re-enable TTS playback after a previous mute() call."""
+    global _muted
+    with _muted_lock:
+        _muted = False
+    print("🔊 TTS unmuted — playback re-enabled")
 
 
 def _drain_queue():

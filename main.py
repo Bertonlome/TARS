@@ -275,11 +275,31 @@ class MainWindow(QMainWindow):
 
         # TTS speaking state - used to gate the picture click handler
         self._tts_speaking = False
+        # Persistent mute state - set by clicking the TARS picture
+        self._tts_muted = False
 
-        # Make tars_picture clickable to interrupt TTS
+        # Make tars_picture clickable to toggle TTS mute/unmute
         def _tars_picture_clicked(event):
-            if self._tts_speaking and hasattr(self, 'gui_agent'):
+            if not hasattr(self, 'gui_agent'):
+                return
+            if self._tts_muted:
+                # Unmute
+                self._tts_muted = False
+                self.gui_agent.send_tts_unmute()
+                if self._tts_speaking:
+                    pixmap = QPixmap("images/images/TARS_female_speaking.png")
+                    self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+                else:
+                    pixmap = QPixmap("images/images/TARS_female.png")
+                    self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
+                self.ui.tars_picture.setPixmap(pixmap)
+            else:
+                # Mute
+                self._tts_muted = True
                 self.gui_agent.send_tts_stop()
+                pixmap = QPixmap("images/images/tars_female_muted.png")
+                self.ui.tars_picture.setPixmap(pixmap)
+                self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.ui.tars_picture.mousePressEvent = _tars_picture_clicked
         
     # End of init
@@ -474,6 +494,26 @@ class MainWindow(QMainWindow):
         home_page = self.get_home_page()
         if home_page:
             home_page.refresh_task_timeline_data()
+
+    @QtCore.Slot(str)
+    def on_allocation_reloaded(self, csv_filename: str):
+        """
+        Called when TARS fully reloaded its task allocation from a new CSV.
+        Reload the local agent stub and refresh the timeline in the GUI.
+        """
+        from pathlib import Path as _Path
+        csv_path = _Path(__file__).parent / "Core" / csv_filename
+        if not csv_path.exists():
+            print(f"⚠️ on_allocation_reloaded: CSV not found locally: {csv_path}")
+            return
+        try:
+            self.agent.states = self.agent.create_states_from_csv(csv_path)
+            self.agent.checklists = self.agent.create_checklists_from_states(self.agent.states)
+            self.agent.CURRENT_BRIEFING_EXPORT_LOADED = csv_filename
+            print(f"✅ GUI reloaded allocation: '{csv_filename}' ({len(self.agent.states)} states)")
+            self.refresh_task_timeline_data()
+        except Exception as e:
+            print(f"❌ on_allocation_reloaded failed: {e}")
     
     @QtCore.Slot(str)
     def inject_emergency_procedure(self, procedure_name):
@@ -540,8 +580,11 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap("images/images/TARS_female_listening.png")
             self.ui.tars_picture.setPixmap(pixmap)
         else:
-            # Return to normal image when STT stops
-            pixmap = QPixmap("images/images/TARS_female.png")
+            # Return to muted image if muted, otherwise default
+            if self._tts_muted:
+                pixmap = QPixmap("images/images/tars_female_muted.png")
+            else:
+                pixmap = QPixmap("images/images/TARS_female.png")
             self.ui.tars_picture.setPixmap(pixmap)
     
     @QtCore.Slot(object, str)
@@ -635,9 +678,13 @@ class MainWindow(QMainWindow):
     def on_tts_finished(self, text):
         print(f"✅ TTS Finished: {text}")  # Debug
         self._tts_speaking = False
-        pixmap = QPixmap("images/images/TARS_female.png")
+        if self._tts_muted:
+            pixmap = QPixmap("images/images/tars_female_muted.png")
+            self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+        else:
+            pixmap = QPixmap("images/images/TARS_female.png")
+            self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
         self.ui.tars_picture.setPixmap(pixmap)
-        self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
 
     @QtCore.Slot(object)
     def update_state(self, current_state_obj):

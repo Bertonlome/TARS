@@ -43,6 +43,7 @@ class GUIAgent(QObject):
     _state_divider_signal = Signal(str) # FSM state transition divider for the log
     _reset_speech_log_signal = Signal()  # Clear log on TARS reset
     _tars_status_signal = Signal(str)  # Status label text update
+    _allocation_reloaded_signal = Signal(str)  # CSV filename after TARS reloads allocation
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
@@ -80,6 +81,7 @@ class GUIAgent(QObject):
         self._state_divider_signal.connect(self.main_window.on_state_divider)
         self._reset_speech_log_signal.connect(self.main_window.reset_speech_log)
         self._tars_status_signal.connect(self.main_window.on_tars_status)
+        self._allocation_reloaded_signal.connect(self.main_window.on_allocation_reloaded)
         
         # Connect MainWindow user action signals to TARS inputs
         self._connect_ui_to_tars()
@@ -117,6 +119,7 @@ class GUIAgent(QObject):
         igs.input_create("atc_speech_output", igs.STRING_T, None)  # ATC speech_output feed
         igs.input_create("stt_speech_output", igs.STRING_T, None)   # STT recognized text feed
         igs.input_create("tars_status", igs.STRING_T, None)  # TARS status text for the GUI label
+        igs.input_create("allocation_reloaded", igs.STRING_T, None)  # JSON: {csv, states_count} when TARS reloads
         
         # Observe inputs
         igs.observe_input("current_state", self._on_current_state_input, None)
@@ -140,6 +143,7 @@ class GUIAgent(QObject):
         igs.observe_input("atc_speech_output", self._on_atc_speech_output_input, None)
         igs.observe_input("stt_speech_output", self._on_stt_speech_output_input, None)
         igs.observe_input("tars_status", self._on_tars_status_input, None)
+        igs.observe_input("allocation_reloaded", self._on_allocation_reloaded_input, None)
         # Map ATC_Agent.speech_output → our atc_speech_output input
         igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
         # Map Speech_to_Text_Agent.speech_output → our stt_speech_output input
@@ -161,6 +165,7 @@ class GUIAgent(QObject):
         igs.mapping_add("action_about_to_fire", "TARS_Agent", "action_about_to_fire")
         igs.mapping_add("checklist_item_complete", "TARS_Agent", "checklist_item_complete")
         igs.mapping_add("emergency_procedure_inject", "TARS_Agent", "emergency_procedure_inject")
+        igs.mapping_add("allocation_reloaded", "TARS_Agent", "allocation_reloaded")
         # Map Speech_to_Text_Agent.is_listening → our stt_listening input
         igs.mapping_add("stt_listening", "Speech_to_Text_Agent", "is_listening")
         
@@ -171,7 +176,8 @@ class GUIAgent(QObject):
         igs.output_create("task_override", igs.IMPULSION_T, None)  # Force next state transition
         igs.output_create("start_procedure", igs.IMPULSION_T, None)
         igs.output_create("stop_procedure", igs.IMPULSION_T, None)
-        igs.output_create("tts_stop", igs.IMPULSION_T, None)  # Stop TTS playback immediately
+        igs.output_create("tts_stop", igs.IMPULSION_T, None)  # Stop TTS playback immediately (also mutes)
+        igs.output_create("tts_unmute", igs.IMPULSION_T, None)  # Re-enable TTS after mute
         igs.output_create("emergency_inject", igs.STRING_T, None)
         igs.output_create("force_state_jump", igs.STRING_T, None)
         igs.output_create("countdown_complete", igs.IMPULSION_T, None)
@@ -179,6 +185,7 @@ class GUIAgent(QObject):
         igs.output_create("next_step", igs.IMPULSION_T, None)  # Jump to next state (dev mode)
         igs.output_create("previous_step", igs.IMPULSION_T, None)  # Jump to previous state (dev mode)
         igs.output_create("request_atis", igs.IMPULSION_T, None)  # Request ATIS from automated radio
+        igs.output_create("load_csv", igs.STRING_T, None)  # Send CSV filename to TARS for full reload
         
         print(f"✅ GUI Agent '{self.agent_name}' initialized with Ingescape I/O")
     
@@ -204,6 +211,18 @@ class GUIAgent(QObject):
                 self._tars_status_signal.emit(str(value))
         except Exception as e:
             print(f"Error processing tars_status: {e}")
+
+    def _on_allocation_reloaded_input(self, io_type, name, value_type, value, my_data):
+        """Handle allocation_reloaded notification from TARS — GUI reloads its local stub."""
+        try:
+            data = json.loads(value)
+            csv_filename = data.get("csv", "")
+            states_count = data.get("states_count", 0)
+            print(f"📊 Allocation reloaded: '{csv_filename}' ({states_count} states)")
+            if csv_filename:
+                self._allocation_reloaded_signal.emit(csv_filename)
+        except Exception as e:
+            print(f"Error processing allocation_reloaded: {e}")
 
     def _on_atc_speech_output_input(self, io_type, name, value_type, value, my_data):
         """Handle ATC speech_output — forward to the chat log (left side)."""
@@ -240,6 +259,8 @@ class GUIAgent(QObject):
     def _on_interaction_message_input(self, io_type, name, value_type, value, my_data):
         """Handle interaction panel message from TARS"""
         try:
+            if not value or not value.strip():
+                return
             msg_data = json.loads(value)
             # None means "don't update" (preserve existing text)
             message = msg_data.get("message", "")
@@ -829,9 +850,14 @@ class GUIAgent(QObject):
         print("🛑 Sent tts_stop to TTS agent (halt audio)")
 
     def send_tts_stop(self):
-        """Send tts_stop impulsion to interrupt current TTS playback immediately"""
+        """Send tts_stop impulsion to mute TTS persistently (interrupts current + all future sentences)"""
         igs.output_set_impulsion("tts_stop")
-        print("🛑 Sent tts_stop to TTS agent (user interrupted)")
+        print("🔊 Sent tts_stop to TTS agent (user muted)")
+
+    def send_tts_unmute(self):
+        """Send tts_unmute impulsion to re-enable TTS playback after mute"""
+        igs.output_set_impulsion("tts_unmute")
+        print("🔊 Sent tts_unmute to TTS agent (user unmuted)")
     
     def send_force_state_jump(self, procedure: str, task_object: str, value: str):
         """Force TARS FSM to jump to specific state (from UI clicks)"""
@@ -854,6 +880,15 @@ class GUIAgent(QObject):
         import json
         igs.output_set_string("update_allocation", json.dumps(allocation_data))
         print(f"📤 Sent update_allocation to TARS: {len(allocation_data)} tasks")
+
+    def send_load_csv(self, csv_filename: str):
+        """Send a CSV filename to TARS to fully reload task allocation from that file.
+
+        Args:
+            csv_filename: Bare filename (e.g. 'HUMAN_PERF_NO_TARS.csv') located in Core/.
+        """
+        igs.output_set_string("load_csv", csv_filename)
+        print(f"📤 Sent load_csv to TARS: '{csv_filename}'")
 
 
 def create_gui_agent(main_window: MainWindow, 

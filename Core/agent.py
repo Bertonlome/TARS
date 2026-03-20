@@ -2004,12 +2004,56 @@ class TarsAgent:
         assert isinstance(agent_object, Echo)
         
         # GUI Agent → TARS Agent string inputs (Phase 6)
-        if name == "emergency_inject":
+        if name == "load_csv":
+            # Reload all task allocation states from a new CSV file
+            import os
+            # Security: only allow bare filenames (no path separators) that exist in Core/
+            if not value or os.sep in value or '/' in value or '..' in value:
+                print(f"❌ load_csv rejected: unsafe filename '{value}'")
+                return
+            csv_dir = Path(__file__).parent
+            csv_path = csv_dir / value
+            if not csv_path.resolve().parent == csv_dir.resolve():
+                print(f"❌ load_csv rejected: path traversal attempt '{value}'")
+                return
+            if not csv_path.exists():
+                print(f"❌ load_csv: file not found: {csv_path}")
+                return
+            try:
+                new_states = self.create_states_from_csv(csv_path)
+                new_checklists = self.create_checklists_from_states(new_states)
+                self.states = new_states
+                self.checklists = new_checklists
+                self.CURRENT_BRIEFING_EXPORT_LOADED = value
+                # Remap all FSM transition state references to new state objects
+                # (from_state/to_state were captured at init; must be updated so
+                #  delay_before_action, delay_after_action, and role fields reflect the new CSV)
+                for t in self.fsm.transitions:
+                    from_key = (t.from_state.procedure, t.from_state.task_object, t.from_state.value)
+                    to_key = (t.to_state.procedure, t.to_state.task_object, t.to_state.value)
+                    if from_key in new_states:
+                        t.from_state = new_states[from_key]
+                    if to_key in new_states:
+                        t.to_state = new_states[to_key]
+                # Reset FSM to IDLE
+                idle_key = ("IDLE", "Idle", "WAITING")
+                if idle_key in self.states:
+                    self.fsm.current_state = self.states[idle_key]
+                import json as _json
+                payload = _json.dumps({"csv": value, "states_count": len(self.states)})
+                igs.output_set_string("allocation_reloaded", payload)
+                print(f"✅ load_csv: loaded '{value}' ({len(self.states)} states), FSM transitions remapped, reset to IDLE")
+            except Exception as e:
+                print(f"❌ load_csv failed for '{value}': {e}")
+
+        elif name == "emergency_inject":
             print(f"🚨 Emergency procedure inject requested: {value}")
             # TODO: Implement emergency procedure injection logic
             
         elif name == "update_allocation":
             # Briefing page sent a new role-allocation from the GUI
+            if not value or not value.strip():
+                return
             import json
             try:
                 allocation_list = json.loads(value)
@@ -2030,6 +2074,8 @@ class TarsAgent:
 
         elif name == "force_state_jump":
             # User clicked on checklist or timeline - force jump to that state
+            if not value or not value.strip():
+                return
             import json
             try:
                 state_info = json.loads(value)
@@ -2193,6 +2239,7 @@ class TarsAgent:
         
         # TTS Agent communication
         igs.output_create("tts_request", igs.STRING_T, None)  # Text to send to TTS agent
+        igs.output_create("allocation_reloaded", igs.STRING_T, None)  # JSON: {csv, states_count} after load_csv
 
         igs.input_create("Reset", igs.IMPULSION_T, None)
         igs.input_create("On_Off", igs.BOOL_T, None)
@@ -2262,6 +2309,7 @@ class TarsAgent:
         igs.input_create("force_state_jump", igs.STRING_T, None)  # Force jump to specific state (from UI clicks)
         igs.input_create("countdown_complete", igs.IMPULSION_T, None)  # Countdown timer reached zero
         igs.input_create("update_allocation", igs.STRING_T, None)  # Briefing role-allocation update (JSON list)
+        igs.input_create("load_csv", igs.STRING_T, None)  # Reload all states from a new CSV filename
         
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
         igs.observe_input("next_step", self.impulsion_input_callback, self.agent)
@@ -2328,6 +2376,7 @@ class TarsAgent:
         igs.observe_input("force_state_jump", self.string_input_callback, self.agent)
         igs.observe_input("countdown_complete", self.impulsion_input_callback, self.agent)
         igs.observe_input("update_allocation", self.string_input_callback, self.agent)
+        igs.observe_input("load_csv", self.string_input_callback, self.agent)
 
         # Map Aircraft outputs → our inputs
         igs.mapping_add("airspeed", "Aircraft", "airspeed")
@@ -2391,6 +2440,7 @@ class TarsAgent:
         igs.mapping_add("countdown_complete", "Shared Interface", "countdown_complete")
         igs.mapping_add("force_state_jump", "Shared Interface", "force_state_jump")
         igs.mapping_add("update_allocation", "Shared Interface", "update_allocation")
+        igs.mapping_add("load_csv", "Shared Interface", "load_csv")
         # Map Speech_to_Text_Agent.speech_output → our speech_input
         igs.mapping_add("speech_input", "Speech_to_Text_Agent", "speech_output")
 

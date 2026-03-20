@@ -95,7 +95,7 @@ class HomePage(TaskPageBase):
         button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
         if not button:
             return
-        # Revert to original white color to show it's no longer validated
+        # Revert to show it's no longer validated
         button.setStyleSheet("""
             QPushButton {
                 font: 600 12pt 'OCR A';
@@ -412,6 +412,8 @@ class HomePage(TaskPageBase):
         # Clear any existing tabs
         tab_widget.clear()
         self.task_timeline_widgets.clear()
+        self.discovered_procedures = set()
+        self.current_procedure = None
         
         # Load tasks directly from agent (single source of truth)
         if not (hasattr(self.main_window, 'agent') and self.main_window.agent):
@@ -495,9 +497,14 @@ class HomePage(TaskPageBase):
 
     def _create_checklists_tabs(self, checklists):
         tab_widget = self.widgets.ecl_tab_container
-        tab_widget.removeTab(0)
-        tab_widget.removeTab(0)
+        # Remove all existing tabs (first call: Qt Designer placeholders; subsequent calls: previous checklist tabs)
+        while tab_widget.count() > 0:
+            tab_widget.removeTab(0)
+        # Reset dictionaries so stale button/scroll-area references are cleared
+        self.checklist_item_labels = {}
+        self.checklist_scroll_areas = {}
         from PySide6.QtWidgets import QScrollArea, QPushButton
+        from PySide6.QtWidgets import QScroller
         for checklist in checklists.values():
             procedure_name = checklist[0]['procedure']
             item_labels = {}  # (task_object, value) -> QPushButton (changed from QLabel)
@@ -546,6 +553,11 @@ class HomePage(TaskPageBase):
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
             scroll.setWidget(container)
+            # Enable touch / click-and-drag kinetic scrolling (same as speech log)
+            QScroller.grabGesture(
+                scroll.viewport(),
+                QScroller.ScrollerGestureType.TouchGesture
+            )
             self.checklist_scroll_areas[procedure_name] = scroll  # Store reference for auto-scroll
             tab_index = tab_widget.addTab(scroll, procedure_name)
         print(f"Created checklist tab with {len(checklists)} checklists at index {tab_index}")

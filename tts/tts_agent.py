@@ -49,16 +49,25 @@ class TTSAgent:
             tts.speak_wait(value)
 
     def on_tts_stop(self, ioType, name, valueType, value, myData):
-        """Called when a stop impulsion is received - halt playback immediately"""
-        print("🛑 TTS stop received - halting playback")
-        tts.stop()
+        """Called when a stop impulsion is received - mute TTS persistently"""
+        print("🔊 TTS stop received - muting playback")
+        tts.mute()
         igs.output_set_bool("is_speaking", False)
         igs.output_set_string("current_text", "")
+
+    def on_tts_unmute(self, ioType, name, valueType, value, myData):
+        """Called when tts_unmute impulsion is received - re-enable TTS playback"""
+        print("🔊 TTS unmute received - re-enabling playback")
+        tts.unmute()
 
     def on_repeat_sentence(self, ioType, name, valueType, value, myData):
         """Called when repeat_sentence impulsion is received - replay last utterance"""
         print("🔁 repeat_sentence received - replaying last TTS output")
         tts.repeat_last()
+
+    def on_is_atc_speaking(self, ioType, name, valueType, value, myData):
+        """Called when ATC_Agent.is_speaking changes - gate TTS playback accordingly"""
+        tts.set_atc_speaking(bool(value))
     
     def shutdown(self):
         """Clean shutdown"""
@@ -90,6 +99,7 @@ def main():
     
     # Define inputs
     igs.input_create("text_to_speak", igs.STRING_T, None)
+    igs.input_create("is_atc_speaking", igs.BOOL_T, False)
     
     # Define outputs
     igs.output_create("is_speaking", igs.BOOL_T, False)
@@ -101,14 +111,19 @@ def main():
     # Define impulsion inputs
     igs.input_create("tts_stop", igs.IMPULSION_T, None)
     igs.input_create("repeat_sentence", igs.IMPULSION_T, None)
+    igs.input_create("tts_unmute", igs.IMPULSION_T, None)
 
     # Observe inputs
     igs.observe_input("text_to_speak", tts_agent.on_text_to_speak, None)
     igs.observe_input("tts_stop", tts_agent.on_tts_stop, None)
     igs.observe_input("repeat_sentence", tts_agent.on_repeat_sentence, None)
+    igs.observe_input("tts_unmute", tts_agent.on_tts_unmute, None)
+    igs.observe_input("is_atc_speaking", tts_agent.on_is_atc_speaking, None)
     igs.mapping_add("text_to_speak", "TARS_Agent", "tts_request")
     igs.mapping_add("tts_stop", "Shared Interface", "tts_stop")
     igs.mapping_add("repeat_sentence", "Shared Interface", "repeat_sentence")
+    igs.mapping_add("tts_unmute", "Shared Interface", "tts_unmute")
+    igs.mapping_add("is_atc_speaking", "ATC_Agent", "is_speaking")
     
     # Start Ingescape with device fallback
     start_with_device_fallback(igs, port)
