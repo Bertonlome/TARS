@@ -319,6 +319,16 @@ class ChronoEditDialog(QDialog):
         except ValueError:
             return 0
 
+    def start_countdown(self):
+        """Programmatically start the countdown (e.g. via joystick ack)."""
+        if self._stack.currentIndex() == self._PHASE_SET:
+            self._start_countdown()
+
+    @property
+    def is_running(self) -> bool:
+        """True while the countdown is running (RUN phase)."""
+        return self._stack.currentIndex() == self._PHASE_RUN
+
     def _start_countdown(self):
         s = self._value()
         if s <= 0:

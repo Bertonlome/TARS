@@ -30,6 +30,9 @@ device = DEFAULT_DEVICE
 verbose = False
 is_interrupted = False
 
+# Cancellation event — set by Reset to abort any pending delayed messages
+_cancel_delayed = threading.Event()
+
 # Initialize TTS engine
 tts_engine = pyttsx3.init()
 tts_engine.setProperty('rate', 150)  # Slightly slower for ATC clarity
@@ -127,6 +130,11 @@ def on_freeze_callback(is_frozen, my_data):
     assert isinstance(agent_object, Echo)
     # add code here if needed
 
+def interruptible_sleep(seconds):
+    """Sleep for `seconds`. Returns True if cancelled early by Reset, False if it completed normally."""
+    return _cancel_delayed.wait(timeout=seconds)
+
+
 def play_audio_file(file_path):
     """Play audio file (blocking)"""
     try:
@@ -201,30 +209,44 @@ def string_input_callback(io_type, name, value_type, value, my_data):
 def integer_input_callback(io_type, name, value_type, value, my_data):
     agent_object = my_data
     assert isinstance(agent_object, Echo)
-    
-    try:
-        if name == "declare_mayday":
-            print(f"📡 Received: {name} with delay={value}s")
-            time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Mayday. Continue-runway-heading. You-are-cleared-to-return-runway-two-four-right-to-land. Emergency-vehicles-are-standing-by."
-            play_audio_async("audio/mayday.mp3")
-        elif name == "declare_panpan":
-            print(f"📡 Received: {name} with delay={value}s")
-            time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Pan-Pan. Continue-runway-heading. Advise-if-you-require-vectors-for-an-approach-to-runway-two-four-right."
-            play_audio_async("audio/roger_panpan_no_vectors.mp3")
-        elif name == "request_vectors":
-            print(f"📡 Received: {name} with delay={value}s")
-            time.sleep(value)  # Use integer value for delay
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger. Turn-right-heading-one-five-zero, descend-and-maintain-three-thousand-feet. Expect-ILS-approach-runway-two-four-right."
-            play_audio_async("audio/roger_panpan_vectors.mp3")
-            time.sleep(60 * 5)  # Simulate delay for vectoring (keep this as-is)
-            agent_object.speech_output_o = "C-POLY, Montréal-Tower, turn-right-heading-zero-six-zero, when-established, cleared-ILS-runway-two-four-right."
-            play_audio_async("audio/second_vectors_after_panpan.mp3")
-    except Exception as e:
-        print(f"❌ Error in integer callback: {e}")
-        import traceback
-        traceback.print_exc()
+
+    def _run():
+        try:
+            # Clear any lingering cancel from a previous Reset before starting
+            _cancel_delayed.clear()
+            if name == "declare_mayday":
+                print(f"📡 Received: {name} with delay={value}s")
+                if interruptible_sleep(value):
+                    print("🚫 declare_mayday: initial delay cancelled by Reset")
+                    return
+                agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Mayday. Continue-runway-heading. You-are-cleared-to-return-runway-two-four-right-to-land. Emergency-vehicles-are-standing-by."
+                play_audio_async("audio/mayday.mp3")
+            elif name == "declare_panpan":
+                print(f"📡 Received: {name} with delay={value}s")
+                if interruptible_sleep(value):
+                    print("🚫 declare_panpan: initial delay cancelled by Reset")
+                    return
+                agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger-Pan-Pan. Continue-runway-heading. Advise-if-you-require-vectors-for-an-approach-to-runway-two-four-right."
+                play_audio_async("audio/roger_panpan_no_vectors.mp3")
+            elif name == "request_vectors":
+                print(f"📡 Received: {name} with delay={value}s")
+                if interruptible_sleep(value):
+                    print("🚫 request_vectors: initial delay cancelled by Reset")
+                    return
+                agent_object.speech_output_o = "C-POLY, Montréal-Tower, roger. Turn-right-heading-three-three-zero, descend-and-maintain-three-thousand-feet. Expect-ILS-approach-runway-two-four-right."
+                play_audio_async("audio/vectors_330.mp3")
+                print("⏳ Waiting 5 minutes before second vectors transmission...")
+                if interruptible_sleep(60 * 5):
+                    print("🚫 request_vectors: second transmission cancelled by Reset")
+                    return
+                agent_object.speech_output_o = "C-POLY, Montréal-Tower, turn-right-heading-zero-six-zero, when-established, cleared-ILS-runway-two-four-right."
+                play_audio_async("audio/second_vectors_after_panpan.mp3")
+        except Exception as e:
+            print(f"❌ Error in integer callback thread: {e}")
+            import traceback
+            traceback.print_exc()
+
+    threading.Thread(target=_run, daemon=True).start()
 
 def impulsion_input_callback(io_type, name, value_type, value, my_data):
     agent_object = my_data
@@ -232,8 +254,10 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
     
     try:
         if name == "Reset":
+            _cancel_delayed.set()   # unblock any interruptible_sleep
+            sd.stop()               # stop any currently playing audio
             agent_object.speech_output_o = ""
-            print(f"📡 Received: {name} - Resetting speech output")
+            print(f"📡 Received: {name} - Resetting speech output and cancelling delayed messages")
         if name == "request_ATIS":
             agent_object.speech_output_o = "Montreal-Trudeau-International-Airport-Information-Alpha. One-five-zero-zero-Zulu. Wind-one-niner-zero-at-four-knots. Visibility-one-statute-mile-in-fog. Ceiling-one-thousand-five-hundred-overcast. Temperature-five, dewpoint-four. Altimeter-two-niner-niner-two. Runway-surfaces-dry. Departing-and-arriving-runway-in-use-is-two-four-right. Advise-on-initial-contact-you-have-Information-Alpha."
             print(f"📡 Received: {name}")

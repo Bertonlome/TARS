@@ -43,7 +43,7 @@ os.environ["QT_FONT_DPI"] = "96" # FIX Problem for High DPI and Scale above 100%
 # SET AS GLOBAL WIDGETS
 # ///////////////////////////////////////////////////////////////
 widgets = None
-NO_NEXT_COUNTDOWN = True
+NO_NEXT_COUNTDOWN = False
 
 # FSM Worker - Qt Wrapper
 # ///////////////////////////////////////////////////////////////
@@ -473,6 +473,34 @@ class MainWindow(QMainWindow):
                     home_page.current_circular_countdown.show()
                     home_page.current_circular_countdown.set_spinning()
 
+            # Start next task countdown with delay_after_action of the current state
+            flight_page = self.get_flight_page()
+            delay_after = state_obj.delay_after_action
+            try:
+                if delay_after == "is_acked":
+                    if home_page.next_circular_countdown is not None:
+                        home_page.next_circular_countdown.show()
+                        home_page.next_circular_countdown.set_na()
+                    if flight_page and flight_page.next_circular_countdown is not None:
+                        flight_page.next_circular_countdown.show()
+                        flight_page.next_circular_countdown.set_na()
+                    self.ui.n_t_s_value_2.setText("N/A")
+                else:
+                    delay_after_s = int(float(delay_after)) if delay_after else 0
+                    if delay_after_s > 0:
+                        self.ui.n_t_s_value_2.setText(str(delay_after_s))
+                        if home_page.next_circular_countdown is not None:
+                            home_page.next_circular_countdown.show()
+                        home_page.start_next_countdown(delay_after_s)
+                        if flight_page:
+                            if flight_page.next_circular_countdown is not None:
+                                flight_page.next_circular_countdown.show()
+                            flight_page.start_next_countdown(delay_after_s)
+                    else:
+                        self.ui.n_t_s_value_2.setText("—")
+            except (ValueError, TypeError):
+                self.ui.n_t_s_value_2.setText("N/A")
+
     def get_home_page(self) -> HomePage | None:
         """
         Get the HomePage instance from page manager
@@ -819,49 +847,14 @@ class MainWindow(QMainWindow):
             except (ValueError, TypeError, AttributeError):
                 self.ui.c_t_s_value_2.setText("0")
 
-        # For next task counter (current delay_after_action + next delay_before_action)
-        if NO_NEXT_COUNTDOWN == True and home_page.next_circular_countdown is not None:
+        # Reset next task counter on state change — started by handle_action_about_to_fire
+        if home_page.next_circular_countdown is not None:
             home_page.next_circular_countdown.hide()
-        if NO_NEXT_COUNTDOWN == False:
-            try:
-                if next_state_obj:
-                    # Check if either delay is 'is_acked' (waiting for human input)
-                    current_delay_after = current_state_obj.delay_after_action
-                    next_delay_before = next_state_obj.delay_before_action
-                    
-                    if home_page.next_circular_countdown is not None and (current_delay_after == 'is_acked' or next_delay_before == 'is_acked'):
-                        # Waiting for human acknowledgment - show N/A
-                        home_page.next_circular_countdown.set_na()
-                        if home_page.next_countdown_timer is not None:
-                            home_page.next_countdown_timer.stop()
-                        home_page.next_countdown_value = 0
-                        if flight_page.next_circular_countdown is not None:
-                            flight_page.next_circular_countdown.set_na()
-                        if flight_page.next_countdown_timer is not None:
-                            flight_page.next_countdown_timer.stop()
-                        flight_page.next_countdown_value = 0
-                        #print(f"\nNext task : {next_state_obj.task_object} - waiting for acknowledgment")
-                    else:
-                        # Normal time-based delays
-                        current_delay_before = int(current_state_obj.delay_before_action) if current_state_obj.delay_before_action else 0
-                        current_delay_after = int(current_delay_after) if current_delay_after else 0
-                        next_delay_before = int(next_delay_before) if next_delay_before else 0
-                        total_seconds = current_delay_before + current_delay_after + next_delay_before
-                        print(f"\nNext task : {next_state_obj.task_object} estimated time: {total_seconds} seconds")
-                        self.ui.n_t_s_value_2.setText(str(total_seconds))
-                        if total_seconds > 0:
-                            home_page.start_next_countdown(total_seconds)
-                            flight_page.start_next_countdown(total_seconds)
-                        else:
-                            home_page.next_countdown_value = 0
-                            flight_page.next_countdown_value = 0
-                else:
-                    self.ui.n_t_s_value_2.setText("N/A")
-            except (ValueError, TypeError, AttributeError) as e:
-                print(f"Error calculating next task countdown: {e}")
-                home_page.next_countdown_timer.stop()
-                flight_page.next_countdown_timer.stop()
-                self.ui.n_t_s_value_2.setText("N/A")
+        home_page.next_countdown_value = 0
+        if flight_page.next_circular_countdown is not None:
+            flight_page.next_circular_countdown.hide()
+        flight_page.next_countdown_value = 0
+        self.ui.n_t_s_value_2.setText("—")
 
         # Update UI labels (home page)
         self.ui.p_g_2.setText(previous_procedure_text)

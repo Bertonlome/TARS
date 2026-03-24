@@ -4,12 +4,12 @@ A popup dialog for editing wind orientation and magnitude with a virtual numeric
 """
 
 import math
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QPointF
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QFrame, QSizePolicy, QWidget
 )
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QPainter, QColor, QPen, QPolygonF
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +80,191 @@ class _DigitBox(QLabel):
 
 
 # ---------------------------------------------------------------------------
+# Compass + Windsock visualisation
+# ---------------------------------------------------------------------------
+class _CompassWindsock(QWidget):
+    """Compass rose whose top always points toward the runway heading,
+    with a trapezoidal orange/white windsock that shows wind direction
+    and magnitude.  Click or drag on the compass to set values directly."""
+
+    wind_dragged = Signal(int, int)   # direction_deg, magnitude_kt
+
+    def __init__(self, parent=None, runway_heading: int = 237):
+        super().__init__(parent)
+        self._runway_heading = runway_heading
+        self._wind_dir = 0      # degrees – where wind comes FROM
+        self._wind_mag = 0      # knots
+        self._max_mag = 50      # knots for full-length sock
+        self._dragging = False
+        self.setFixedSize(280, 300)
+        self.setCursor(Qt.CrossCursor)
+
+    def set_wind(self, direction: int, magnitude: int):
+        self._wind_dir = direction % 360
+        self._wind_mag = max(0, magnitude)
+        self.update()
+
+    # -- touch / mouse interaction ----------------------------------------
+    def _compass_geometry(self):
+        """Return (cx, cy, radius) matching paintEvent's geometry."""
+        w, h = self.width(), self.height()
+        return w / 2, h / 2 + 12, min(w, h) / 2 - 30
+
+    def _pos_to_wind(self, qpointf):
+        """Convert a widget-local QPointF to (direction°, magnitude_kt)."""
+        cx, cy, radius = self._compass_geometry()
+        dx, dy = qpointf.x() - cx, qpointf.y() - cy
+        distance = math.sqrt(dx * dx + dy * dy)
+        if distance < 0.5:
+            return self._wind_dir, 0      # calm – keep previous heading
+        angle_deg = math.degrees(math.atan2(dx, -dy))
+        wind_dir = int((self._runway_heading + angle_deg) % 360)
+        magnitude = round(min(self._max_mag,
+                              self._max_mag * distance / radius))
+        return wind_dir, magnitude
+
+    def mousePressEvent(self, event):               # noqa: N802
+        if event.button() == Qt.LeftButton:
+            self._dragging = True
+            self.setCursor(Qt.ClosedHandCursor)
+            d, m = self._pos_to_wind(event.position())
+            self.wind_dragged.emit(d, m)
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):                # noqa: N802
+        if self._dragging:
+            d, m = self._pos_to_wind(event.position())
+            self.wind_dragged.emit(d, m)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):             # noqa: N802
+        if event.button() == Qt.LeftButton:
+            self._dragging = False
+            self.setCursor(Qt.CrossCursor)
+        super().mouseReleaseEvent(event)
+
+    # -- coordinate helper ------------------------------------------------
+    def _hdg_xy(self, heading_deg: float, radius: float):
+        """Compass heading → (dx, dy) offset from centre.
+        Runway heading maps to straight up (12-o'clock)."""
+        a = math.radians(heading_deg - self._runway_heading)
+        return radius * math.sin(a), -radius * math.cos(a)
+
+    # -- paint ------------------------------------------------------------
+    def paintEvent(self, event):                        # noqa: N802
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        w, h = self.width(), self.height()
+        cx, cy = w / 2, h / 2 + 12        # nudge down for RWY label
+        radius = min(w, h) / 2 - 30
+
+        # background
+        p.fillRect(self.rect(), QColor(_BG_MID))
+
+        # ---- RWY label above compass ----
+        p.setFont(QFont("JetBrains Mono", 9, QFont.Bold))
+        p.setPen(QColor(_BLUE))
+        rwy_txt = f"RWY {self._runway_heading:03d}\u00b0"
+        tw = p.fontMetrics().horizontalAdvance(rwy_txt)
+        p.drawText(QPointF(cx - tw / 2, cy - radius - 8), rwy_txt)
+
+        # ---- compass circle ----
+        p.setPen(QPen(QColor(_BORDER), 2))
+        p.setBrush(QColor(_BG_DEEP))
+        p.drawEllipse(QPointF(cx, cy), radius, radius)
+
+        # ---- tick marks (every 10°, longer every 30°) ----
+        for deg in range(0, 360, 10):
+            long_tick = (deg % 30 == 0)
+            ox, oy = self._hdg_xy(deg, radius)
+            ix, iy = self._hdg_xy(deg, radius - (12 if long_tick else 6))
+            p.setPen(QPen(QColor(_WHITE if long_tick else _BORDER),
+                         1.5 if long_tick else 1))
+            p.drawLine(QPointF(cx + ox, cy + oy),
+                       QPointF(cx + ix, cy + iy))
+
+        # ---- cardinal labels ----
+        p.setFont(QFont("JetBrains Mono", 10, QFont.Bold))
+        fm = p.fontMetrics()
+        for hdg, lbl in ((0, "N"), (90, "E"), (180, "S"), (270, "W")):
+            lx, ly = self._hdg_xy(hdg, radius - 24)
+            p.setPen(QColor(_WHITE))
+            p.drawText(
+                QPointF(cx + lx - fm.horizontalAdvance(lbl) / 2,
+                        cy + ly + fm.height() / 3),
+                lbl)
+
+        # ---- runway dashed centre-line ----
+        p.setPen(QPen(QColor(_BLUE), 1.5, Qt.DashLine))
+        tx, ty = self._hdg_xy(self._runway_heading, radius - 14)
+        bx, by = self._hdg_xy((self._runway_heading + 180) % 360, radius - 14)
+        p.drawLine(QPointF(cx + tx, cy + ty),
+                   QPointF(cx + bx, cy + by))
+
+        # ---- windsock / calm indicator ----
+        if self._wind_mag > 0:
+            self._paint_sock(p, cx, cy, radius)
+        else:
+            p.setPen(QPen(QColor("#ff8c00"), 2))
+            p.setBrush(Qt.NoBrush)
+            p.drawEllipse(QPointF(cx, cy), 8, 8)
+
+        p.end()
+
+    # -- windsock painter -------------------------------------------------
+    def _paint_sock(self, p: QPainter, cx: float, cy: float, radius: float):
+        """Draw 5-stripe trapezoidal windsock from compass centre."""
+        downwind = (self._wind_dir + 180) % 360
+        a = math.radians(downwind - self._runway_heading)
+
+        # direction unit-vectors
+        dx, dy = math.sin(a), -math.cos(a)       # along sock
+        px, py = math.cos(a),  math.sin(a)       # perpendicular
+
+        max_len = radius * 0.78
+        length = max(18, min(max_len, max_len * self._wind_mag / self._max_mag))
+
+        base_hw = 12    # half-width at anchor (wide end)
+        tip_hw  = 3     # half-width at tip   (narrow end)
+        colors  = [QColor("#ff8c00"), QColor("#ffffff")]   # orange / white
+        n_stripes = 5
+
+        for i in range(n_stripes):
+            t0, t1 = i / n_stripes, (i + 1) / n_stripes
+            hw0 = base_hw + (tip_hw - base_hw) * t0
+            hw1 = base_hw + (tip_hw - base_hw) * t1
+            sx0, sy0 = cx + dx * length * t0, cy + dy * length * t0
+            sx1, sy1 = cx + dx * length * t1, cy + dy * length * t1
+            poly = QPolygonF([
+                QPointF(sx0 + px * hw0, sy0 + py * hw0),
+                QPointF(sx0 - px * hw0, sy0 - py * hw0),
+                QPointF(sx1 - px * hw1, sy1 - py * hw1),
+                QPointF(sx1 + px * hw1, sy1 + py * hw1),
+            ])
+            p.setPen(QPen(QColor(100, 100, 100), 0.5))
+            p.setBrush(colors[i % 2])
+            p.drawPolygon(poly)
+
+        # small "wind-from" triangle on compass rim
+        fx, fy = self._hdg_xy(self._wind_dir, radius - 2)
+        arw_l, arw_hw = 10, 5
+        tri = QPolygonF([
+            QPointF(cx + fx, cy + fy),
+            QPointF(cx + fx + dx * arw_l + px * arw_hw,
+                    cy + fy + dy * arw_l + py * arw_hw),
+            QPointF(cx + fx + dx * arw_l - px * arw_hw,
+                    cy + fy + dy * arw_l - py * arw_hw),
+        ])
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor("#ff8c00"))
+        p.drawPolygon(tri)
+
+        # anchor dot at centre
+        p.drawEllipse(QPointF(cx, cy), 4, 4)
+
+
+# ---------------------------------------------------------------------------
 # Wind Edit Dialog
 # ---------------------------------------------------------------------------
 class WindEditDialog(QDialog):
@@ -99,7 +284,7 @@ class WindEditDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("WIND EDITOR")
         self.setModal(True)
-        self.setFixedSize(520, 620)
+        self.setFixedSize(800, 620)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {_BG_MID};
@@ -117,6 +302,7 @@ class WindEditDialog(QDialog):
             box.clicked_signal.connect(lambda b, idx=i: self._set_active(idx))
 
         self._build_ui()
+        self._compass.wind_dragged.connect(self._on_compass_drag)
         self._load_initial(initial_dir, initial_mag)
         self._set_active(0)
 
@@ -126,7 +312,7 @@ class WindEditDialog(QDialog):
     def _build_ui(self):
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 16, 20, 16)
-        root.setSpacing(16)
+        root.setSpacing(12)
 
         # ---- Title ----
         title = QLabel("WIND EDITOR")
@@ -134,18 +320,38 @@ class WindEditDialog(QDialog):
         title.setFont(QFont("JetBrains Mono", 14, QFont.Bold))
         title.setStyleSheet(f"color: {_BLUE}; letter-spacing: 3px;")
         root.addWidget(title)
-
-        # ---- Direction row ----
         root.addWidget(self._make_separator())
-        root.addWidget(self._build_field_row("Wind direction  (°)", 0, 3, "HDG"))
 
-        # ---- Magnitude row ----
-        root.addWidget(self._make_separator())
-        root.addWidget(self._build_field_row("Wind magnitude  (kt)", 3, 6, "KT"))
+        # ---- Content: left (fields + numpad)  |  right (compass) ----
+        content = QHBoxLayout()
+        content.setSpacing(20)
 
-        # ---- Numpad ----
-        root.addWidget(self._make_separator())
-        root.addLayout(self._build_numpad())
+        # -- Left column --
+        left = QVBoxLayout()
+        left.setSpacing(12)
+        left.addWidget(self._build_field_row("Wind direction  (\u00b0)", 0, 3, "HDG"))
+        left.addWidget(self._make_separator())
+        left.addWidget(self._build_field_row("Wind magnitude  (kt)", 3, 6, "KT"))
+        left.addWidget(self._make_separator())
+        left.addLayout(self._build_numpad())
+        left.addStretch()
+        content.addLayout(left)
+
+        # -- Right column: compass + windsock --
+        right = QVBoxLayout()
+        right.setSpacing(6)
+        self._compass = _CompassWindsock(self, self._runway_heading)
+        right.addStretch()
+        right.addWidget(self._compass, alignment=Qt.AlignCenter)
+        self._wind_info_label = QLabel("CALM")
+        self._wind_info_label.setAlignment(Qt.AlignCenter)
+        self._wind_info_label.setFont(QFont("JetBrains Mono", 9, QFont.Bold))
+        self._wind_info_label.setStyleSheet(f"color: {_WHITE};")
+        right.addWidget(self._wind_info_label)
+        right.addStretch()
+        content.addLayout(right)
+
+        root.addLayout(content)
 
         # ---- Action buttons ----
         root.addWidget(self._make_separator())
@@ -272,10 +478,46 @@ class WindEditDialog(QDialog):
         self._boxes[self._active_idx].set_active(True)
 
     # ------------------------------------------------------------------
+    # Compass live-update helpers
+    # ------------------------------------------------------------------
+    def _read_values(self):
+        """Read direction and magnitude from the current digit boxes."""
+        dir_str = "".join(b.digit() or "0" for b in self._boxes[0:3])
+        mag_str = "".join(b.digit() or "0" for b in self._boxes[3:6])
+        try:
+            direction = int(dir_str) % 360
+        except ValueError:
+            direction = 0
+        try:
+            magnitude = max(0, int(mag_str))
+        except ValueError:
+            magnitude = 0
+        return direction, magnitude
+
+    def _update_compass(self):
+        """Push current digit values into the compass widget."""
+        d, m = self._read_values()
+        self._compass.set_wind(d, m)
+        if m > 0:
+            self._wind_info_label.setText(f"FROM {d:03d}\u00b0 / {m} KT")
+            self._wind_info_label.setStyleSheet(f"color: {_GREEN};")
+        else:
+            self._wind_info_label.setText("CALM")
+            self._wind_info_label.setStyleSheet(f"color: {_WHITE};")
+
+    def _on_compass_drag(self, direction: int, magnitude: int):
+        """Compass drag → fill digit boxes then refresh compass."""
+        for i, ch in enumerate(f"{min(359, direction):03d}"):
+            self._boxes[i].set_digit(ch)
+        for i, ch in enumerate(f"{min(999, magnitude):03d}"):
+            self._boxes[3 + i].set_digit(ch)
+        self._update_compass()
+
+    # ------------------------------------------------------------------
     # Numpad handler
     # ------------------------------------------------------------------
     def _numpad_press(self, key: str):
-        if key == "⌫":
+        if key == "\u232b":
             # Clear current box and go back
             box = self._boxes[self._active_idx]
             if not box.is_empty():
@@ -283,18 +525,35 @@ class WindEditDialog(QDialog):
             elif self._active_idx > 0:
                 self._set_active(self._active_idx - 1)
                 self._boxes[self._active_idx].set_digit("_")
-        elif key == "→":
+        elif key == "\u2192":
             # Move to next box (skip groups: dir→mag)
             next_idx = self._active_idx + 1
             if next_idx >= len(self._boxes):
                 next_idx = 0
             self._set_active(next_idx)
         else:
-            # Digit key: fill current box, advance
+            # Direction hundreds (box 0): values 4–9 always exceed 359° – reject
+            if self._active_idx == 0 and key in ('4', '5', '6', '7', '8', '9'):
+                return
             self._boxes[self._active_idx].set_digit(key)
+            # After filling the third direction digit clamp to 359
+            if self._active_idx == 2:
+                self._clamp_direction()
             next_idx = self._active_idx + 1
             if next_idx < len(self._boxes):
                 self._set_active(next_idx)
+        self._update_compass()
+
+    def _clamp_direction(self):
+        """If the 3-digit direction value exceeds 359, snap it to 359."""
+        dir_str = "".join(b.digit() or "0" for b in self._boxes[0:3])
+        try:
+            val = int(dir_str)
+        except ValueError:
+            return
+        if val > 359:
+            for i, ch in enumerate("359"):
+                self._boxes[i].set_digit(ch)
 
     # ------------------------------------------------------------------
     # Pre-fill
@@ -308,10 +567,15 @@ class WindEditDialog(QDialog):
             self._boxes[i].set_digit(ch)
         for i, ch in enumerate(m_str):
             self._boxes[3 + i].set_digit(ch)
+        self._update_compass()
 
     # ------------------------------------------------------------------
     # Confirm
     # ------------------------------------------------------------------
+    def confirm(self):
+        """Programmatically confirm with current values (e.g. via joystick ack)."""
+        self._on_confirm()
+
     def _on_confirm(self):
         dir_str = "".join(b.digit() or "0" for b in self._boxes[0:3])
         mag_str = "".join(b.digit() or "0" for b in self._boxes[3:6])

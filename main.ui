@@ -2706,7 +2706,7 @@ RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
                                  </property>
                                  <property name="styleSheet">
                                   <string notr="true">QPushButton {
-        border: 2px solid rgba(221, 0, 20, 255);
+        border: 2px solid rgba(221, 221, 221, 255);
         border-radius: 5px;
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
             stop:0 rgba(33, 37, 43, 255), stop:1 rgba(40,40,50,255));
@@ -2727,10 +2727,6 @@ RMK CU OVC TOPS 100 MSL CI BASE 250 TOP 270 DRY RWY</string>
                                  </property>
                                  <property name="text">
                                   <string>CANCEL EXECUTION</string>
-                                 </property>
-                                 <property name="icon">
-                                  <iconset resource="resources.qrc">
-                                   <normaloff>:/icons/images/icons/alarm-noack-iec.svg</normaloff>:/icons/images/icons/alarm-noack-iec.svg</iconset>
                                  </property>
                                 </widget>
                                </item>

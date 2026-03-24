@@ -1584,7 +1584,7 @@ class Ui_MainWindow(object):
         font6.setItalic(False)
         self.int_panel_left_button.setFont(font6)
         self.int_panel_left_button.setStyleSheet(u"QPushButton {\n"
-"        border: 2px solid rgba(221, 0, 20, 255);\n"
+"        border: 2px solid rgba(221, 221, 221, 255);\n"
 "        border-radius: 5px;\n"
 "        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,\n"
 "            stop:0 rgba(33, 37, 43, 255), stop:1 rgba(40,40,50,255));\n"
@@ -1602,7 +1602,6 @@ class Ui_MainWindow(object):
 "    QPushButton:focus {\n"
 "        outline: none;\n"
 "    }")
-        self.int_panel_left_button.setIcon(icon4)
 
         self.horizontalLayout_15.addWidget(self.int_panel_left_button)
 

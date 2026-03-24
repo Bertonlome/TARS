@@ -44,6 +44,7 @@ class GUIAgent(QObject):
     _reset_speech_log_signal = Signal()  # Clear log on TARS reset
     _tars_status_signal = Signal(str)  # Status label text update
     _allocation_reloaded_signal = Signal(str)  # CSV filename after TARS reloads allocation
+    _external_task_acked_signal = Signal()  # joystick task_acknowledged routed through GUI
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
@@ -60,6 +61,10 @@ class GUIAgent(QObject):
         self._wind_edit_runway_heading = 237
         self._wind_edit_initial_dir    = 0
         self._wind_edit_initial_mag    = 0
+        # Set True in _on_state_changed; cleared + dialog opened in _on_interaction_message
+        self._pending_wind_dialog_open: bool = False
+        self._wind_edit_dlg = None  # Live reference; closed on external state advance
+        self._chrono_dlg = None     # Live reference; started/closed on external ack
         # True only when the current state is ENGINE FIRE / Chrono / START
         self._show_chrono_button: bool = False
         self._chrono_autonomy_role: str = ""
@@ -120,6 +125,7 @@ class GUIAgent(QObject):
         igs.input_create("stt_speech_output", igs.STRING_T, None)   # STT recognized text feed
         igs.input_create("tars_status", igs.STRING_T, None)  # TARS status text for the GUI label
         igs.input_create("allocation_reloaded", igs.STRING_T, None)  # JSON: {csv, states_count} when TARS reloads
+        igs.input_create("task_acknowledged", igs.IMPULSION_T, None)  # joystick/external ack routed through GUI
         
         # Observe inputs
         igs.observe_input("current_state", self._on_current_state_input, None)
@@ -144,6 +150,8 @@ class GUIAgent(QObject):
         igs.observe_input("stt_speech_output", self._on_stt_speech_output_input, None)
         igs.observe_input("tars_status", self._on_tars_status_input, None)
         igs.observe_input("allocation_reloaded", self._on_allocation_reloaded_input, None)
+        igs.observe_input("task_acknowledged", self._on_ext_task_acknowledged_input, None)
+        self._external_task_acked_signal.connect(self._on_external_task_acknowledged)
         # Map ATC_Agent.speech_output → our atc_speech_output input
         igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
         # Map Speech_to_Text_Agent.speech_output → our stt_speech_output input
@@ -186,6 +194,7 @@ class GUIAgent(QObject):
         igs.output_create("previous_step", igs.IMPULSION_T, None)  # Jump to previous state (dev mode)
         igs.output_create("request_atis", igs.IMPULSION_T, None)  # Request ATIS from automated radio
         igs.output_create("load_csv", igs.STRING_T, None)  # Send CSV filename to TARS for full reload
+        igs.output_create("popup_active", igs.BOOL_T, None)  # True while a modal dialog is open (blocks joystick ack in TARS)
         
         print(f"✅ GUI Agent '{self.agent_name}' initialized with Ingescape I/O")
     
@@ -204,6 +213,27 @@ class GUIAgent(QObject):
     # TARS → GUI: Ingescape input callbacks (run in Ingescape thread)
     # ========================================================================
     
+    def _on_ext_task_acknowledged_input(self, io_type, name, value_type, value, my_data):
+        """Ingescape thread: joystick sent task_acknowledged — route through main thread."""
+        self._external_task_acked_signal.emit()
+
+    def _on_external_task_acknowledged(self):
+        """Main thread: intercept external task_acknowledged before it reaches TARS.
+
+        Priority:
+        1. Wind dialog open  → confirm it (first ack = validate popup)
+        2. Chrono dialog open in SET phase → start the countdown
+        3. No dialog active  → forward to TARS as normal task_acknowledged
+        """
+        if self._wind_edit_dlg is not None:
+            print("🎮 External ack → confirming wind dialog")
+            self._wind_edit_dlg.confirm()
+        elif self._chrono_dlg is not None and not self._chrono_dlg.is_running:
+            print("🎮 External ack → starting chrono")
+            self._chrono_dlg.start_countdown()
+        else:
+            self._send_task_acknowledged()
+
     def _on_tars_status_input(self, io_type, name, value_type, value, my_data):
         """Handle tars_status string from TARS agent — update the status label."""
         try:
@@ -508,6 +538,9 @@ class GUIAgent(QObject):
             self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
             self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
             self._wind_edit_initial_mag    = button_config.get("initial_wind_mag", 4)
+            if mid_text == "ENTER WIND" and getattr(self, "_pending_wind_dialog_open", False):
+                self._pending_wind_dialog_open = False
+                self._open_wind_edit_dialog()
             for container_name in ("int_panel_button_container", "int_panel_button_container_flight"):
                 container = getattr(self.main_window.ui, container_name, None)
                 if container is None:
@@ -568,7 +601,7 @@ class GUIAgent(QObject):
             QPushButton:hover  { background-color: rgba(85, 170, 255, 40); }
             QPushButton:pressed { background-color: rgba(85, 170, 255, 80); }
         """)
-        if text == "ENTER WIND":
+        if text in ("ENTER WIND", "EDIT"):
             btn.clicked.connect(self._open_wind_edit_dialog)
         elif text == "EDIT CHRONO":
             btn.clicked.connect(self._open_chrono_edit_dialog)
@@ -597,8 +630,20 @@ class GUIAgent(QObject):
         auto_start = (self._chrono_autonomy_role == "performer")
         dlg = ChronoEditDialog(parent=self.main_window, initial_seconds=15,
                                auto_start=auto_start, auto_start_delay_ms=auto_delay_ms)
-        dlg.completed.connect(self._send_task_acknowledged)
+
+        def _on_completed():
+            # Unblock TARS *before* sending the ack: completed fires while exec() is
+            # still blocking (dialog not yet closed), so popup_active would otherwise
+            # still be True in TARS and the impulsion would be dropped.
+            igs.output_set_bool("popup_active", False)
+            self._send_task_acknowledged()
+
+        dlg.completed.connect(_on_completed)
+        self._chrono_dlg = dlg
+        igs.output_set_bool("popup_active", True)
         dlg.exec()
+        igs.output_set_bool("popup_active", False)  # safe no-op if already cleared above
+        self._chrono_dlg = None
 
     # ------------------------------------------------------------------
     # Wind editor / ATIS
@@ -622,7 +667,11 @@ class GUIAgent(QObject):
             initial_mag=initial_mag,
         )
         dlg.confirmed.connect(self._on_wind_edit_confirmed)
+        self._wind_edit_dlg = dlg
+        igs.output_set_bool("popup_active", True)
         dlg.exec()
+        igs.output_set_bool("popup_active", False)
+        self._wind_edit_dlg = None
 
     def _on_wind_edit_confirmed(self, direction: int, magnitude: int):
         """Handle confirmed wind values from the editor dialog."""
@@ -689,16 +738,29 @@ class GUIAgent(QObject):
         self._chrono_autonomy_role = state.autonomy_role if is_chrono_start else ""
         self._chrono_delay_before_action = state.delay_before_action if is_chrono_start else 0
 
+        is_wind_check = (
+            state.procedure == "LINE-UP AND HOLD"
+            and state.task_object == "Winds"
+            and state.value == "CHECK"
+        )
+
+        # Close wind dialog if a state change arrives while it's open (e.g. joystick ack)
+        if self._wind_edit_dlg is not None and not is_wind_check:
+            self._wind_edit_dlg.reject()
+
         # Call MainWindow's update_state method
         self.main_window.update_state(state)
+
+        if is_wind_check and state.autonomy_role == "supporter":
+            self._pending_wind_dialog_open = True
 
         if self._show_chrono_button:
             if self._chrono_autonomy_role == "performer":
                 # Open dialog immediately; auto-start fires after delay_before_action
                 self._open_chrono_edit_dialog(auto_delay_ms=int(self._chrono_delay_before_action * 1000))
             else:
-                # supporter: just show the EDIT CHRONO button
-                self._inject_chrono_button()
+                # supporter: open dialog but do not auto-start the chrono
+                self._open_chrono_edit_dialog(auto_delay_ms=0)
     
     def _on_next_state_changed(self, state_data: dict):
         """Handle next state update from TARS (main thread)"""
