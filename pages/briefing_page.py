@@ -833,7 +833,8 @@ class BriefingPage(BasePage):
         
         # Store category filter buttons
         self.category_filter_buttons = {}  # {category: {"button_1": QPushButton, "button_2": QPushButton}}
-        self.active_filter_category = None
+        self.active_filter_category_1 = None  # Normal operations tab filter
+        self.active_filter_category_2 = None  # Contingency planning tab filter
         
         # Store clear filter buttons (created dynamically)
         self.clear_filter_button_1 = None
@@ -1010,22 +1011,27 @@ class BriefingPage(BasePage):
         return sorted(list(categories))
     
     def _setup_category_radio_buttons(self):
-        """Create radio button groups for each task category in both tabs"""
+        """Create per-tab radio button groups for each task category with task counts.
+
+        Tab 1 (Normal Operations) shows only categories that appear in normal tasks
+        and only affects the normal scene when toggled.
+        Tab 2 (Contingency Planning) shows only categories that appear in contingency
+        tasks and only affects the contingency scene when toggled.
+        """
         from PySide6.QtWidgets import QRadioButton, QPushButton, QVBoxLayout, QButtonGroup
         from PySide6.QtCore import Qt
-        
-        # Get both container layouts
+
         if not hasattr(self.widgets, 'task_type_button_container'):
             print("Warning: task_type_button_container not found in UI")
             return
-        
+
         if not hasattr(self.widgets, 'task_type_button_container_2'):
             print("Warning: task_type_button_container_2 not found in UI")
             return
-        
+
         container_1 = self.widgets.task_type_button_container
         container_2 = self.widgets.task_type_button_container_2
-        
+
         # Clear any existing widgets in both containers
         for container in [container_1, container_2]:
             while container.count():
@@ -1033,231 +1039,209 @@ class BriefingPage(BasePage):
                 widget = child.widget()
                 if widget is not None:
                     widget.deleteLater()
-        
-        # Get unique categories
+
         categories = self._get_unique_categories()
-        
         if not categories:
             print("No categories found in tasks")
             return
-        
-        #print(f"Creating radio buttons for {len(categories)} categories: {categories}")
-        
-        # Create radio button group for each category in both containers
+
+        # Compute per-tab task counts
+        normal_counts = {}
+        contingency_counts = {}
+        for task in (self.normal_tasks or []):
+            if task.category:
+                normal_counts[task.category] = normal_counts.get(task.category, 0) + 1
+        for task in (self.contingency_tasks or []):
+            if task.category:
+                contingency_counts[task.category] = contingency_counts.get(task.category, 0) + 1
+
+        button_style = """
+            QPushButton {
+                font: 600 12pt "JetBrains Mono";
+                color: white;
+                padding: 5px;
+                background-color: transparent;
+                border: 2px solid transparent;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+            }
+            QPushButton:pressed {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+        """
+
+        radio_style = """
+            QRadioButton {
+                font: 500 10pt "JetBrains Mono";
+                color: white;
+                padding: 3px;
+            }
+            QRadioButton::indicator {
+                width: 15px;
+                height: 15px;
+                border-radius: 10px;
+                border: 3px solid rgb(52, 59, 72);
+                background: rgb(44, 49, 60);
+            }
+            QRadioButton::indicator:hover {
+                border: 3px solid rgb(58, 66, 81);
+            }
+            QRadioButton::indicator:checked {
+                background: #35de71;
+                border: 3px solid rgb(52, 59, 72);
+            }
+        """
+
         for category in categories:
-            # Create layouts for both tabs
-            category_layout_1 = QVBoxLayout()
-            category_layout_1.setSpacing(5)
-            category_layout_2 = QVBoxLayout()
-            category_layout_2.setSpacing(5)
-            
-            # Create clickable category buttons (labels) for both tabs
-            category_button_1 = QPushButton(category)
-            category_button_2 = QPushButton(category)
-            
-            # Style the buttons to look like labels but be clickable
-            button_style = """
-                QPushButton {
-                    font: 600 12pt "JetBrains Mono";
-                    color: white;
-                    padding: 5px;
-                    background-color: transparent;
-                    border: 2px solid transparent;
-                    border-radius: 3px;
-                }
-                QPushButton:hover {
-                    background-color: rgba(255, 255, 255, 0.1);
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                }
-                QPushButton:pressed {
-                    background-color: rgba(255, 255, 255, 0.2);
-                }
-            """
-            
-            category_button_1.setStyleSheet(button_style)
-            category_button_2.setStyleSheet(button_style)
-            
-            category_button_1.setCursor(Qt.PointingHandCursor)
-            category_button_2.setCursor(Qt.PointingHandCursor)
-            
-            category_layout_1.addWidget(category_button_1, alignment=Qt.AlignCenter)
-            category_layout_2.addWidget(category_button_2, alignment=Qt.AlignCenter)
-            
-            # Store references to the filter buttons
-            self.category_filter_buttons[category] = {
-                "button_1": category_button_1,
-                "button_2": category_button_2
-            }
-            
-            # Connect filter button clicks (synchronized between tabs)
-            # Use default argument to capture current button reference in lambda
-            category_button_1.clicked.connect(
-                lambda checked, cat=category, btn1=category_button_1, btn2=category_button_2: 
-                self._on_category_filter_clicked(cat, btn1, btn2))
-            
-            category_button_2.clicked.connect(
-                lambda checked, cat=category, btn1=category_button_2, btn2=category_button_1: 
-                self._on_category_filter_clicked(cat, btn1, btn2))
-            
-            # Create button groups for both tabs to ensure only one can be selected per tab
-            button_group_1 = QButtonGroup(self.main_window)
-            button_group_2 = QButtonGroup(self.main_window)
-            
-            # Create TARS radio buttons for both tabs
-            tars_radio_1 = QRadioButton("TARS")
-            tars_radio_2 = QRadioButton("TARS")
-            
-            radio_style = """
-                QRadioButton {
-                    font: 500 10pt "JetBrains Mono";
-                    color: white;
-                    padding: 3px;
-                }
-                QRadioButton::indicator {
-                    width: 15px;
-                    height: 15px;
-                    border-radius: 10px;
-                    border: 3px solid rgb(52, 59, 72);
-                    background: rgb(44, 49, 60);
-                }
-                QRadioButton::indicator:hover {
-                    border: 3px solid rgb(58, 66, 81);
-                }
-                QRadioButton::indicator:checked {
-                    background: #35de71;
-                    border: 3px solid rgb(52, 59, 72);
-                }
-            """
-            
-            tars_radio_1.setStyleSheet(radio_style)
-            tars_radio_2.setStyleSheet(radio_style)
-            
-            button_group_1.addButton(tars_radio_1)
-            button_group_2.addButton(tars_radio_2)
-            
-            category_layout_1.addWidget(tars_radio_1, alignment=Qt.AlignCenter)
-            category_layout_2.addWidget(tars_radio_2, alignment=Qt.AlignCenter)
-            
-            # Create HUMAN radio buttons for both tabs
-            human_radio_1 = QRadioButton("HUMAN")
-            human_radio_2 = QRadioButton("HUMAN")
-            
-            human_radio_1.setStyleSheet(radio_style)
-            human_radio_2.setStyleSheet(radio_style)
-            
-            button_group_1.addButton(human_radio_1)
-            button_group_2.addButton(human_radio_2)
-            
-            category_layout_1.addWidget(human_radio_1, alignment=Qt.AlignCenter)
-            category_layout_2.addWidget(human_radio_2, alignment=Qt.AlignCenter)
-            
-            # Store references to all radio buttons
-            self.category_radio_buttons[category] = {
-                "TARS_1": tars_radio_1,
-                "HUMAN_1": human_radio_1,
-                "TARS_2": tars_radio_2,
-                "HUMAN_2": human_radio_2,
-                "button_group_1": button_group_1,
-                "button_group_2": button_group_2
-            }
-            
-            # Connect signals with synchronization
-            # When tab 1 TARS is toggled, sync to tab 2 and allocate
-            tars_radio_1.toggled.connect(
-                lambda checked, cat=category, performer="TARS", other=tars_radio_2: 
-                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
-            
-            # When tab 2 TARS is toggled, sync to tab 1 and allocate
-            tars_radio_2.toggled.connect(
-                lambda checked, cat=category, performer="TARS", other=tars_radio_1: 
-                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
-            
-            # When tab 1 HUMAN is toggled, sync to tab 2 and allocate
-            human_radio_1.toggled.connect(
-                lambda checked, cat=category, performer="HUMAN", other=human_radio_2: 
-                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
-            
-            # When tab 2 HUMAN is toggled, sync to tab 1 and allocate
-            human_radio_2.toggled.connect(
-                lambda checked, cat=category, performer="HUMAN", other=human_radio_1: 
-                self._on_category_radio_toggled_with_sync(cat, performer, checked, other))
-            
-            # Add the category layouts to both containers
-            container_1.addLayout(category_layout_1)
-            container_2.addLayout(category_layout_2)
-        
-        # Add stretches at the end to push everything to the left
+            n_count = normal_counts.get(category, 0)
+            c_count = contingency_counts.get(category, 0)
+
+            # --- Tab 1: Normal Operations ---
+            if n_count > 0:
+                cat_layout_1 = QVBoxLayout()
+                cat_layout_1.setSpacing(5)
+
+                btn_1 = QPushButton(f"{category} ({n_count})")
+                btn_1.setStyleSheet(button_style)
+                btn_1.setCursor(Qt.PointingHandCursor)
+                cat_layout_1.addWidget(btn_1, alignment=Qt.AlignCenter)
+
+                bg_1 = QButtonGroup(self.main_window)
+                tars_1 = QRadioButton("TARS")
+                tars_1.setStyleSheet(radio_style)
+                human_1 = QRadioButton("HUMAN")
+                human_1.setStyleSheet(radio_style)
+                bg_1.addButton(tars_1)
+                bg_1.addButton(human_1)
+                cat_layout_1.addWidget(tars_1, alignment=Qt.AlignCenter)
+                cat_layout_1.addWidget(human_1, alignment=Qt.AlignCenter)
+                container_1.addLayout(cat_layout_1)
+
+                self.category_filter_buttons.setdefault(category, {})["button_1"] = btn_1
+                self.category_radio_buttons.setdefault(category, {}).update({
+                    "TARS_1": tars_1, "HUMAN_1": human_1, "button_group_1": bg_1
+                })
+
+                btn_1.clicked.connect(
+                    lambda checked, cat=category, btn=btn_1:
+                    self._on_category_filter_clicked(1, cat, btn))
+                tars_1.toggled.connect(
+                    lambda checked, cat=category:
+                    self._on_category_radio_toggled_normal(cat, "TARS", checked))
+                human_1.toggled.connect(
+                    lambda checked, cat=category:
+                    self._on_category_radio_toggled_normal(cat, "HUMAN", checked))
+
+            # --- Tab 2: Contingency Planning ---
+            if c_count > 0:
+                cat_layout_2 = QVBoxLayout()
+                cat_layout_2.setSpacing(5)
+
+                btn_2 = QPushButton(f"{category} ({c_count})")
+                btn_2.setStyleSheet(button_style)
+                btn_2.setCursor(Qt.PointingHandCursor)
+                cat_layout_2.addWidget(btn_2, alignment=Qt.AlignCenter)
+
+                bg_2 = QButtonGroup(self.main_window)
+                tars_2 = QRadioButton("TARS")
+                tars_2.setStyleSheet(radio_style)
+                human_2 = QRadioButton("HUMAN")
+                human_2.setStyleSheet(radio_style)
+                bg_2.addButton(tars_2)
+                bg_2.addButton(human_2)
+                cat_layout_2.addWidget(tars_2, alignment=Qt.AlignCenter)
+                cat_layout_2.addWidget(human_2, alignment=Qt.AlignCenter)
+                container_2.addLayout(cat_layout_2)
+
+                self.category_filter_buttons.setdefault(category, {})["button_2"] = btn_2
+                self.category_radio_buttons.setdefault(category, {}).update({
+                    "TARS_2": tars_2, "HUMAN_2": human_2, "button_group_2": bg_2
+                })
+
+                btn_2.clicked.connect(
+                    lambda checked, cat=category, btn=btn_2:
+                    self._on_category_filter_clicked(2, cat, btn))
+                tars_2.toggled.connect(
+                    lambda checked, cat=category:
+                    self._on_category_radio_toggled_contingency(cat, "TARS", checked))
+                human_2.toggled.connect(
+                    lambda checked, cat=category:
+                    self._on_category_radio_toggled_contingency(cat, "HUMAN", checked))
+
         container_1.addStretch()
         container_2.addStretch()
     
-    def _on_category_radio_toggled_with_sync(self, category, performer, checked, other_radio):
-        """Handle radio button toggle with synchronization between tabs"""
+    def _on_category_radio_toggled_normal(self, category, performer, checked):
+        """Batch-allocate all normal tasks of this category to the chosen performer."""
         if not checked:
             return
-        
-        # Block signals on the other radio button to prevent infinite loop
-        other_radio.blockSignals(True)
-        other_radio.setChecked(True)
-        other_radio.blockSignals(False)
-        
-        # Now perform the allocation
-        self._on_category_radio_toggled(category, performer, checked)
-    
-    def _on_category_filter_clicked(self, category, clicked_button, other_button):
-        """Handle category filter button click (apply filter and show clear button)"""
-        # Check if this category is already filtered
-        if self.active_filter_category == category:
-            # Do nothing - already filtered, user should use clear button
+        if self.normal_interdependence_scene and self.normal_tasks:
+            for task_id, task in enumerate(self.normal_tasks):
+                if task.category == category:
+                    if performer == "HUMAN" and task.human_can:
+                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
+                    elif performer == "TARS" and task.agent_can:
+                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
+
+    def _on_category_radio_toggled_contingency(self, category, performer, checked):
+        """Batch-allocate all contingency tasks of this category to the chosen performer."""
+        if not checked:
             return
-        
-        # Apply the filter
-        self.active_filter_category = category
-        
-        # Reset all other filter buttons first
-        for cat, buttons in self.category_filter_buttons.items():
-            self._reset_filter_button_style(buttons["button_1"])
-            self._reset_filter_button_style(buttons["button_2"])
-        
-        # Highlight the active filter buttons
-        self._set_filter_button_active_style(clicked_button)
-        self._set_filter_button_active_style(other_button)
-        
-        # Apply filter to both graphs
-        if self.normal_interdependence_scene:
-            self.normal_interdependence_scene.filter_by_category(category)
-        if self.contingency_interdependence_scene:
-            self.contingency_interdependence_scene.filter_by_category(category)
-        
-        # Show the clear filter buttons
-        self._show_clear_filter_buttons()
-        
-        #print(f"Applied filter for category: {category}")
+        if self.contingency_interdependence_scene and self.contingency_tasks:
+            for task_id, task in enumerate(self.contingency_tasks):
+                if task.category == category:
+                    if performer == "HUMAN" and task.human_can:
+                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
+                    elif performer == "TARS" and task.agent_can:
+                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
     
-    def _show_clear_filter_buttons(self):
-        """Show clear filter buttons in both tabs"""
+    def _on_category_filter_clicked(self, tab, category, clicked_button):
+        """Handle category filter button click for a specific tab (1=Normal, 2=Contingency)."""
+        active_attr = f'active_filter_category_{tab}'
+        if getattr(self, active_attr) == category:
+            return  # Already filtered — user should use the clear button
+
+        setattr(self, active_attr, category)
+
+        # Reset all filter buttons for this tab only
+        btn_key = f"button_{tab}"
+        for cat, buttons in self.category_filter_buttons.items():
+            if btn_key in buttons:
+                self._reset_filter_button_style(buttons[btn_key])
+
+        # Highlight the clicked button
+        self._set_filter_button_active_style(clicked_button)
+
+        # Apply filter to the relevant scene only
+        if tab == 1 and self.normal_interdependence_scene:
+            self.normal_interdependence_scene.filter_by_category(category)
+        elif tab == 2 and self.contingency_interdependence_scene:
+            self.contingency_interdependence_scene.filter_by_category(category)
+
+        # Show the clear button for this tab
+        self._show_clear_filter_button(tab)
+
+    def _show_clear_filter_button(self, tab):
+        """Show a clear filter button in the given tab's container."""
         from PySide6.QtWidgets import QPushButton
         from PySide6.QtCore import Qt
-        
-        # Get both container layouts
-        container_1 = self.widgets.task_type_button_container
-        container_2 = self.widgets.task_type_button_container_2
-        
-        # Remove existing clear buttons if they exist
-        if self.clear_filter_button_1:
-            container_1.removeWidget(self.clear_filter_button_1)
-            self.clear_filter_button_1.deleteLater()
-            self.clear_filter_button_1 = None
-        
-        if self.clear_filter_button_2:
-            container_2.removeWidget(self.clear_filter_button_2)
-            self.clear_filter_button_2.deleteLater()
-            self.clear_filter_button_2 = None
-        
-        # Create clear filter buttons
-        self.clear_filter_button_1 = QPushButton("✕ Clear Filter")
-        self.clear_filter_button_2 = QPushButton("✕ Clear Filter")
-        
-        clear_button_style = """
+
+        container_attr = 'task_type_button_container' if tab == 1 else 'task_type_button_container_2'
+        btn_attr = f'clear_filter_button_{tab}'
+        container = getattr(self.widgets, container_attr)
+
+        # Remove existing clear button if present
+        existing = getattr(self, btn_attr)
+        if existing:
+            container.removeWidget(existing)
+            existing.deleteLater()
+            setattr(self, btn_attr, None)
+
+        clear_btn = QPushButton("✕ Clear Filter")
+        clear_btn.setStyleSheet("""
             QPushButton {
                 font: 700 11pt "JetBrains Mono";
                 color: white;
@@ -1274,71 +1258,49 @@ class BriefingPage(BasePage):
             QPushButton:pressed {
                 background-color: rgba(180, 25, 41, 255);
             }
-        """
-        
-        self.clear_filter_button_1.setStyleSheet(clear_button_style)
-        self.clear_filter_button_2.setStyleSheet(clear_button_style)
-        
-        self.clear_filter_button_1.setCursor(Qt.PointingHandCursor)
-        self.clear_filter_button_2.setCursor(Qt.PointingHandCursor)
-        
-        # Connect both buttons to clear the filter (synchronized)
-        self.clear_filter_button_1.clicked.connect(self._clear_category_filter)
-        self.clear_filter_button_2.clicked.connect(self._clear_category_filter)
-        
-        # Insert the clear buttons at the end (before the stretch)
-        # Remove the stretch temporarily
-        stretch_1 = container_1.takeAt(container_1.count() - 1)
-        stretch_2 = container_2.takeAt(container_2.count() - 1)
-        
-        # Add clear buttons
-        container_1.addWidget(self.clear_filter_button_1)
-        container_2.addWidget(self.clear_filter_button_2)
-        
-        # Re-add stretches
-        if stretch_1:
-            container_1.addItem(stretch_1)
-        if stretch_2:
-            container_2.addItem(stretch_2)
-    
-    def _clear_category_filter(self):
-        """Clear the active category filter"""
-        if not self.active_filter_category:
+        """)
+        clear_btn.setCursor(Qt.PointingHandCursor)
+        clear_btn.clicked.connect(lambda: self._clear_category_filter(tab))
+        setattr(self, btn_attr, clear_btn)
+
+        # Insert before the trailing stretch
+        stretch = container.takeAt(container.count() - 1)
+        container.addWidget(clear_btn)
+        if stretch:
+            container.addItem(stretch)
+
+    def _clear_category_filter(self, tab):
+        """Clear the active category filter for the given tab."""
+        active_attr = f'active_filter_category_{tab}'
+        if not getattr(self, active_attr):
             return
-        
-        # Clear the filter state
-        self.active_filter_category = None
-        
-        # Reset all filter button styles
+
+        setattr(self, active_attr, None)
+
+        # Reset filter button styles for this tab
+        btn_key = f"button_{tab}"
         for cat, buttons in self.category_filter_buttons.items():
-            self._reset_filter_button_style(buttons["button_1"])
-            self._reset_filter_button_style(buttons["button_2"])
-        
-        # Clear filters on both graphs
-        if self.normal_interdependence_scene:
+            if btn_key in buttons:
+                self._reset_filter_button_style(buttons[btn_key])
+
+        # Clear filter on the relevant scene only
+        if tab == 1 and self.normal_interdependence_scene:
             self.normal_interdependence_scene.clear_category_filter()
-        if self.contingency_interdependence_scene:
+        elif tab == 2 and self.contingency_interdependence_scene:
             self.contingency_interdependence_scene.clear_category_filter()
-        
-        # Hide the clear filter buttons
-        self._hide_clear_filter_buttons()
-        
-        #print("Cleared category filter")
-    
-    def _hide_clear_filter_buttons(self):
-        """Hide and remove clear filter buttons from both tabs"""
-        container_1 = self.widgets.task_type_button_container
-        container_2 = self.widgets.task_type_button_container_2
-        
-        if self.clear_filter_button_1:
-            container_1.removeWidget(self.clear_filter_button_1)
-            self.clear_filter_button_1.deleteLater()
-            self.clear_filter_button_1 = None
-        
-        if self.clear_filter_button_2:
-            container_2.removeWidget(self.clear_filter_button_2)
-            self.clear_filter_button_2.deleteLater()
-            self.clear_filter_button_2 = None
+
+        self._hide_clear_filter_button(tab)
+
+    def _hide_clear_filter_button(self, tab):
+        """Remove the clear filter button from the given tab's container."""
+        container_attr = 'task_type_button_container' if tab == 1 else 'task_type_button_container_2'
+        btn_attr = f'clear_filter_button_{tab}'
+        container = getattr(self.widgets, container_attr)
+        btn = getattr(self, btn_attr)
+        if btn:
+            container.removeWidget(btn)
+            btn.deleteLater()
+            setattr(self, btn_attr, None)
     
     def _reset_filter_button_style(self, button):
         """Reset filter button to normal (non-active) style"""
@@ -1379,33 +1341,6 @@ class BriefingPage(BasePage):
                 background-color: rgba(0, 134, 96, 255);
             }
         """)
-    
-    def _on_category_radio_toggled(self, category, performer, checked):
-        """Handle radio button toggle for category-based allocation"""
-        if not checked:
-            return
-        
-        #print(f"Allocating all '{category}' tasks to {performer}")
-        
-        # Allocate normal tasks in this category
-        if self.normal_interdependence_scene and self.normal_tasks:
-            for task_id, task in enumerate(self.normal_tasks):
-                if task.category == category:
-                    # Check if this performer can perform the task
-                    if performer == "HUMAN" and task.human_can:
-                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
-                    elif performer == "TARS" and task.agent_can:
-                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
-        
-        # Allocate contingency tasks in this category
-        if self.contingency_interdependence_scene and self.contingency_tasks:
-            for task_id, task in enumerate(self.contingency_tasks):
-                if task.category == category:
-                    # Check if this performer can perform the task
-                    if performer == "HUMAN" and task.human_can:
-                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
-                    elif performer == "TARS" and task.agent_can:
-                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
     
     def connect_briefing_signals(self):
         """
