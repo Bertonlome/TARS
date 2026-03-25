@@ -28,10 +28,8 @@ device = DEFAULT_DEVICE
 verbose = False
 is_interrupted = False
 
-# Load offline model - use absolute path
-script_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(script_dir, "model", "vosk-model-en-us-0.22")
-model = Model(model_path)
+# Model will be loaded in __main__ after proper initialization
+model = None
 
 # Global state for push-to-talk
 is_recording = False
@@ -149,7 +147,7 @@ def on_recording_timeout():
         stop_recording()
 
 def bool_input_callback(io_type, name, value_type, value, my_data):
-    global is_recording, stream, current_recognizer, has_audio_data, audio_frame_count, recognizer_lock, ptt_start_time, timeout_timer
+    global is_recording, stream, current_recognizer, has_audio_data, audio_frame_count, recognizer_lock, ptt_start_time, timeout_timer, model
     agent_object = my_data
     assert isinstance(agent_object, Echo)
     
@@ -158,6 +156,11 @@ def bool_input_callback(io_type, name, value_type, value, my_data):
         
         try:
             if value and not is_recording:
+                # Check if model is loaded
+                if model is None:
+                    print("❌ Cannot start recording: Model not loaded")
+                    return
+                
                 # Play listening sound effect
                 play_sound_async("STT_listening.mp3")
                 
@@ -246,11 +249,48 @@ def main():
         igs.stop()
 
 if __name__ == "__main__":
-    sig_module.signal(sig_module.SIGINT, signal_handler)
+    # Note: No need for 'global' here - we're already at module scope
 
     print("=" * 50)
     print("Starting Speech-to-Text Agent")
     print("=" * 50)
+    
+    # Load Vosk model BEFORE registering signal handler.
+    # Vosk's C library sends an internal interrupt during model init which
+    # would prematurely set is_interrupted=True if the handler is active.
+    try:
+        print("\n📦 Loading Vosk speech recognition model...")
+        print("⏳ First launch may take 30-60 seconds while model initializes...")
+        sys.stdout.flush()
+        
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(script_dir, "model", "vosk-model-en-us-0.22")
+        
+        if not os.path.exists(model_path):
+            print(f"❌ Model not found at: {model_path}")
+            print("Please download the Vosk model and place it in Speech/model/")
+            sys.exit(1)
+        
+        import time
+        start_time = time.time()
+        model = Model(model_path)
+        load_time = time.time() - start_time
+        print(f"✅ Model loaded successfully in {load_time:.1f} seconds")
+        sys.stdout.flush()
+        
+    except KeyboardInterrupt:
+        print("\n❌ Model loading interrupted by user")
+        print("Note: First load takes time. Please wait for initialization to complete.")
+        sys.exit(1)
+    except Exception as model_err:
+        print(f"❌ Failed to load Vosk model: {model_err}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    
+    # Register signal handler AFTER model loads to avoid Vosk's internal
+    # interrupt during loading from triggering our handler
+    sig_module.signal(sig_module.SIGINT, signal_handler)
     
     # Check available audio devices
     try:

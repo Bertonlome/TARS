@@ -117,7 +117,15 @@ def speak_with_radio_effect(text):
 
 def signal_handler(signal_received, frame):
     global is_interrupted
-    print("\n", sig_module.strsignal(signal_received), sep="")
+    # Use platform-safe signal description
+    try:
+        if hasattr(sig_module, 'strsignal'):
+            sig_desc = sig_module.strsignal(signal_received)
+        else:
+            sig_desc = f"Signal {signal_received}"
+    except (AttributeError, ValueError):
+        sig_desc = f"Signal {signal_received}"
+    print("\n", sig_desc, sep="")
     is_interrupted = True
 
 def on_agent_event_callback(event, uuid, name, event_data, my_data):

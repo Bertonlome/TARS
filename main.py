@@ -155,9 +155,9 @@ class MainWindow(QMainWindow):
         self.ui.tars_status_label.setText("TARS Agent RUNNING")
         
         # Start STT (Speech-to-Text) subprocess
-        self.stt_process: subprocess.Popen | None = None
-        self.stt_monitor_timer = None
-        self.start_stt_subprocess()
+        #self.stt_process: subprocess.Popen | None = None
+        #self.stt_monitor_timer = None
+        #self.start_stt_subprocess()
         
         # Start ATC (Air Traffic Control) subprocess
         self.atc_process: subprocess.Popen | None = None

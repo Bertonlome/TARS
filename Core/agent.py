@@ -1780,7 +1780,15 @@ class TarsAgent:
 
     # Ingescape callbacks
     def signal_handler(self, signal_received, frame):
-        print("\n", signal.strsignal(signal_received), sep="")
+        # Use platform-safe signal description
+        try:
+            if hasattr(signal, 'strsignal'):
+                sig_desc = signal.strsignal(signal_received)
+            else:
+                sig_desc = f"Signal {signal_received}"
+        except (AttributeError, ValueError):
+            sig_desc = f"Signal {signal_received}"
+        print("\n", sig_desc, sep="")
         self.is_interrupted = True
 
     def _play_sound_async(self, sound_filename):
