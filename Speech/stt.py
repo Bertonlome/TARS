@@ -12,6 +12,7 @@ from echo_speech import *
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Core.igs_utils import start_with_device_fallback
+from Core.speech_commands import COMMANDS
 
 import platform
 if platform.system() == "Linux":
@@ -30,6 +31,37 @@ is_interrupted = False
 
 # Model will be loaded in __main__ after proper initialization
 model = None
+
+# Build grammar from all command keywords so Vosk only listens for known words.
+# This dramatically improves accuracy for short single-word commands.
+def build_vosk_grammar() -> str:
+    """Build a Vosk grammar JSON string from all COMMANDS keywords."""
+    words = set()
+    for cmd in COMMANDS:
+        for kw in cmd.keywords:
+            # Vosk grammar only supports single tokens; split multi-word phrases
+            for word in kw.lower().split():
+                words.add(word)
+    words.add("[unk]")  # Required by Vosk to handle out-of-vocabulary input
+    return json.dumps(sorted(words))
+
+VOSK_GRAMMAR = build_vosk_grammar()
+
+# Build the set of valid words for post-recognition filtering.
+# Vosk grammar mode is a soft constraint - it can still output words not in the
+# grammar, so we hard-filter any result that contains no known command words.
+VALID_WORDS: set = set(json.loads(VOSK_GRAMMAR)) - {"[unk]"}
+
+
+def filter_recognized_text(text: str) -> str:
+    """
+    Keep only words that are in the grammar vocabulary.
+    Returns the filtered text, or empty string if nothing useful remains.
+    """
+    if not text:
+        return ""
+    words = [w for w in text.lower().split() if w in VALID_WORDS]
+    return " ".join(words)
 
 # Global state for push-to-talk
 is_recording = False
@@ -108,15 +140,23 @@ def stop_recording():
                 text = final_result.get("text", "").strip()
                 
                 if text:
-                    print(f"📝 Recognized: {text}")
-                    igs.output_set_string("speech_output", text)
+                    filtered = filter_recognized_text(text)
+                    if filtered:
+                        print(f"📝 Recognized: {text!r} → filtered: {filtered!r}")
+                        igs.output_set_string("speech_output", filtered)
+                    else:
+                        print(f"🚫 Rejected (no valid words): {text!r}")
                 else:
                     # No final text, try partial
                     partial_result = json.loads(current_recognizer.PartialResult())
                     text = partial_result.get("partial", "").strip()
                     if text:
-                        print(f"📝 Recognized (partial): {text}")
-                        igs.output_set_string("speech_output", text)
+                        filtered = filter_recognized_text(text)
+                        if filtered:
+                            print(f"📝 Recognized (partial): {text!r} → filtered: {filtered!r}")
+                            igs.output_set_string("speech_output", filtered)
+                        else:
+                            print(f"🚫 Rejected partial (no valid words): {text!r}")
                     else:
                         print("⚠️  No speech detected")
                         
@@ -127,8 +167,12 @@ def stop_recording():
                     partial_result = json.loads(current_recognizer.PartialResult())
                     text = partial_result.get("partial", "").strip()
                     if text:
-                        print(f"📝 Recognized (partial): {text}")
-                        igs.output_set_string("speech_output", text)
+                        filtered = filter_recognized_text(text)
+                        if filtered:
+                            print(f"📝 Recognized (partial): {text!r} → filtered: {filtered!r}")
+                            igs.output_set_string("speech_output", filtered)
+                        else:
+                            print(f"🚫 Rejected partial (no valid words): {text!r}")
                     else:
                         print("⚠️  No speech in partial result")
                 except Exception as partial_error:
@@ -170,8 +214,10 @@ def bool_input_callback(io_type, name, value_type, value, my_data):
                 igs.output_set_bool("is_listening", True)  # Signal that STT is listening
                 
                 with recognizer_lock:
-                    # Create fresh recognizer instance
-                    current_recognizer = KaldiRecognizer(model, SAMPLE_RATE)
+                    # Use grammar-restricted recognizer so Vosk cannot output common English
+                    # filler words like "the", "i", "a" for ambiguous audio. It is forced to
+                    # pick the acoustically closest word from our known command vocabulary.
+                    current_recognizer = KaldiRecognizer(model, SAMPLE_RATE, VOSK_GRAMMAR)
                     is_recording = True
                     has_audio_data = False
                     audio_frame_count = 0
@@ -181,8 +227,12 @@ def bool_input_callback(io_type, name, value_type, value, my_data):
                 timeout_timer.start()
                 
             elif not value and is_recording:
-                # User manually stopped recording
-                stop_recording()
+                # Delay stop by 0.5s so the mic catches the tail of the utterance —
+                # speakers often release PTT slightly before they finish the last word.
+                def _delayed_stop():
+                    time.sleep(0.5)
+                    stop_recording()
+                threading.Thread(target=_delayed_stop, daemon=True).start()
                     
         except Exception as e:
             print(f"❌ Error in push_to_talk callback: {e}")
@@ -229,9 +279,11 @@ def main():
     
     try:
         # Keep audio stream always open
+        active_device = sd.query_devices(kind='input')
+        print(f"🎙️  Audio input: {active_device['name']} (index {active_device['index']}, native {int(active_device['default_samplerate'])} Hz → resampled to {SAMPLE_RATE} Hz)")
         with sd.RawInputStream(
             samplerate=SAMPLE_RATE,
-            blocksize=8000,
+            blocksize=4000,
             dtype="int16",
             channels=1,
             callback=callback,

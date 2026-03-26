@@ -35,14 +35,14 @@ COMMANDS = [
     # Approvals (exact match for safety-critical operations)
     Command(
         action="approve",
-        keywords=["yes", "approved", "i pool" ,"a pool", "approve", "affirmative", "confirm", "roger", "accept", "accepted",  "allow", "continue", "proceed", "go ahead", "by all means", "certainly", "definitely", "of course", "sure thing", "you bet", "absolutely", "without a doubt", "gladly", "willingly", "indeed", "naturally", "positively", "unquestionably", "beyond any doubt", "most assuredly", "surely", "undoubtedly", "unhesitatingly", "with pleasure", "it is so", "as you wish", "consider it done", "no problem", "no worries", "not a problem", "not an issue", "go for it", "make it so", "by all means go ahead", "feel free to proceed", "authorize", "authorized"],
+        keywords=["approve", "approved", "affirmative", "confirm", "roger", "accept", "yes"],
         requires_exact=False,
         answer = "Action approved.",
         description="Approve pending action or request"
     ),
     Command(
         action="deny",
-        keywords=["no", "deny", "cancer", "can", "kansas", "canceled", "denied", "negative", "cancel", "abort", "reject", "stop", "hold", "disallow", "wait", "halt", "terminate", "cease", "not", "never", "refuse", "decline", "withdraw", "abort mission", "cut it out", "knock it off", "put a stop to it", "call it off", "shut it down", "shut it off", "pull the plug", "bring to an end", "close it down", "wind it up", "close up shop", "scrap it", "scrap that", "nix it", "nix that", "shoot it down", "shoot that down", "veto it", "veto that", "over my dead body", "not a chance", "no way", "out of the question", "by no means", "under no circumstances", "not on your life", "not in a million years", "not for all the tea in china", "not on your nelly", "not in this lifetime", "not in your wildest dreams", "when pigs fly", "over my cold dead body", "not on your tintype", "not on your life", "not in a month of sundays", "not in a blue moon", "not in a cobblers", "not in a dog's age", "not in a cat's age", "not in a jiffy", "not in a shake of a lamb's tail", "not in a twinkling", "not in a heartbeat", "not in a flash", "not in a split second", "not in a blink of an eye", "not in two shakes of a lamb's tail", "not in the twinkling of an eye", "not in the blink of an eye", "not in the snap of a finger", "not in the wink of an eye"],
+        keywords=["cancel", "canceled", "deny", "denied", "negative", "abort", "no"],
         requires_exact=False,
         answer = "Action denied.",
         description="Deny pending action or request"
@@ -51,7 +51,7 @@ COMMANDS = [
     # Task acknowledgment
     Command(
         action="acknowledge",
-        keywords=["check", "okay", "confirm", "Takeoff clearance confirm", "checked", "trick", "shrek", "chicken", "start", "done", "chick", "jake", "complete", "completed", "acknowledge", "acknowledged", "crosscheck", "crosschecked", "verify", "verified", "affirm", "affirmed", "confirmed", "validate", "validated", "certify", "certified", "attest", "attested", "ratify", "ratified", "endorse", "endorsed", "assent", "assented", "recognize", "recognized", "admit", "admitted", "grant", "granted", "subscribe", "subscribed"],
+        keywords=["check", "checked", "chick", "shake", "jack", "okay", "done", "complete", "completed", "pic", "cig"],
         requires_exact=False,
         description="Acknowledge task completion"
     ),
