@@ -68,6 +68,12 @@ class TTSAgent:
     def on_is_atc_speaking(self, ioType, name, valueType, value, myData):
         """Called when ATC_Agent.is_speaking changes - gate TTS playback accordingly"""
         tts.set_atc_speaking(bool(value))
+
+    def on_string_to_save_mp3(self, ioType, name, valueType, value, myData):
+        """Called when string_to_save_mp3 input is received — synthesise and save as MP3."""
+        if value and isinstance(value, str) and value.strip():
+            print(f"📥 string_to_save_mp3 received: '{value[:60]}'")
+            tts.save_as_mp3(value)
     
     def shutdown(self):
         """Clean shutdown"""
@@ -100,6 +106,7 @@ def main():
     # Define inputs
     igs.input_create("text_to_speak", igs.STRING_T, None)
     igs.input_create("is_atc_speaking", igs.BOOL_T, False)
+    igs.input_create("string_to_save_mp3", igs.STRING_T, None)
     
     # Define outputs
     igs.output_create("is_speaking", igs.BOOL_T, False)
@@ -119,6 +126,7 @@ def main():
     igs.observe_input("repeat_sentence", tts_agent.on_repeat_sentence, None)
     igs.observe_input("tts_unmute", tts_agent.on_tts_unmute, None)
     igs.observe_input("is_atc_speaking", tts_agent.on_is_atc_speaking, None)
+    igs.observe_input("string_to_save_mp3", tts_agent.on_string_to_save_mp3, None)
     igs.mapping_add("text_to_speak", "TARS_Agent", "tts_request")
     igs.mapping_add("tts_stop", "Shared Interface", "tts_stop")
     igs.mapping_add("repeat_sentence", "Shared Interface", "repeat_sentence")

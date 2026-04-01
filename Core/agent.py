@@ -2119,6 +2119,13 @@ class TarsAgent:
                     if key in self.states:
                         self.states[key].human_role = entry.get('human_role', '')
                         self.states[key].autonomy_role = entry.get('autonomy_role', '')
+                        # Update delay fields when provided by the briefing
+                        if 'delay_before_action' in entry:
+                            dba = str(entry['delay_before_action']).strip().lower()
+                            self.states[key].delay_before_action = 'is_acked' if dba == 'is_acked' else (float(dba) if dba else 0)
+                        if 'delay_after_action' in entry:
+                            daa = str(entry['delay_after_action']).strip().lower()
+                            self.states[key].delay_after_action = 'is_acked' if daa == 'is_acked' else (float(daa) if daa else 0)
                         updated += 1
                 print(f"✅ update_allocation applied: {updated}/{len(allocation_list)} states patched")
             except (json.JSONDecodeError, KeyError) as e:

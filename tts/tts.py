@@ -52,6 +52,9 @@ except Exception as e:
 _CACHE_DIR = Path(__file__).parent / "cache"
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+_MP3_CACHE_DIR = Path(__file__).parent / "mp3_cache"
+_MP3_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def _cache_key(text: str) -> str:
     """Return a hex digest that uniquely identifies *text*."""
@@ -551,6 +554,78 @@ def repeat_last():
     print(f"🔁 TTS repeat: replaying last sentence")
     _drain_queue()  # Clear any pending items so repeat plays next
     speak_wait(_last_queued_text)
+
+
+def save_as_mp3(text: str) -> Path | None:
+    """Synthesise *text* with TTS and save the result as an MP3 in tts/mp3_cache/.
+
+    The output filename is ``<text>.mp3``.  Characters that are illegal in
+    file names are replaced with underscores so the name is always valid.
+    The function is synchronous and returns the saved :class:`~pathlib.Path`,
+    or *None* on failure.
+    """
+    import subprocess
+    import tempfile
+    import soundfile as sf
+
+    if not text or not text.strip():
+        print("⚠️  save_as_mp3: empty text — skipping")
+        return None
+
+    # Build a safe filename from the raw text.
+    safe_name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", text.strip())
+    safe_name = safe_name[:200]  # cap length
+    mp3_path = _MP3_CACHE_DIR / f"{safe_name}.mp3"
+
+    print(f"💾 save_as_mp3: synthesising '{text[:60]}...' → {mp3_path.name}")
+
+    try:
+        # Apply the same text processing pipeline used by the TTS worker.
+        processed = convert_letters_and_numbers(convert_acronyms(text))
+
+        # Fetch from .npy cache or synthesise fresh.
+        audio = _load_from_cache(processed)
+        if audio is None:
+            audio = _tts_model.apply_tts(
+                text=processed,
+                speaker=_speaker,
+                sample_rate=_sample_rate
+            )
+            if torch.is_tensor(audio):
+                audio = audio.cpu().numpy()
+            if audio.dtype != np.float32:
+                audio = audio.astype(np.float32)
+            # Add 300 ms silence tail (matches worker behaviour).
+            silence = np.zeros(int(_sample_rate * 0.3), dtype=np.float32)
+            audio = np.concatenate([audio, silence])
+            _save_to_cache(processed, audio)
+
+        # Write a temporary WAV file and convert to MP3 with ffmpeg.
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp_wav = Path(tmp.name)
+
+        sf.write(str(tmp_wav), audio, _sample_rate, subtype="PCM_16")
+
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(tmp_wav), "-codec:a", "libmp3lame",
+             "-qscale:a", "2", str(mp3_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        tmp_wav.unlink(missing_ok=True)
+
+        if result.returncode != 0:
+            print(f"❌ save_as_mp3: ffmpeg conversion failed (exit {result.returncode})")
+            return None
+
+        print(f"✅ save_as_mp3: saved {mp3_path}")
+        return mp3_path
+
+    except Exception as exc:
+        print(f"❌ save_as_mp3: {exc}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 
 def shutdown():
