@@ -3343,9 +3343,9 @@ class TarsAgent:
     
     # Engine Fire
     # Immediate Action Items
-    INTERACTION_IMMEDIATE_ACTION_ITEMS = "IMMEDIATE ACTION ITEMS:\n\nNON-NORMAL EVENT DURING TAKEOFF\n1. Climb to a safe altitude (1500ft AGL)\n\nENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle ({engine_side}) - IDLE\nIF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button ({engine_side}) LIFT COVER and PUSH"
+    INTERACTION_IMMEDIATE_ACTION_ITEMS = "IMMEDIATE ACTION ITEMS:NON-NORMAL EVENT DURING TAKEOFF\n1. Climb to a safe altitude (1500ft AGL)\nENGINE FIRE L OR R (ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle ({engine_side}) - IDLE - IF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button ({engine_side}) LIFT COVER and PUSH"
     def get_immediate_action_items(self) -> str:
-        return f"IMMEDIATE ACTION ITEMS:\nNON-NORMAL EVENT DURING TAKEOFF\n1. Climb to a safe altitude (1500ft AGL)\nENGINE FIRE L OR R\n(ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle ({self.engine_failed_side}) - IDLE\nIF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button ({self.engine_failed_side}) LIFT COVER and PUSH"
+        return f"IMMEDIATE ACTION ITEMS: NON-NORMAL EVENT DURING TAKEOFF\n1. Climb to a safe altitude (1500ft AGL)\nENGINE FIRE L OR R (ENGINE FIRE WARNING LIGHT ILLUMINATED)\n1. Throttle ({self.engine_failed_side}) - IDLE - IF LIGHT REMAINS ON (15 SECONDS)\n2. ENGINE FIRE Button ({self.engine_failed_side}) LIFT COVER and PUSH"
 
     # Prompt Messages
     INTERACTION_PROMPT_START_CHECKLIST = "{callout}?"

@@ -51,7 +51,7 @@ COMMANDS = [
     # Task acknowledgment
     Command(
         action="acknowledge",
-        keywords=["check", "checked", "chick", "shake", "jack", "okay", "done", "complete", "completed", "pic", "cig"],
+        keywords=["check", "checked", "chick", "shake", "jack", "okay", "done", "complete", "completed", "pic", "cig", "confirm", "confirmed"],
         requires_exact=False,
         description="Acknowledge task completion"
     ),
