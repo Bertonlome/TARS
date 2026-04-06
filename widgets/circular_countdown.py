@@ -36,11 +36,18 @@ class CircularCountdown(QWidget):
         self._tick_animation_timer = None
         self._delayed_tick_timer = None  # Timer for delayed tick mark display
         self._then_spin = False  # Whether to start spinner after tick mark hides
+        self._then_sense = False  # Whether to start sensing spinner after tick mark hides
         
         # Spinner / waiting-for-pilot state
         self._is_spinning = False
         self._spin_angle = 0.0   # Current rotation angle (degrees)
         self._spin_timer = None  # QTimer driving the rotation
+        self._spinner_mode = "waiting"  # 'waiting' (green) or 'sensing' (blue)
+        self._delayed_sense_timer = None  # Timer for 2-second delay before sensing spinner
+        
+        # Spinner colors
+        self._waiting_spinner_color = QColor("#55ff7f")  # Green for waiting
+        self._sensing_spinner_color = QColor("#55aaff")  # Blue for sensing
         
         # N/A state (waiting for acknowledgment)
         self._show_na = False
@@ -160,21 +167,23 @@ class CircularCountdown(QWidget):
             self._tick_color = QColor(tick_color)
         self.update()
     
-    def show_task_fired(self, duration_ms=2000, then_spin=False):
+    def show_task_fired(self, duration_ms=2000, then_spin=False, then_sense=False):
         """
         Show a tick mark indicating the task has fired.
         
         Args:
             duration_ms: How long to show the tick mark (default: 2 seconds)
-            then_spin:   If True, start the waiting-spinner after the tick hides
+            then_spin:   If True, start the waiting-spinner (green) after the tick hides
+            then_sense:  If True, start the sensing-spinner (blue) 2s after the tick hides
         """
         # Stop any existing animation and spinner
         if self._animation:
             self._animation.stop()
         self.stop_spinning()
         
-        # Remember whether to spin after the tick
+        # Remember whether to spin/sense after the tick
         self._then_spin = then_spin
+        self._then_sense = then_sense
         
         # Show tick mark
         self._show_tick = True
@@ -192,14 +201,15 @@ class CircularCountdown(QWidget):
         self._tick_animation_timer.timeout.connect(self._hide_tick_mark)
         self._tick_animation_timer.start(duration_ms)
     
-    def schedule_task_fired(self, delay_ms=500, duration_ms=2000, then_spin=False):
+    def schedule_task_fired(self, delay_ms=500, duration_ms=2000, then_spin=False, then_sense=False):
         """
         Schedule a tick mark to appear after a delay (for synchronization)
         
         Args:
             delay_ms:  Delay before showing tick mark (default: 500ms)
             duration_ms: How long to show the tick mark (default: 2 seconds)
-            then_spin:   If True, start the waiting-spinner after the tick hides
+            then_spin:   If True, start the waiting-spinner (green) after the tick hides
+            then_sense:  If True, start the sensing-spinner (blue) 2s after the tick hides
         """
         # Stop any existing delayed tick timer
         if self._delayed_tick_timer:
@@ -210,11 +220,11 @@ class CircularCountdown(QWidget):
         # Create timer for delayed tick mark with parent to prevent garbage collection
         self._delayed_tick_timer = QTimer(self)
         self._delayed_tick_timer.setSingleShot(True)
-        self._delayed_tick_timer.timeout.connect(lambda: self.show_task_fired(duration_ms, then_spin=then_spin))
+        self._delayed_tick_timer.timeout.connect(lambda: self.show_task_fired(duration_ms, then_spin=then_spin, then_sense=then_sense))
         self._delayed_tick_timer.start(delay_ms)
     
     def _hide_tick_mark(self):
-        """Hide the tick mark; start spinner if then_spin was requested."""
+        """Hide the tick mark; start spinner or sensing as requested."""
         self._show_tick = False
         
         # Clean up timer
@@ -222,7 +232,19 @@ class CircularCountdown(QWidget):
             self._tick_animation_timer.stop()
             self._tick_animation_timer = None
         
-        if self._then_spin:
+        if self._then_sense:
+            self._then_sense = False
+            self._then_spin = False
+            # 2-second delay before showing sensing spinner
+            if self._delayed_sense_timer:
+                self._delayed_sense_timer.stop()
+                self._delayed_sense_timer.deleteLater()
+            self._delayed_sense_timer = QTimer(self)
+            self._delayed_sense_timer.setSingleShot(True)
+            self._delayed_sense_timer.timeout.connect(self.set_sensing)
+            self._delayed_sense_timer.start(2000)
+            self.update()
+        elif self._then_spin:
             self._then_spin = False
             self.set_spinning()
         else:
@@ -233,6 +255,7 @@ class CircularCountdown(QWidget):
         self._show_tick = False
         self._show_na = False
         self._then_spin = False
+        self._then_sense = False
         self.stop_spinning()
         if self._tick_animation_timer:
             self._tick_animation_timer.stop()
@@ -240,11 +263,14 @@ class CircularCountdown(QWidget):
         if self._delayed_tick_timer:
             self._delayed_tick_timer.stop()
             self._delayed_tick_timer = None
+        if self._delayed_sense_timer:
+            self._delayed_sense_timer.stop()
+            self._delayed_sense_timer = None
         self.update()
     
     def set_spinning(self):
         """
-        Start the rotating dashed-arc "waiting for pilot" animation.
+        Start the rotating dashed-arc "waiting for pilot" animation (green hue).
         Replaces the countdown ring with a rotating loader.
         """
         # Stop anything else that might be running
@@ -252,15 +278,52 @@ class CircularCountdown(QWidget):
         self._show_tick = False
         self._show_na = False
         self._then_spin = False
+        self._then_sense = False
         if self._tick_animation_timer:
             self._tick_animation_timer.stop()
             self._tick_animation_timer = None
         if self._delayed_tick_timer:
             self._delayed_tick_timer.stop()
             self._delayed_tick_timer = None
+        if self._delayed_sense_timer:
+            self._delayed_sense_timer.stop()
+            self._delayed_sense_timer = None
         
         self._is_spinning = True
         self._spin_angle = 0.0
+        self._spinner_mode = "waiting"
+        
+        # Start spin timer — 50 ms → ~20 fps, 6°/frame → ~1 revolution/3 s
+        if self._spin_timer is None:
+            self._spin_timer = QTimer(self)
+            self._spin_timer.timeout.connect(self._spin_tick)
+        self._spin_timer.start(50)
+        self.update()
+    
+    def set_sensing(self):
+        """
+        Start the rotating dashed-arc "sensing environment" animation (blue hue).
+        Used when waiting for an environmental condition (not just pilot acknowledgment).
+        """
+        # Stop anything else that might be running
+        self._animation.stop()
+        self._show_tick = False
+        self._show_na = False
+        self._then_spin = False
+        self._then_sense = False
+        if self._tick_animation_timer:
+            self._tick_animation_timer.stop()
+            self._tick_animation_timer = None
+        if self._delayed_tick_timer:
+            self._delayed_tick_timer.stop()
+            self._delayed_tick_timer = None
+        if self._delayed_sense_timer:
+            self._delayed_sense_timer.stop()
+            self._delayed_sense_timer = None
+        
+        self._is_spinning = True
+        self._spin_angle = 0.0
+        self._spinner_mode = "sensing"
         
         # Start spin timer — 50 ms → ~20 fps, 6°/frame → ~1 revolution/3 s
         if self._spin_timer is None:
@@ -274,6 +337,8 @@ class CircularCountdown(QWidget):
         self._is_spinning = False
         if self._spin_timer is not None:
             self._spin_timer.stop()
+        if self._delayed_sense_timer is not None:
+            self._delayed_sense_timer.stop()
         self.update()
     
     def _spin_tick(self):
@@ -441,7 +506,11 @@ class CircularCountdown(QWidget):
         arc_span = 28          # degrees each dash covers
         gap = 360 / num_dashes # degrees between dash starts
 
-        base_color = self._progress_color  # inherit the configured accent colour
+        # Choose colour based on spinner mode
+        if self._spinner_mode == "sensing":
+            base_color = self._sensing_spinner_color   # blue
+        else:
+            base_color = self._waiting_spinner_color   # green
 
         for i in range(num_dashes):
             # Leading dash (i == 0 at spin_angle) is fully opaque;
@@ -473,4 +542,5 @@ class CircularCountdown(QWidget):
         font = QFont("JetBrains Mono", 9, QFont.Weight.Light)
         painter.setFont(font)
         text_rect = QtCore.QRectF(0, 0, size, size)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "waiting")
+        spinner_label = "sensing" if self._spinner_mode == "sensing" else "waiting"
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, spinner_label)

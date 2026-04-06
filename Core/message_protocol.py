@@ -255,18 +255,19 @@ ATC_INTERFACE = {
 # HELPER FUNCTIONS
 # ============================================================================
 
-def encode_state_to_json(state) -> str:
+def encode_state_to_json(state, **extra_fields) -> str:
     """
     Encode State object to JSON string for transmission
     
     Args:
         state: State object from Core.fsm
+        **extra_fields: Additional fields to include in the JSON
         
     Returns:
         JSON string representation
     """
     import json
-    return json.dumps({
+    data = {
         "procedure": state.procedure,
         "classification": state.classification,
         "type": state.type,
@@ -284,7 +285,10 @@ def encode_state_to_json(state) -> str:
         "condition_type": state.condition_type,
         "condition_function": state.condition_function,
         "monitor_scope": state.monitor_scope,
-    })
+        "transition_kind": getattr(state, 'transition_kind', None),
+    }
+    data.update(extra_fields)
+    return json.dumps(data)
 
 
 def decode_json_to_dict(json_str: str) -> Dict[str, Any]:

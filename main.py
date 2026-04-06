@@ -445,6 +445,10 @@ class MainWindow(QMainWindow):
                 # Blue glow for performer/supporter tasks
                 home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
                 
+                # Determine spinner kwargs based on transition condition kind
+                transition_kind = getattr(state_obj, 'transition_kind', 'waiting')
+                spin_kw = {"then_sense": True} if transition_kind == "sensing" else {"then_spin": True}
+                
                 # Get delay_after_action and convert to int for timer
                 delay_after = state_obj.delay_after_action
                 try:
@@ -457,19 +461,19 @@ class MainWindow(QMainWindow):
                         tick_duration = max(3000, delay_after_ms) if delay_after_ms > 0 else 3000
                     
                     if home_page.current_circular_countdown is not None:
-                        # After the tick mark, always start the spinner so the pilot
-                        # sees the agent is now waiting for the transition condition.
+                        # After the tick mark, start the appropriate spinner so the pilot
+                        # sees the agent is now waiting/sensing for the transition condition.
                         if state_obj.autonomy_role == "supporter":
-                            home_page.current_circular_countdown.show_task_fired(tick_duration, then_spin=True)
+                            home_page.current_circular_countdown.show_task_fired(tick_duration, **spin_kw)
                         else:
-                            home_page.current_circular_countdown.schedule_task_fired(1000, tick_duration, then_spin=True)
+                            home_page.current_circular_countdown.schedule_task_fired(1000, tick_duration, **spin_kw)
                 except (ValueError, TypeError):
                     # If conversion fails, show for default 3 seconds
                     if home_page.current_circular_countdown is not None:
                         if state_obj.autonomy_role == "supporter":
-                            home_page.current_circular_countdown.show_task_fired(3000, then_spin=True)
+                            home_page.current_circular_countdown.show_task_fired(3000, **spin_kw)
                         else:
-                            home_page.current_circular_countdown.schedule_task_fired(1000, 3000, then_spin=True)
+                            home_page.current_circular_countdown.schedule_task_fired(1000, 3000, **spin_kw)
             elif state_obj.delay_after_action == "is_acked":
                 # State with no/empty autonomy_role but FSM waits for pilot ack after the action —
                 # show spinner directly (countdown has already finished at this point)
@@ -831,12 +835,20 @@ class MainWindow(QMainWindow):
                 self.ui.c_t_s_value_2.setText("0")
         elif current_state_obj.autonomy_role != "performer":
             # Human task with no numeric delay - show spinner (agent waiting for pilot)
+            # Choose spinner mode based on transition condition kind
+            transition_kind = getattr(current_state_obj, 'transition_kind', 'waiting')
             if home_page.current_circular_countdown:
                 home_page.current_circular_countdown.show()
-                home_page.current_circular_countdown.set_spinning()
+                if transition_kind == "sensing":
+                    home_page.current_circular_countdown.set_sensing()
+                else:
+                    home_page.current_circular_countdown.set_spinning()
             if flight_page.current_circular_countdown:
                 flight_page.current_circular_countdown.show()
-                flight_page.current_circular_countdown.set_spinning()
+                if transition_kind == "sensing":
+                    flight_page.current_circular_countdown.set_sensing()
+                else:
+                    flight_page.current_circular_countdown.set_spinning()
             home_page.handle_human_task()
             flight_page.handle_human_task()
             self.ui.c_t_s_value_2.setText("Human")

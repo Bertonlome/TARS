@@ -739,6 +739,7 @@ class GUIAgent(QObject):
             condition_type=state_data.get('condition_type'),
             condition_function=state_data.get('condition_function'),
             monitor_scope=state_data.get('monitor_scope'),
+            transition_kind=state_data.get('transition_kind', 'waiting'),
         )
         
         # If returning to IDLE, clear the speech log
@@ -837,6 +838,7 @@ class GUIAgent(QObject):
                 condition_type=state_data.get('condition_type'),
                 condition_function=state_data.get('condition_function'),
                 monitor_scope=state_data.get('monitor_scope'),
+                transition_kind=state_data.get('transition_kind', 'waiting'),
             )
             
             # Call MainWindow handler to show tick mark animation
