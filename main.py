@@ -152,7 +152,7 @@ class MainWindow(QMainWindow):
         # This fixes Ingescape's "one agent per process" limitation
         self.tars_process: subprocess.Popen | None = None
         self.start_tars_subprocess()
-        self.ui.tars_status_label.setText("TARS Agent RUNNING")
+        self.ui.tars_status_label.setText("Agent RUNNING")
         
         # Start STT (Speech-to-Text) subprocess
         self.stt_process: subprocess.Popen | None = None
@@ -277,6 +277,8 @@ class MainWindow(QMainWindow):
         self._tts_speaking = False
         # Persistent mute state - set by clicking the TARS picture
         self._tts_muted = False
+        # Current condition/persona for TARS picture (TARS | TARP-F | TARP-S | TARC)
+        self._tars_condition = "TARS"
 
         # Make tars_picture clickable to toggle TTS mute/unmute
         def _tars_picture_clicked(event):
@@ -287,17 +289,17 @@ class MainWindow(QMainWindow):
                 self._tts_muted = False
                 self.gui_agent.send_tts_unmute()
                 if self._tts_speaking:
-                    pixmap = QPixmap("images/images/TARS_female_speaking.png")
+                    pixmap = QPixmap(self._get_tars_image('speaking'))
                     self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
                 else:
-                    pixmap = QPixmap("images/images/TARS_female.png")
+                    pixmap = QPixmap(self._get_tars_image('idle'))
                     self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
                 self.ui.tars_picture.setPixmap(pixmap)
             else:
                 # Mute
                 self._tts_muted = True
                 self.gui_agent.send_tts_stop()
-                pixmap = QPixmap("images/images/tars_female_muted.png")
+                pixmap = QPixmap(self._get_tars_image('muted'))
                 self.ui.tars_picture.setPixmap(pixmap)
                 self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.ui.tars_picture.mousePressEvent = _tars_picture_clicked
@@ -592,7 +594,7 @@ class MainWindow(QMainWindow):
     def on_tts_speak(self, text):
         print(f"🎤 TTS Speaking: {text}")  # Debug
         self._tts_speaking = True
-        pixmap = QPixmap("images/images/TARS_female_speaking.png")
+        pixmap = QPixmap(self._get_tars_image('speaking'))
         self.ui.tars_picture.setPixmap(pixmap)
         self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         # Append to the speech log (right-aligned, blue)
@@ -605,14 +607,14 @@ class MainWindow(QMainWindow):
         print(f"🎧 STT Listening: {is_listening}")  # Debug
         if is_listening:
             # Show listening image when STT is active
-            pixmap = QPixmap("images/images/TARS_female_listening.png")
+            pixmap = QPixmap(self._get_tars_image('listening'))
             self.ui.tars_picture.setPixmap(pixmap)
         else:
             # Return to muted image if muted, otherwise default
             if self._tts_muted:
-                pixmap = QPixmap("images/images/tars_female_muted.png")
+                pixmap = QPixmap(self._get_tars_image('muted'))
             else:
-                pixmap = QPixmap("images/images/TARS_female.png")
+                pixmap = QPixmap(self._get_tars_image('idle'))
             self.ui.tars_picture.setPixmap(pixmap)
     
     @QtCore.Slot(object, str)
@@ -702,15 +704,42 @@ class MainWindow(QMainWindow):
         """Update the TARS status label from any thread via signal."""
         self.ui.tars_status_label.setText(text)
 
+    def _get_tars_image(self, state: str) -> str:
+        """Return image path for the current condition and visual state.
+
+        state: 'idle' | 'speaking' | 'listening' | 'muted'
+        """
+        condition = getattr(self, '_tars_condition', 'TARS')
+        suffix = {
+            'idle': '',
+            'speaking': '_speaking',
+            'listening': '_listening',
+            'muted': '_mute',
+        }.get(state, '')
+        return f"images/images/{condition}{suffix}.png"
+
+    @QtCore.Slot(str)
+    def on_condition_changed(self, condition: str):
+        """Update TARS persona images when the condition Ingescape input changes."""
+        self._tars_condition = condition
+        print(f"🎭 TARS condition changed to: {condition}")
+        if self._tts_muted:
+            pixmap = QPixmap(self._get_tars_image('muted'))
+        elif self._tts_speaking:
+            pixmap = QPixmap(self._get_tars_image('speaking'))
+        else:
+            pixmap = QPixmap(self._get_tars_image('idle'))
+        self.ui.tars_picture.setPixmap(pixmap)
+
     @QtCore.Slot(str)
     def on_tts_finished(self, text):
         print(f"✅ TTS Finished: {text}")  # Debug
         self._tts_speaking = False
         if self._tts_muted:
-            pixmap = QPixmap("images/images/tars_female_muted.png")
+            pixmap = QPixmap(self._get_tars_image('muted'))
             self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         else:
-            pixmap = QPixmap("images/images/TARS_female.png")
+            pixmap = QPixmap(self._get_tars_image('idle'))
             self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
         self.ui.tars_picture.setPixmap(pixmap)
 

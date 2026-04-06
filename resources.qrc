@@ -2,9 +2,21 @@
   <qresource prefix="images">
     <file>images/images/app_logo.png</file>
     <file>images/images/TARS.png</file>
-    <file>images/images/TARS_female.png</file>
-    <file>images/images/TARS_female_speaking.png</file>
-    <file>images/images/TARS_female_listening.png</file>
+    <file>images/images/TARS_speaking.png</file>
+    <file>images/images/TARS_listening.png</file>
+    <file>images/images/TARS_mute.png</file>
+    <file>images/images/TARC.png</file>
+    <file>images/images/TARC_speaking.png</file>
+    <file>images/images/TARC_listening.png</file>
+    <file>images/images/TARC_mute.png</file>
+    <file>images/images/TARP-F.png</file>
+    <file>images/images/TARP-F_speaking.png</file>
+    <file>images/images/TARP-F_listening.png</file>
+    <file>images/images/TARP-F_mute.png</file>
+    <file>images/images/TARP-S.png</file>
+    <file>images/images/TARP-S_speaking.png</file>
+    <file>images/images/TARP-S_listening.png</file>
+    <file>images/images/TARP-S_mute.png</file>
     <file>images/images/flight_plan.PNG</file>
     <file>images/images/flight_profile.PNG</file>
     <file>images/images/mustang_weight.PNG</file>

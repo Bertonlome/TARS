@@ -1,7 +1,9 @@
+from multiprocessing.pool import RUN
 import threading
 import time
 import signal
 import math
+from datetime import datetime, timezone
 import traceback
 import os
 from pathlib import Path
@@ -34,7 +36,7 @@ elif platform.system() == "Windows":
 else:
     DEFAULT_DEVICE = "wlps"
 
-CURRENT_BRIEFING_EXPORT_LOADED = "TARS_PERF_AND_SUPPORT_DELAYS.csv"
+CURRENT_BRIEFING_EXPORT_LOADED = "TARP-S.csv"
 #CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF.csv"
 ### PARAMETERS ###
 ALLOW_PARALLEL_ATC = True  # Enable/disable parallel ATC thread execution
@@ -50,24 +52,36 @@ SEVENTY_KTS = 70  # 70 knots speed
 RUNWAY_HEADING = 237 # Runway heading for alignment
 TOWER_FREQUENCY = 119.9  # ATC frequency for communication
 DEPARTURE_FREQUENCY = 118.9  # ATC frequency for communication after takeoff
-#RUNWAY_NUMBER = "Zero-Six Left"  # Runway number for display
-RUNWAY_NUMBER = "Two-Four Right"  # Runway number for display
+RUNWAY_NUMBER = ""  # Runway number for display
+RUNWAY_06L = "06L"
+RUNWAY_06L_speech = "Zero-Six-Left"
+RUNWAY_06R = "06R"
+RUNWAY_06R_speech = "Zero-Six-Right"
+RUNWAY_24R = "24R"
+RUNWAY_24R_speech = "Two-Four-Right"
+RUNWAY_24L = "24L"
+RUNWAY_24L_speech = "Two-Four-Left"
 TRANSITION_ALTITUDE = 18000  # Transition altitude in feet
 PITCH_ANGLE_THRESHOLD = 1  # Minimum pitch angle to consider "maintained"
 PITCH_TEN_DEGREES = 5  # Minimum pitch angle to consider "maintained" 10 +- 2 degrees
 SLIP_SKID_THRESHOLD = 2  # Maximum slip/skid value to consider "maintained"
 POSITIVE_RATE_THRESHOLD = 500  # Minimum vertical speed to consider "positive rate"
-AUTOPILOT_ALTITUDE_THRESHOLD = 700  # Minimum altitude to engage autopilot
+AUTOPILOT_ALTITUDE_THRESHOLD = 800  # Minimum altitude to engage autopilot
 ONE_THOUSAND_FIVE_HUNDRED_FEET = 1500  # 1500 feet altitude threshold
 CYUL_06L_LATITUDE = 45.461222  # CYUL 06L Latitude
+CYUL_06R_LATITUDE = 45.457832 # CYUL 06R Latitude 
 CYUL_24R_LATITUDE = 45.483156  # CYUL 24R Latitude
+CYUL_24L_LATITUDE = 45.476887  # CYUL 24L Latitude
 CYUL_06L_LONGITUDE = -73.76474  # CYUL 06L Longitude
+CYUL_06R_LONGITUDE = -73.741171 # CYUL 06R Longitude
 CYUL_24R_LONGITUDE = -73.73607  # CYUL 24R Longitude
+CYUL_24L_LONGITUDE = -73.716188 # CYUL 24L Longitude
 CLEARED_ALTITUDE = 5000  # Cleared altitude for preset
 VECTOR_HEADING = 330  # Vector heading for ATC instructions
 FALSE_VECTOR_HEADING = 30  # False vector heading for ATC instructions (used in unreliable mode)
 VECTOR_ALTITUDE = 3000  # Vector altitude for ATC instructions
 AIRPORT_NAME = "Montreal Trudeau"  # Airport name for position reporting
+MAGNETIC_VARIATION = 15  # Degrees West: magnetic = true + variation
 ### ENUMS ###
 class ApprovalStatus:
     NOT_ANSWERED = 0
@@ -203,6 +217,7 @@ class TarsAgent:
             self.states[("CREW BRIEFING", "START", "BRIEFING")],
             self.states[("CREW BRIEFING", "Weather", "BRIEF")],
             self.is_acked,
+            transition_action=lambda: self.initialize(),
             action=lambda: self.crew_briefing_action("weather") if self.states[("CREW BRIEFING", "Weather", "BRIEF")].autonomy_role in ("performer", "supporter") else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
@@ -1163,8 +1178,14 @@ class TarsAgent:
         return self.task_acked[0]
     
     def is_heading_set(self):
-        if self.agent.heading_sel_i is not None and abs(self.agent.heading_sel_i - self.VECTOR_HEADING) <= 2:
-            return True
+        if self.agent.heading_sel_i is not None :
+            if self.TARS_RELIABLE:
+                if abs(self.agent.heading_sel_i - self.VECTOR_HEADING) <= 2:
+                    return True
+            elif not self.TARS_RELIABLE:
+                if abs(self.agent.heading_sel_i - self.VECTOR_HEADING) <= 5:  # Allow wider margin for unreliable readings
+                    return True
+
         return False
     
     def is_altitude_set(self):
@@ -2050,6 +2071,13 @@ class TarsAgent:
             agent_object.latitude_i = value
         elif name == "longitude":
             agent_object.longitude_i = value
+        elif name == "wind_dir":
+            agent_object.wind_dir_i = value
+            # Convert true heading to magnetic and update internal wind direction
+            self._wind_dir = int((value + MAGNETIC_VARIATION) % 360)
+        elif name == "wind_magn":
+            agent_object.wind_magn_i = value
+            self._wind_mag = int(value)
         elif name == "autopilot_airspeed":
             agent_object.autopilot_airspeed_i = value
         
@@ -2067,6 +2095,9 @@ class TarsAgent:
         if name == "load_csv":
             # Reload all task allocation states from a new CSV file
             import os
+            # Append .csv extension if not already present (allows sending bare condition names)
+            if value and not value.lower().endswith('.csv'):
+                value = value + '.csv'
             # Security: only allow bare filenames (no path separators) that exist in Core/
             if not value or os.sep in value or '/' in value or '..' in value:
                 print(f"❌ load_csv rejected: unsafe filename '{value}'")
@@ -2080,6 +2111,35 @@ class TarsAgent:
                 print(f"❌ load_csv: file not found: {csv_path}")
                 return
             try:
+                # Determine closest runway from current GPS position
+                if self.agent.latitude_i is not None and self.agent.longitude_i is not None:
+                    runways = {
+                        RUNWAY_06L: (CYUL_06L_LATITUDE, CYUL_06L_LONGITUDE),
+                        RUNWAY_06R: (CYUL_06R_LATITUDE, CYUL_06R_LONGITUDE),
+                        RUNWAY_24R: (CYUL_24R_LATITUDE, CYUL_24R_LONGITUDE),
+                        RUNWAY_24L: (CYUL_24L_LATITUDE, CYUL_24L_LONGITUDE),
+                    }
+                    cur_lat = math.radians(self.agent.latitude_i)
+                    cur_lon = math.radians(self.agent.longitude_i)
+                    closest_rwy = None
+                    closest_dist = float('inf')
+                    for rwy_name, (rwy_lat, rwy_lon) in runways.items():
+                        dlat = math.radians(rwy_lat) - cur_lat
+                        dlon = math.radians(rwy_lon) - cur_lon
+                        a = math.sin(dlat / 2) ** 2 + math.cos(cur_lat) * math.cos(math.radians(rwy_lat)) * math.sin(dlon / 2) ** 2
+                        dist = 2 * math.asin(math.sqrt(a))
+                        if dist < closest_dist:
+                            closest_dist = dist
+                            closest_rwy = rwy_name
+                            closest_coords = (rwy_lat, rwy_lon)
+                    self.RUNWAY_NUMBER = closest_rwy
+                    self.INITIAL_LATITUDE = closest_coords[0]
+                    self.INITIAL_LONGITUDE = closest_coords[1]
+                    print(f"🛫 Runway detected: {self.RUNWAY_NUMBER} (nearest threshold at {closest_coords[0]:.6f}, {closest_coords[1]:.6f})")
+                    igs.output_set_string("runway_number", self.RUNWAY_NUMBER)
+                else:
+                    print("⚠️  load_csv: no GPS position available, runway not auto-detected")
+
                 new_states = self.create_states_from_csv(csv_path)
                 new_checklists = self.create_checklists_from_states(new_states)
                 self.states = new_states
@@ -2359,12 +2419,15 @@ class TarsAgent:
         igs.input_create("pitot_heat", igs.BOOL_T, None)  # Pitot heat on/off
         igs.input_create("latitude", igs.DOUBLE_T, None)  # Latitude
         igs.input_create("longitude", igs.DOUBLE_T, None)  # Longitude
+        igs.input_create("wind_dir", igs.DOUBLE_T, None)  # Wind direction (0-359 degrees)
+        igs.input_create("wind_magn", igs.DOUBLE_T, None)  # Wind magnitude (knots)
         igs.input_create("anti_coll_lights", igs.BOOL_T, None)  # Anti-collision lights on/off
         igs.input_create("alt_sel", igs.INTEGER_T, None)  # Altitude select in feet
         igs.input_create("heading_sel", igs.INTEGER_T, None)  # Heading select in degrees
         igs.input_create("autopilot_airspeed", igs.DOUBLE_T, None)  # Airspeed set for autopilot
         igs.input_create("freq_1", igs.INTEGER_T, None)  # COM1 active frequency (e.g. 11990 = 119.90 MHz)
         igs.output_create("set_freq_1", igs.INTEGER_T, None)  # Set COM1 active frequency
+        igs.output_create("runway_number", igs.STRING_T, None)  # Active runway identifier (e.g. "24R")
 
         # GUI Agent → TARS Agent inputs (Phase 6: from message_protocol.py)
         igs.input_create("task_approval", igs.BOOL_T, None)  # User approved/denied current task
@@ -2430,6 +2493,8 @@ class TarsAgent:
         igs.observe_input("pitot_heat", self.bool_input_callback, self.agent)  # Pitot heat on/off
         igs.observe_input("latitude", self.double_input_callback, self.agent)  # Latitude
         igs.observe_input("longitude", self.double_input_callback, self.agent)  # Longitude
+        igs.observe_input("wind_dir", self.double_input_callback, self.agent)  # Wind direction (0-359 degrees)
+        igs.observe_input("wind_magn", self.double_input_callback, self.agent)  # Wind magnitude (knots)
         igs.observe_input("anti_coll_lights", self.bool_input_callback, self.agent)  # Anti-collision lights on/off
         igs.observe_input("alt_sel", self.integer_input_callback, self.agent)  # Altitude select in feet
         igs.observe_input("heading_sel", self.integer_input_callback, self.agent)  #
@@ -2857,7 +2922,7 @@ class TarsAgent:
                         igs.output_set_double("trim_rudder", current_trim - (0.1 * trim_direction))
                 time.sleep(0.5)
             
-            igs.output_set_string("tars_status", "TARS Agent RUNNING")
+            igs.output_set_string("tars_status", "Agent RUNNING")
             print("🛑 Trim worker thread exiting")
         except Exception as e:
             print(f"❌ Error in trim worker thread: {e}")
@@ -2940,7 +3005,10 @@ class TarsAgent:
     
     def on_display_clearance_action(self):
         """Original blocking clearance display - used by supporter or when parallel ATC disabled"""
-        igs.output_set_string("interaction_message", create_interaction_message("", "CLEARANCE RECEIVED:\nWIND: 190 4KTS\nRWY: 24R\nALTI: 29.92"))  
+        wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
+        wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
+        clearance_wind = f"{int(wind_dir_true):03d} {int(wind_mag)}KTS"
+        igs.output_set_string("interaction_message", create_interaction_message("", f"CLEARANCE RECEIVED:\nWIND: {clearance_wind}\nRWY: {self.RUNWAY_NUMBER or '24R'}\nALTI: 29.92"))  
         if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role == "performer":
             time.sleep(5)
             self.on_speak_action(self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].callout)
@@ -3078,11 +3146,151 @@ class TarsAgent:
         else:
             igs.output_set_impulsion("alert_clear")
     
+    def initialize(self) -> None:
+        """Initialize wind, runway, and positional state at the start of the crew briefing."""
+        # 1. Runway auto-detection from GPS
+        if self.agent.latitude_i is not None and self.agent.longitude_i is not None:
+            runways = {
+                RUNWAY_06L: (CYUL_06L_LATITUDE, CYUL_06L_LONGITUDE),
+                RUNWAY_06R: (CYUL_06R_LATITUDE, CYUL_06R_LONGITUDE),
+                RUNWAY_24R: (CYUL_24R_LATITUDE, CYUL_24R_LONGITUDE),
+                RUNWAY_24L: (CYUL_24L_LATITUDE, CYUL_24L_LONGITUDE),
+            }
+            cur_lat = math.radians(self.agent.latitude_i)
+            cur_lon = math.radians(self.agent.longitude_i)
+            closest_rwy = None
+            closest_dist = float('inf')
+            closest_coords = (CYUL_24R_LATITUDE, CYUL_24R_LONGITUDE)
+            for rwy_name, (rwy_lat, rwy_lon) in runways.items():
+                dlat = math.radians(rwy_lat) - cur_lat
+                dlon = math.radians(rwy_lon) - cur_lon
+                a = math.sin(dlat / 2) ** 2 + math.cos(cur_lat) * math.cos(math.radians(rwy_lat)) * math.sin(dlon / 2) ** 2
+                dist = 2 * math.asin(math.sqrt(a))
+                if dist < closest_dist:
+                    closest_dist = dist
+                    closest_rwy = rwy_name
+                    closest_coords = (rwy_lat, rwy_lon)
+            self.RUNWAY_NUMBER = closest_rwy
+            self.INITIAL_LATITUDE = closest_coords[0]
+            self.INITIAL_LONGITUDE = closest_coords[1]
+            print(f"🛫 [initialize] Runway detected: {self.RUNWAY_NUMBER}")
+            igs.output_set_string("runway_number", self.RUNWAY_NUMBER)
+        else:
+            print("⚠️  [initialize] No GPS position available — runway not auto-detected")
+
+        # 2. Set runway heading based on detected runway
+        runway_headings = {
+            RUNWAY_06L: 57,
+            RUNWAY_06R: 57,
+            RUNWAY_24R: 237,
+            RUNWAY_24L: 237,
+        }
+        if self.RUNWAY_NUMBER in runway_headings:
+            self.RUNWAY_HEADING = runway_headings[self.RUNWAY_NUMBER]
+            print(f"🧭 [initialize] Runway heading set to {self.RUNWAY_HEADING}°")
+
+        # 3. Sync wind from Ingescape inputs if available
+        if self.agent.wind_dir_i is not None:
+            self._wind_dir = int((self.agent.wind_dir_i + MAGNETIC_VARIATION) % 360)
+        if self.agent.wind_magn_i is not None:
+            self._wind_mag = int(self.agent.wind_magn_i)
+        print(f"🌬️  [initialize] Wind: {self._wind_dir}° mag at {self._wind_mag} kt")
+
+    def _heading_to_speech(self, heading: int) -> str:
+        """Convert a heading to digit-by-digit aviation speech, e.g. 190 → 'one niner zero'."""
+        digit_map = {
+            '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
+            '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'niner',
+        }
+        return ' '.join(digit_map[d] for d in f"{int(heading):03d}")
+
+    def _runway_to_speech(self, runway_number: str) -> str:
+        """Convert a runway identifier to TTS-friendly speech, e.g. '24R' → 'two four right'."""
+        mapping = {
+            "06L": "zero six left",
+            "06R": "zero six right",
+            "24R": "two four right",
+            "24L": "two four left",
+        }
+        return mapping.get(str(runway_number).upper(), str(runway_number))
+
+    def _build_crew_briefing_callout(self, topic: str) -> str | None:
+        """Build a TTS-ready callout string for the given crew briefing topic using live data."""
+        runway = self.RUNWAY_NUMBER or "24R"
+        runway_speech = self._runway_to_speech(runway)
+
+        # Live wind
+        wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
+        wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
+        wind_dir_mag = int((wind_dir_true + MAGNETIC_VARIATION) % 360)
+        runway_hdg = float(self.RUNWAY_HEADING or 0)
+        crosswind_kt, _, side = self.compute_wind_components(wind_dir_true, wind_mag, runway_hdg)
+        wind_dir_speech = self._heading_to_speech(wind_dir_mag)
+        if crosswind_kt < 5:
+            xwind_desc = "light"
+        elif crosswind_kt < 15:
+            xwind_desc = "moderate"
+        else:
+            xwind_desc = "strong"
+
+        # Temperature from METAR
+        metar = self.generate_metar()
+        temp_c = int(metar.split()[5].split("/")[0])
+
+        if topic == "weather":
+            return (
+                f"Starting crew briefing - Weather: Temperature {temp_c} degrees celsius, "
+                f"fog, reduced visibility expected. "
+                f"Wind {wind_dir_speech} degrees at {int(wind_mag)} knots, "
+                f"{xwind_desc} crosswind from the {side} for runway {runway_speech}. "
+                f"Runway dry, no wind shear reports."
+            )
+        elif topic == "aircraft":
+            return (
+                "Aircraft: Cessna Citation Mustang. "
+                "No MEL items, no tech log issues affecting departure."
+            )
+        elif topic == "notams":
+            return (
+                f"NOTAMs: No departure critical NOTAMs affecting runway {runway_speech} "
+                f"or initial climb."
+            )
+        elif topic == "routing":
+            rwy = self.RUNWAY_NUMBER or "24R"
+            _, waypoints = self._ROUTING_WAYPOINTS.get(rwy, ("237", "EBMAN → BIRPO → CYOW RWY 07"))
+            waypoints_speech = (
+                waypoints
+                .replace("→", "then")
+                .replace("CYOW RWY 007", "Ottawa, runway zero zero seven")
+                .replace("CYOW RWY 07", "Ottawa, runway zero seven")
+            )
+            return (
+                f"Routing: Departure runway {runway_speech}, {self.AIRPORT_NAME}. "
+                f"Maintain runway heading after takeoff. "
+                f"Initial climb to {self.CLEARED_ALTITUDE} feet. "
+                f"Waypoints: {waypoints_speech}."
+            )
+        elif topic == "automation":
+            return (
+                f"Manual takeoff. After {self.AUTOPILOT_ALTITUDE_THRESHOLD} feet AGL, "
+                f"autopilot can be engaged."
+            )
+        elif topic == "miscellaneous":
+            return (
+                f"Miscellaneous briefing. Single passenger onboard. "
+                f"Abnormality plan: Before V1, reject takeoff. "
+                f"After V1, continue. Maintain single engine climb speed {self.V_ENR} knots. "
+                f"After {self.AUTOPILOT_ALTITUDE_THRESHOLD} feet, engage autopilot, "
+                f"then climb to {self.ONE_THOUSAND_FIVE_HUNDRED_FEET} feet, and handle checklists. "
+                f"Crew briefing completed."
+            )
+        return None
+
     def crew_briefing_action(self, topic):
         """Perform a crew briefing action for the given WANRAM topic.
-        
+
         Displays the briefing text on the interaction panel and speaks it via TTS.
-        
+
         Args:
             topic: One of 'weather', 'aircraft', 'notams', 'routing', 'automation', 'miscellaneous'
         """
@@ -3103,9 +3311,11 @@ class TarsAgent:
         # Display on interaction panel
         interaction_json = create_interaction_message(display_msg, tars_input)
         igs.output_set_string("interaction_message", interaction_json)
-        # Speak the callout if performer
-        if state.autonomy_role == "performer" and state.callout:
-            self.on_speak_action(state.callout)
+        # Speak generated callout if performer
+        if state.autonomy_role == "performer":
+            callout = self._build_crew_briefing_callout(topic)
+            if callout:
+                self.on_speak_action(callout)
 
     def dummy_action(self):
         print(f"Dummy action executed for {self.fsm.current_state}.")
@@ -3133,15 +3343,136 @@ class TarsAgent:
                     wrong_throttle_flag = True
             time.sleep(1)  # Wait until throttle is set to idle
     
+    def compute_wind_components(self, wind_dir_true: float, wind_mag: float, runway_heading_mag: float) -> tuple:
+        """Return (crosswind_kt, headwind_kt, side) from true wind direction.
+        Converts true heading to magnetic using MAGNETIC_VARIATION (West positive).
+        side is 'left' or 'right' relative to runway heading."""
+        wind_dir_mag = (wind_dir_true + MAGNETIC_VARIATION) % 360
+        angle = math.radians((wind_dir_mag - runway_heading_mag) % 360)
+        crosswind = abs(wind_mag * math.sin(angle))
+        headwind = wind_mag * math.cos(angle)
+        # Determine side: sin > 0 means wind from the left of runway heading
+        sin_val = math.sin(math.radians((wind_dir_mag - runway_heading_mag) % 360))
+        side = "left" if sin_val > 0 else "right"
+        return round(crosswind, 1), round(headwind, 1), side
+
+    def generate_metar(
+        self,
+        identifier: str = "CYUL",
+        visibility: str = "1SM",
+        clouds: str = "OVC003",
+        temp_dew: str = "05/04",
+        altimeter: str = "A2992",
+        decoded: bool = False,
+    ) -> str:
+        """Generate a METAR string using current UTC time and live wind data.
+
+        Args:
+            identifier: Station ICAO code.
+            visibility: Prevailing visibility (e.g. '1SM', '15SM').
+            clouds: Cloud layer descriptor (e.g. 'OVC003', 'FEW015').
+            temp_dew: Temperature/dewpoint in °C as 'TT/DD' (e.g. '05/04').
+            altimeter: Altimeter setting (e.g. 'A2992').
+            decoded: If True, return a field-by-field explanation; if False, return raw METAR.
+
+        Returns:
+            Raw METAR string, or decoded METAR with per-field explanation.
+        """
+        now = datetime.now(timezone.utc)
+        time_str = f"{now.day:02d}{now.hour:02d}{now.minute:02d}Z"
+
+        wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
+        wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
+        wind_str = f"{int(wind_dir_true):03d}{int(wind_mag):02d}KT"
+
+        raw = f"{identifier} {time_str} {wind_str} {visibility} {clouds} {temp_dew} {altimeter}"
+
+        if not decoded:
+            return raw
+
+        # --- Decoded field explanations ---
+        _identifier_names = {
+            "CYUL": "Montréal-Pierre Elliott Trudeau International Airport, Canada",
+        }
+        identifier_desc = _identifier_names.get(identifier, identifier)
+
+        time_desc = f"Issued on the {now.day:02d} of the month at {now.hour:02d}:{now.minute:02d} UTC"
+
+        _compass_dirs = [
+            "N", "NNE", "NNE", "NE", "NE", "ENE", "ENE", "E",
+            "E", "ESE", "ESE", "SE", "SE", "SSE", "SSE", "S",
+            "S", "SSW", "SSW", "SW", "SW", "WSW", "WSW", "W",
+            "W", "WNW", "WNW", "NW", "NW", "NNW", "NNW", "N",
+        ]
+        compass = _compass_dirs[round(int(wind_dir_true) / 11.25) % 32]
+        wind_desc = f"Winds from {int(wind_dir_true):03d}° ({compass}) at {int(wind_mag)} knots"
+
+        if visibility.endswith("SM"):
+            vis_val = float(visibility[:-2])
+            vis_km = round(vis_val * 1.60934, 1)
+            vis_desc = f"{vis_val:g} statute mile{'s' if vis_val != 1.0 else ''} ({vis_km} km)"
+        else:
+            vis_desc = visibility
+
+        _cloud_cover_names = {
+            "CLR": "Clear", "SKC": "Clear sky",
+            "FEW": "Few clouds", "SCT": "Scattered clouds",
+            "BKN": "Broken clouds", "OVC": "Overcast",
+        }
+        cloud_prefix = clouds[:3]
+        cloud_cover = _cloud_cover_names.get(cloud_prefix, cloud_prefix)
+        if len(clouds) > 3:
+            cloud_alt_ft = int(clouds[3:]) * 100
+            cloud_alt_m = round(cloud_alt_ft * 0.3048)
+            clouds_desc = f"{cloud_cover} at {cloud_alt_ft:,} ft ({cloud_alt_m} m)"
+        else:
+            clouds_desc = cloud_cover
+
+        parts = temp_dew.split("/")
+        temp_c = int(parts[0])
+        dew_c = int(parts[1]) if len(parts) > 1 else 0
+        temp_f = round(temp_c * 9 / 5 + 32)
+        dew_f = round(dew_c * 9 / 5 + 32)
+        temp_desc = f"Temperature {temp_c}°C ({temp_f}°F), Dewpoint {dew_c}°C ({dew_f}°F)"
+
+        if altimeter.startswith("A"):
+            inhg_val = int(altimeter[1:]) / 100
+            hpa_val = round(inhg_val * 33.8639)
+            alt_desc = f"Sea level pressure is {inhg_val:.2f} inHg ({hpa_val} hPa)"
+        else:
+            alt_desc = altimeter
+
+        return "\n".join([
+            raw,
+            "",
+            f"{identifier} = {identifier_desc}",
+            f"{time_str} = {time_desc}",
+            f"{wind_str} = {wind_desc}",
+            f"{visibility} = {vis_desc}",
+            f"{clouds} = {clouds_desc}",
+            f"{temp_dew} = {temp_desc}",
+            f"{altimeter} = {alt_desc}",
+        ])
+
     def check_winds_send_signal(self):
+        # Use live wind inputs if available, otherwise fall back to internal values
+        wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
+        wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
+        wind_dir_mag = int((wind_dir_true + MAGNETIC_VARIATION) % 360)
+        runway_hdg = float(self.RUNWAY_HEADING or 0)
+        crosswind_kt, headwind_kt, side = self.compute_wind_components(wind_dir_true, wind_mag, runway_hdg)
         wind_extra = {
-            "runway_heading": int(self.RUNWAY_HEADING or 0),
-            "initial_wind_dir": self._wind_dir,
-            "initial_wind_mag": self._wind_mag,
+            "runway_heading": int(runway_hdg),
+            "initial_wind_dir": wind_dir_mag,
+            "initial_wind_mag": int(wind_mag),
         }
         role = self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role
-        metar_header = self.INTERACTION_WINDS_HEADER if self.TARS_RELIABLE else self.INTERACTION_FALSE_WINDS_HEADER
-        wind_data   = self.INTERACTION_WINDS_DATA    if self.TARS_RELIABLE else self.INTERACTION_FALSE_WINDS_DATA
+        metar_header = self.INTERACTION_WINDS_HEADER
+        wind_data = (
+            f"WIND {wind_dir_mag:03d}° (mag) / {int(wind_mag):02d} kt\n"
+            f"Crosswind Component: {crosswind_kt:.1f} kt from the {side} < Max Crosswind (25 knots)\n"
+            f"Headwind Component: {headwind_kt:.1f} kt"
+        )
 
         if role == "performer":
             msg = create_interaction_message(
@@ -3150,7 +3481,11 @@ class TarsAgent:
                 extra_data=wind_extra
             )
             igs.output_set_string("interaction_message", msg)
-            callout = self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].callout if self.TARS_RELIABLE else self.FALSE_WIND_CALLOUT
+            wind_dir_speech = self._heading_to_speech(wind_dir_mag)
+            if int(wind_mag) == 0:
+                callout = f"Wind report from METAR: wind calm"
+            else:
+                callout = f"Wind report from METAR: {wind_dir_speech} degrees at {int(wind_mag)} knots"
             self.on_speak_action(callout)
         else:  # supporter
             supporter_data = "Max crosswind for this aircraft type: 25 knots"
@@ -3270,18 +3605,64 @@ class TarsAgent:
     INTERACTION_FLAPS_UP = "FLAP HANDLE — UP\n\nRetract flap handle to UP position.\nVerify FLAPS indicator shows 0° on EICAS."
 
     # Crew Briefing - WANRAM Departure Memo
-    INTERACTION_CREW_BRIEFING_WEATHER = "WEATHER\nTemp 5°C, fog, reduced visibility expected.\nWind 190° at 4 kts, light crosswind from the left for RWY 24R"
+    @property
+    def INTERACTION_CREW_BRIEFING_WEATHER(self):
+        wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
+        wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
+        wind_dir_mag = int((wind_dir_true + MAGNETIC_VARIATION) % 360)
+        runway_hdg = float(self.RUNWAY_HEADING or 0)
+        _, _, side = self.compute_wind_components(wind_dir_true, wind_mag, runway_hdg)
+        return (
+            f"WEATHER\nTemp 5°C, fog, reduced visibility expected.\n"
+            f"Wind {wind_dir_mag:03d}° (mag) at {int(wind_mag)} kts, light crosswind from the {side} for RWY {self.RUNWAY_NUMBER or '24R'}"
+        )
 
-    INTERACTION_CREW_BRIEFING_WEATHER_TARS = "METAR: CYUL 201500Z 19004KT 1SM FG OVC015 05/04 A2992\nCrosswind: 02 kt from the left\nHeadwind: 3.5 kt"
+    @property
+    def INTERACTION_CREW_BRIEFING_WEATHER_TARS(self):
+        wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
+        wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
+        runway_hdg = float(self.RUNWAY_HEADING or 0)
+        crosswind_kt, headwind_kt, side = self.compute_wind_components(wind_dir_true, wind_mag, runway_hdg)
+        return (
+            f"METAR: {self.generate_metar()}\n"
+            f"Crosswind: {crosswind_kt:.1f} kt from the {side}\n"
+            f"Headwind: {headwind_kt:.1f} kt"
+        )
 
     INTERACTION_CREW_BRIEFING_AIRCRAFT = "AIRCRAFT\n\nCessna Citation Mustang (Model 510).\nNo MEL items / tech log issues affecting departure."
     INTERACTION_CREW_BRIEFING_AIRCRAFT_TARS = "Aircraft: Cessna Citation Mustang (510)"
 
-    INTERACTION_CREW_BRIEFING_NOTAMS = "NOTAMs\n\nNo departure-critical NOTAMs affecting runway 24R or initial climb."
-    INTERACTION_CREW_BRIEFING_NOTAMS_TARS = "No critical NOTAMs for RWY 24R departure."
+    @property
+    def INTERACTION_CREW_BRIEFING_NOTAMS(self):
+        rwy = self.RUNWAY_NUMBER or "24R"
+        return f"NOTAMs\n\nNo departure-critical NOTAMs affecting runway {rwy} or initial climb."
 
-    INTERACTION_CREW_BRIEFING_ROUTING = "ROUTING\n\nDeparture RWY 24R CYUL.\nRunway heading after takeoff.\nInitial climb to 5 000 ft.\nWaypoints: After EBMAN THEN BIRPO: right turn direct CYOW, plan arrival RWY 07."
-    INTERACTION_CREW_BRIEFING_ROUTING_TARS = "RWY 24R → HDG 237 → 5000 ft\nEBMAN → BIRPO → CYOW RWY 07"
+    @property
+    def INTERACTION_CREW_BRIEFING_NOTAMS_TARS(self):
+        rwy = self.RUNWAY_NUMBER or "24R"
+        return f"No critical NOTAMs for RWY {rwy} departure."
+
+    _ROUTING_WAYPOINTS = {
+        "24R": ("237", "EBMAN → BIRPO → CYOW RWY 07"),
+        "24L": ("237", "NASKK → WATTO → CYOW RWY 007"),
+        "06R": ("057", "ALNOV → WATTO → CYOW RWY 007"),
+        "06L": ("057", "ALNOV → WATTO → CYOW RWY 007"),
+    }
+
+    @property
+    def INTERACTION_CREW_BRIEFING_ROUTING(self):
+        rwy = self.RUNWAY_NUMBER or "24R"
+        hdg, waypoints = self._ROUTING_WAYPOINTS.get(rwy, ("237", "EBMAN → BIRPO → CYOW RWY 07"))
+        return (
+            f"ROUTING\n\nDeparture RWY {rwy} CYUL.\nRunway heading after takeoff.\n"
+            f"Initial climb to 5 000 ft.\nWaypoints: {waypoints}."
+        )
+
+    @property
+    def INTERACTION_CREW_BRIEFING_ROUTING_TARS(self):
+        rwy = self.RUNWAY_NUMBER or "24R"
+        hdg, waypoints = self._ROUTING_WAYPOINTS.get(rwy, ("237", "EBMAN → BIRPO → CYOW RWY 07"))
+        return f"RWY {rwy} → HDG {hdg} → 5000 ft\n{waypoints}"
 
     INTERACTION_CREW_BRIEFING_AUTOMATION = "AUTOMATION\n\nManual takeoff.\nAfter 800 ft AGL:\n  • Engage autopilot\n  • Heading mode — runway heading\n  • FLC 120 kt climb to 5 000 ft."
 
@@ -3295,9 +3676,20 @@ class TarsAgent:
     INTERACTION_PITOT_STATIC_SWITCH = "PITOT STATIC HEAT SWITCH - PITOT-STATIC\nCAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS."
     
     # Anti-Ice Requirements
-    INTERACTION_ENGINE_ANTI_ICE = "LAST METAR TEMPERATURE 05 degrees Celsius - IF VISIBLE MOISTURE PRESENT, ENGINE ANTI-ICE ON"
-    INTERACTION_WINDSHIELD_ANTI_ICE = "LAST METAR TEMPERATURE 05 degrees Celsius - IF VISIBLE MOISTURE PRESENT, WINDSHIELD ANTI-ICE ON"
-    INTERACTION_ANTI_ICE_SYSTEMS = "LAST METAR TEMPERATURE 05 degrees Celsius - IF VISIBLE MOISTURE PRESENT, ANTI-ICE SYSTEMS ON"
+    @property
+    def INTERACTION_ENGINE_ANTI_ICE(self):
+        temp_c = int(self.generate_metar().split()[5].split("/")[0])
+        return f"LAST METAR TEMPERATURE {temp_c:02d} degrees Celsius - IF VISIBLE MOISTURE PRESENT, ENGINE ANTI-ICE ON"
+
+    @property
+    def INTERACTION_WINDSHIELD_ANTI_ICE(self):
+        temp_c = int(self.generate_metar().split()[5].split("/")[0])
+        return f"LAST METAR TEMPERATURE {temp_c:02d} degrees Celsius - IF VISIBLE MOISTURE PRESENT, WINDSHIELD ANTI-ICE ON"
+
+    @property
+    def INTERACTION_ANTI_ICE_SYSTEMS(self):
+        temp_c = int(self.generate_metar().split()[5].split("/")[0])
+        return f"LAST METAR TEMPERATURE {temp_c:02d} degrees Celsius - IF VISIBLE MOISTURE PRESENT, ANTI-ICE SYSTEMS ON"
     
     # Landing Lights
     INTERACTION_LANDING_LIGHT_RUNWAY = "On an active runway, to enhance visibility: LANDING LIGHTS ON"
@@ -3311,11 +3703,9 @@ class TarsAgent:
             return "ALARM CONDITION UNKNOWN"
     
     # Winds Display
-    INTERACTION_WINDS_HEADER = "WIND REPORT:\n\nMETAR: CYUL 201500Z 19004KT 1SM FG OVC015 05/04 A2992 \nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 120 DRY RWY"
-    INTERACTION_WINDS_DATA = "WIND 190 degrees / 04 kt\nCrosswind Component: 03 kt from the left < Max Crosswind (25 knots)\nHeadwind Component: 2.7 kt"
-    INTERACTION_FALSE_WINDS_HEADER = "WIND REPORT:\n\nMETAR: CYHU 201500Z 29004KT 1SM FG OVC015 05/04 A2992 \nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 120 DRY RWY"
-    INTERACTION_FALSE_WINDS_DATA = "WIND 290 degrees / 08 kt\nCrosswind Component: 06 kt from the right < Max Crosswind (25 knots)\nHeadwind Component: 5 kt"
-    FALSE_WIND_CALLOUT = "Wind 290 degrees at 8 knots"
+    @property
+    def INTERACTION_WINDS_HEADER(self):
+        return f"WIND REPORT:\n\nMETAR: {self.generate_metar()}\nRMK CU OVC TOPS 100 MSL CI BASE 250 TOP 120 DRY RWY"
     
     # Altitude Preset
     INTERACTION_ALT_PRESET = f"CLEARED TO ALTITUDE {CLEARED_ALTITUDE} FT FROM ATC"

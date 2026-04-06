@@ -45,6 +45,7 @@ class GUIAgent(QObject):
     _tars_status_signal = Signal(str)  # Status label text update
     _allocation_reloaded_signal = Signal(str)  # CSV filename after TARS reloads allocation
     _external_task_acked_signal = Signal()  # joystick task_acknowledged routed through GUI
+    _condition_changed_signal = Signal(str)  # condition input → switch TARS persona images
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
@@ -87,6 +88,7 @@ class GUIAgent(QObject):
         self._reset_speech_log_signal.connect(self.main_window.reset_speech_log)
         self._tars_status_signal.connect(self.main_window.on_tars_status)
         self._allocation_reloaded_signal.connect(self.main_window.on_allocation_reloaded)
+        self._condition_changed_signal.connect(main_window.on_condition_changed)
         
         # Connect MainWindow user action signals to TARS inputs
         self._connect_ui_to_tars()
@@ -126,6 +128,7 @@ class GUIAgent(QObject):
         igs.input_create("tars_status", igs.STRING_T, None)  # TARS status text for the GUI label
         igs.input_create("allocation_reloaded", igs.STRING_T, None)  # JSON: {csv, states_count} when TARS reloads
         igs.input_create("task_acknowledged", igs.IMPULSION_T, None)  # joystick/external ack routed through GUI
+        igs.input_create("condition", igs.STRING_T, None)  # persona selector: TARS | TARP-F | TARP-S | TARC
         
         # Observe inputs
         igs.observe_input("current_state", self._on_current_state_input, None)
@@ -151,6 +154,7 @@ class GUIAgent(QObject):
         igs.observe_input("tars_status", self._on_tars_status_input, None)
         igs.observe_input("allocation_reloaded", self._on_allocation_reloaded_input, None)
         igs.observe_input("task_acknowledged", self._on_ext_task_acknowledged_input, None)
+        igs.observe_input("condition", self._on_condition_input, None)
         self._external_task_acked_signal.connect(self._on_external_task_acknowledged)
         # Map ATC_Agent.speech_output → our atc_speech_output input
         igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
@@ -213,6 +217,18 @@ class GUIAgent(QObject):
     # TARS → GUI: Ingescape input callbacks (run in Ingescape thread)
     # ========================================================================
     
+    def _on_condition_input(self, io_type, name, value_type, value, my_data):
+        """Handle condition string from Ingescape — switch TARS persona images."""
+        try:
+            if value and isinstance(value, str):
+                condition = value.strip()
+                if condition in ("TARS", "TARP-F", "TARP-S", "TARC"):
+                    self._condition_changed_signal.emit(condition)
+                else:
+                    print(f"⚠️ Unknown condition value: '{condition}'")
+        except Exception as e:
+            print(f"Error processing condition: {e}")
+
     def _on_ext_task_acknowledged_input(self, io_type, name, value_type, value, my_data):
         """Ingescape thread: joystick sent task_acknowledged — route through main thread."""
         self._external_task_acked_signal.emit()

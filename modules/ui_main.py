@@ -1103,7 +1103,7 @@ class Ui_MainWindow(object):
         self.tars_picture = QLabel(self.row_1_col_1_container_2)
         self.tars_picture.setObjectName(u"tars_picture")
         self.tars_picture.setMaximumSize(QSize(150, 150))
-        self.tars_picture.setPixmap(QPixmap(u":/images/images/images/TARS_female.png"))
+        self.tars_picture.setPixmap(QPixmap(u":/images/images/images/TARS.png"))
         self.tars_picture.setScaledContents(True)
 
         self.row_1_col_1_container.addWidget(self.tars_picture, 0, Qt.AlignmentFlag.AlignHCenter)
@@ -3193,7 +3193,7 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(tooltip)
         self.closeAppBtn.setText("")
         self.tars_status_icon.setText("")
-        self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"TARS RUNNING", None))
+        self.tars_status_label.setText(QCoreApplication.translate("MainWindow", u"AGENT RUNNING", None))
         self.stop_button.setText(QCoreApplication.translate("MainWindow", u"STOP", None))
         self.tars_output_speech_label.setText("")
         self.tars_picture.setText("")
