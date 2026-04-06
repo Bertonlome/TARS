@@ -266,7 +266,8 @@ class TarsAgent:
             self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")], 
             lambda: self.allow_transition() if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role == "performer" else self.is_acked(),
             action=lambda: self.set_flaps_takeoff_send_signal() if self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")].autonomy_role == "performer" else self._run_check_with_live_updates(self.check_flaps_send_signals, ("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")),
-            transition_action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_FLAPS_TAKEOFF, "")) if self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
+            transition_action=lambda: (self.on_speak_action("Setting flaps for takeoff, fifteen degrees"), igs.output_set_string("interaction_message", create_interaction_message(self.INTERACTION_FLAPS_TAKEOFF, ""))) if self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
+            
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")], 
@@ -279,33 +280,36 @@ class TarsAgent:
             self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")], 
             self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
             lambda: self.is_pitot_heat_on() if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer" else self.is_acked(),
-            action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_ENGINE_ANTI_ICE)) if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action(),
+            action= lambda: self._run_check_with_live_updates(self.check_engine_anti_ice_send_signal, ("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")) if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role in ("supporter", "performer") else self.dummy_action(),
             transition_action= lambda: self.on_speak_action("check") if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")], 
             self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")], 
-            self.is_acked, 
-            action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_WINDSHIELD_ANTI_ICE)) if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "supporter" else self.dummy_action()))
+            lambda: self.is_both_engines_anti_ice_on() or self.is_acked() if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer" else self.is_acked(),
+            action= lambda: self._run_check_with_live_updates(self.check_windshield_anti_ice_send_signal, ("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")) if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role in ("supporter", "performer") else self.dummy_action(),
+            transition_action= lambda: self.on_speak_action("check") if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")], 
             self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")], 
-            self.is_acked, 
-            action= lambda: self._run_check_with_live_updates(self.check_pax_safety_send_signal, ("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY"))))
+            lambda: self.is_both_windshield_anti_ice_on() or self.is_acked() if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer" else self.is_acked(),
+            action= lambda: self._run_check_with_live_updates(self.check_pax_safety_send_signal, ("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")),
+            transition_action= lambda: self.on_speak_action("check") if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")], 
             self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")], 
             lambda: self.is_pax_safety_on() if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer" else self.is_acked(),
-            action= lambda: igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_LANDING_LIGHT_RUNWAY)) if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "supporter" else self.dummy_action(),
+            action= lambda: self._run_check_with_live_updates(self.check_landing_light_send_signal, ("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")) if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role in ("supporter", "performer") else self.dummy_action(),
             transition_action= lambda: self.on_speak_action("check") if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")], 
             self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")], 
-            self.is_acked, 
-            action= lambda: self._run_check_with_live_updates(self.check_anti_coll_lights_send_signal, ("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON"))))
+            lambda: self.is_landing_lights_on() or self.is_acked() if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "performer" else self.is_acked(),
+            action= lambda: self._run_check_with_live_updates(self.check_anti_coll_lights_send_signal, ("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")),
+            transition_action= lambda: self.on_speak_action("check") if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")], 
@@ -1193,6 +1197,20 @@ class TarsAgent:
             return True
         return False
     
+    def is_landing_lights_on(self):
+        if self.agent.exterior_lights_i is not None and self.agent.exterior_lights_i == 2: # Assuming 2 corresponds to landing lights ON
+            return True
+        return False
+
+    def is_both_engines_anti_ice_on(self):
+        if (self.agent.l_engine_anti_ice_i is not None and self.agent.l_engine_anti_ice_i) and (self.agent.r_engine_anti_ice_i is not None and self.agent.r_engine_anti_ice_i):
+            return True
+        return False
+    
+    def is_both_windshield_anti_ice_on(self):
+        if (self.agent.l_windshield_anti_ice_i is not None and self.agent.l_windshield_anti_ice_i) and (self.agent.r_windshield_anti_ice_i is not None and self.agent.r_windshield_anti_ice_i):
+            return True
+        return False
     def is_pax_safety_on(self):
         if self.agent.pax_safety_i is not None and self.agent.pax_safety_i:
             return True
@@ -1268,7 +1286,6 @@ class TarsAgent:
         if supporter, display reminder."""
         state = self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")]
         if state.autonomy_role == "performer":
-            self.on_speak_action("Setting flaps for takeoff, fifteen degrees")
             
             #TARS RELIABLE / UNRELIABLE BLOCK
             #if self.TARS_RELIABLE:
@@ -1385,7 +1402,7 @@ class TarsAgent:
                     msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
                     igs.output_set_string("interaction_message", msg)
                     if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
-                        self.on_speak_action("Pitot heat is ON, check")
+                        self.on_speak_action("Pitot heat is ON")
                 #else:
                     #msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
                     #igs.output_set_string("interaction_message", msg)
@@ -1950,7 +1967,6 @@ class TarsAgent:
                 self._play_sound_async("accept_sfx.mp3")
         elif name == "tars_reliable":
             self.TARS_RELIABLE = value
-            self._wind_dir = 190 if value else 290
             print(f"📡 TARS_RELIABLE set to {value} ({'reliable' if value else 'unreliable'})")
         elif name == "popup_active":
             self.popup_active = value
@@ -1975,6 +1991,14 @@ class TarsAgent:
                 self.engine_failed_side = "Right"
         elif name == "anti_coll_lights":
             agent_object.anti_coll_lights_i = value
+        elif name == "l_engine_anti_ice":
+            agent_object.l_engine_anti_ice_i = value
+        elif name == "r_engine_anti_ice":
+            agent_object.r_engine_anti_ice_i = value
+        elif name == "l_windshield_anti_ice":
+            agent_object.l_windshield_anti_ice_i = value
+        elif name == "r_windshield_anti_ice":
+            agent_object.r_windshield_anti_ice_i = value
         elif name == "n1_match_bug":
             agent_object.n1_match_bug_i = value
 
@@ -1985,6 +2009,8 @@ class TarsAgent:
             agent_object.alt_sel_i = value * 100 # Convert from hundreds of feet to feet
         elif name == "heading_sel":
             agent_object.heading_sel_i = value
+        elif name == "exterior_lights":
+            agent_object.exterior_lights_i = value
         elif name == "freq_1":
             agent_object.freq_1_i = value
 
@@ -2422,8 +2448,13 @@ class TarsAgent:
         igs.input_create("wind_dir", igs.DOUBLE_T, None)  # Wind direction (0-359 degrees)
         igs.input_create("wind_magn", igs.DOUBLE_T, None)  # Wind magnitude (knots)
         igs.input_create("anti_coll_lights", igs.BOOL_T, None)  # Anti-collision lights on/off
+        igs.input_create("l_engine_anti_ice", igs.BOOL_T, None)  # Left engine anti-ice on/off
+        igs.input_create("r_engine_anti_ice", igs.BOOL_T, None)  # Right engine anti-ice on/off
+        igs.input_create("l_windshield_anti_ice", igs.BOOL_T, None)  # Left windshield anti-ice on/off
+        igs.input_create("r_windshield_anti_ice", igs.BOOL_T, None)  # Right windshield anti-ice on/off
         igs.input_create("alt_sel", igs.INTEGER_T, None)  # Altitude select in feet
         igs.input_create("heading_sel", igs.INTEGER_T, None)  # Heading select in degrees
+        igs.input_create("exterior_lights", igs.INTEGER_T, None)  # Exterior lights state
         igs.input_create("autopilot_airspeed", igs.DOUBLE_T, None)  # Airspeed set for autopilot
         igs.input_create("freq_1", igs.INTEGER_T, None)  # COM1 active frequency (e.g. 11990 = 119.90 MHz)
         igs.output_create("set_freq_1", igs.INTEGER_T, None)  # Set COM1 active frequency
@@ -2496,8 +2527,13 @@ class TarsAgent:
         igs.observe_input("wind_dir", self.double_input_callback, self.agent)  # Wind direction (0-359 degrees)
         igs.observe_input("wind_magn", self.double_input_callback, self.agent)  # Wind magnitude (knots)
         igs.observe_input("anti_coll_lights", self.bool_input_callback, self.agent)  # Anti-collision lights on/off
+        igs.observe_input("l_engine_anti_ice", self.bool_input_callback, self.agent)  # Left engine anti-ice on/off
+        igs.observe_input("r_engine_anti_ice", self.bool_input_callback, self.agent)  # Right engine anti-ice on/off
+        igs.observe_input("l_windshield_anti_ice", self.bool_input_callback, self.agent)  # Left windshield anti-ice on/off
+        igs.observe_input("r_windshield_anti_ice", self.bool_input_callback, self.agent)  # Right windshield anti-ice on/off
         igs.observe_input("alt_sel", self.integer_input_callback, self.agent)  # Altitude select in feet
         igs.observe_input("heading_sel", self.integer_input_callback, self.agent)  #
+        igs.observe_input("exterior_lights", self.integer_input_callback, self.agent)  # Exterior lights state
 
         # GUI Agent → TARS Agent observers (Phase 6)
         igs.observe_input("Reset", self.impulsion_input_callback, self.agent)
@@ -3533,6 +3569,58 @@ class TarsAgent:
         
     def check_fuel_boost_off_send_signal(self):
         igs.output_set_string("interaction_message", create_interaction_message("", self.get_interaction_fuel_boost_off(), ""))
+        
+    def check_engine_anti_ice_send_signal(self):
+        if self.agent.l_engine_anti_ice_i is not None and self.agent.l_engine_anti_ice_i == 1:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_ENGINE_ANTI_ICE}\nEngine anti-ice is ON")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer":
+                self.on_speak_action("Engine anti-ice is ON")
+        elif self.agent.l_engine_anti_ice_i is not None and self.agent.l_engine_anti_ice_i == 0:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_ENGINE_ANTI_ICE}\nEngine anti-ice is OFF")
+            igs.output_set_string("interaction_message", interaction_json)
+            #if self.states[("BEFORE TAKEOFF", "Engine anti-ice", "ON")].autonomy_role == "performer":
+                #self.on_speak_action("Engine anti-ice is OFF")
+        else:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_ENGINE_ANTI_ICE}\nEngine anti-ice state is UNKNOWN")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "ENGINE ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer":
+                self.on_speak_action("Engine anti-ice state is UNKNOWN")
+    
+    def check_windshield_anti_ice_send_signal(self):
+        if self.agent.l_windshield_anti_ice_i is not None and self.agent.l_windshield_anti_ice_i == 1:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_WINDSHIELD_ANTI_ICE}\nWindshield anti-ice is ON")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer":
+                self.on_speak_action("Windshield anti-ice is ON")
+        elif self.agent.l_windshield_anti_ice_i is not None and self.agent.l_windshield_anti_ice_i == 0:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_WINDSHIELD_ANTI_ICE}\nWindshield anti-ice is OFF")
+            igs.output_set_string("interaction_message", interaction_json)
+            #if self.states[("BEFORE TAKEOFF", "Windshield anti-ice", "ON")].autonomy_role == "performer":
+                #self.on_speak_action("Windshield anti-ice is OFF")
+        else:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_WINDSHIELD_ANTI_ICE}\nWindshield anti-ice state is UNKNOWN")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "WINDSHIELD ANTI-ICE Switches", "AS REQUIRED")].autonomy_role == "performer":
+                self.on_speak_action("Windshield anti-ice state is UNKNOWN")
+                
+    def check_landing_light_send_signal(self):
+        if self.agent.exterior_lights_i is not None and self.agent.exterior_lights_i == 2:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_LANDING_LIGHT_RUNWAY}\nLanding light is ON")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "Landing Light Switch", "AS DESIRED")].autonomy_role == "performer":
+                self.on_speak_action("Landing light is ON")
+        elif self.agent.exterior_lights_i is not None and self.agent.exterior_lights_i == 0:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_LANDING_LIGHT_RUNWAY}\nLanding light is OFF")
+            igs.output_set_string("interaction_message", interaction_json)
+            #if self.states[("BEFORE TAKEOFF", "Landing Light Switch", "AS DESIRED")].autonomy_role == "performer":
+                #self.on_speak_action("Landing light is OFF")
+        else:
+            interaction_json = create_interaction_message("", f"{self.INTERACTION_LANDING_LIGHT_RUNWAY}\nLanding light state is UNKNOWN")
+            igs.output_set_string("interaction_message", interaction_json)
+            if self.states[("BEFORE TAKEOFF", "Landing Light Switch", "AS DESIRED")].autonomy_role == "performer":
+                self.on_speak_action("Landing light state is UNKNOWN")
+        
         
     def check_pax_safety_send_signal(self):
         if self.agent.pax_safety_i is not None and self.agent.pax_safety_i < 1:

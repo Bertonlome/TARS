@@ -278,7 +278,9 @@ class MainWindow(QMainWindow):
         # Persistent mute state - set by clicking the TARS picture
         self._tts_muted = False
         # Current condition/persona for TARS picture (TARS | TARP-F | TARP-S | TARC)
-        self._tars_condition = "TARS"
+        # Derive initial persona from the CSV loaded by TarsAgent (e.g. "TARP-S.csv" → "TARP-S")
+        _initial_csv = getattr(self.agent, 'CURRENT_BRIEFING_EXPORT_LOADED', 'TARS.csv')
+        self._tars_condition = _initial_csv.replace('.csv', '')
 
         # Make tars_picture clickable to toggle TTS mute/unmute
         def _tars_picture_clicked(event):
