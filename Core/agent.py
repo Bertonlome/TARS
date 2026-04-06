@@ -77,8 +77,15 @@ CYUL_06R_LONGITUDE = -73.741171 # CYUL 06R Longitude
 CYUL_24R_LONGITUDE = -73.73607  # CYUL 24R Longitude
 CYUL_24L_LONGITUDE = -73.716188 # CYUL 24L Longitude
 CLEARED_ALTITUDE = 5000  # Cleared altitude for preset
-VECTOR_HEADING = 330  # Vector heading for ATC instructions
-FALSE_VECTOR_HEADING = 30  # False vector heading for ATC instructions (used in unreliable mode)
+# Per-runway vector headings (reliable / unreliable) and turn directions
+# Keys match RUNWAY_* constants.  "turn" is 'right' or 'left'.
+_VECTOR_TABLE = {
+    "24R": {"heading": 330, "false_heading": 300, "turn": "right"},
+    "24L": {"heading": 150, "false_heading": 190, "turn": "left"},
+    "06R": {"heading": 150, "false_heading": 190, "turn": "right"},
+}
+VECTOR_HEADING = 330  # Default (24R); overwritten at runtime by initialize()
+FALSE_VECTOR_HEADING = 300  # Default (24R); overwritten at runtime by initialize()
 VECTOR_ALTITUDE = 3000  # Vector altitude for ATC instructions
 AIRPORT_NAME = "Montreal Trudeau"  # Airport name for position reporting
 MAGNETIC_VARIATION = 15  # Degrees West: magnetic = true + variation
@@ -132,8 +139,9 @@ class TarsAgent:
         self.SLIP_SKID_THRESHOLD = SLIP_SKID_THRESHOLD  # Maximum slip/skid value to consider "maintained"
         self.POSITIVE_RATE_THRESHOLD = POSITIVE_RATE_THRESHOLD  # Minimum vertical speed to consider "positive rate"
         self.AUTOPILOT_ALTITUDE_THRESHOLD = AUTOPILOT_ALTITUDE_THRESHOLD  # Minimum altitude to engage autopilot
-        self.VECTOR_HEADING = VECTOR_HEADING  # Vector heading for ATC instructions
-        self.FALSE_VECTOR_HEADING = FALSE_VECTOR_HEADING  # False vector heading for ATC instructions (used in unreliable mode)
+        self.VECTOR_HEADING = VECTOR_HEADING  # Vector heading for ATC instructions (set per-runway in initialize())
+        self.FALSE_VECTOR_HEADING = FALSE_VECTOR_HEADING  # False vector heading (set per-runway in initialize())
+        self.VECTOR_TURN_DIRECTION = "right"  # 'right' or 'left' — set per-runway in initialize()
         self.VECTOR_ALTITUDE = VECTOR_ALTITUDE  # Vector altitude for ATC instructions
         self.ONE_THOUSAND_FIVE_HUNDRED_FEET = ONE_THOUSAND_FIVE_HUNDRED_FEET  # 1500 feet altitude threshold
         self.CURRENT_BRIEFING_EXPORT_LOADED = CURRENT_BRIEFING_EXPORT_LOADED
@@ -152,10 +160,6 @@ class TarsAgent:
         
         # TTS completion event - will be set by external coordinator
         self.tts_completion_event = None
-        
-        # Thread management for continuous actions
-        self.trim_thread = None
-        self.trim_stop_event = threading.Event()
         
         # ATC thread management for parallel communication
         self.atc_thread = None
@@ -555,7 +559,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")],
             self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")],
-            lambda: self.is_acked() if self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")].autonomy_role == "supporter" else self.is_acked(),
+            lambda: self.is_acked(), 
             action=lambda: self._run_check_with_live_updates(self.check_1500_ft_send_signal, ("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL"))))
 
         
@@ -1187,7 +1191,7 @@ class TarsAgent:
                 if abs(self.agent.heading_sel_i - self.VECTOR_HEADING) <= 2:
                     return True
             elif not self.TARS_RELIABLE:
-                if abs(self.agent.heading_sel_i - self.VECTOR_HEADING) <= 5:  # Allow wider margin for unreliable readings
+                if abs(self.agent.heading_sel_i - self.FALSE_VECTOR_HEADING) <= 5:
                     return True
 
         return False
@@ -1892,11 +1896,6 @@ class TarsAgent:
             if self.tts_completion_event:
                 self.tts_completion_event.set()
 
-            # Stop trim thread
-            if self.trim_thread and self.trim_thread.is_alive():
-                self.trim_stop_event.set()
-                print("  ✓ Trim stop event sent")
-
             # Stop ATC thread
             if self.atc_thread and self.atc_thread.is_alive():
                 self.atc_stop_event.set()
@@ -2162,7 +2161,8 @@ class TarsAgent:
                     self.INITIAL_LATITUDE = closest_coords[0]
                     self.INITIAL_LONGITUDE = closest_coords[1]
                     print(f"🛫 Runway detected: {self.RUNWAY_NUMBER} (nearest threshold at {closest_coords[0]:.6f}, {closest_coords[1]:.6f})")
-                    igs.output_set_string("runway_number", self.RUNWAY_NUMBER)
+                    if self.RUNWAY_NUMBER:
+                        igs.output_set_string("runway_number", self.RUNWAY_NUMBER)
                 else:
                     print("⚠️  load_csv: no GPS position available, runway not auto-detected")
 
@@ -2357,6 +2357,8 @@ class TarsAgent:
         igs.output_create("flaps", igs.DOUBLE_T, None)  # 0.0 = retracted, 0.5 = 15° takeoff, 1.0 = full
         igs.output_create("altimeter_setting", igs.DOUBLE_T, None)  # inHg * 1000
         igs.output_create("trim_rudder", igs.DOUBLE_T, None)  # -1.0 to 1.0 but can go beyond that programmatically
+        igs.output_create("rudder_trim_start", igs.IMPULSION_T, None)  # Signal RudderTrimAgent to begin trimming
+        igs.output_create("rudder_trim_stop", igs.IMPULSION_T, None)   # Signal RudderTrimAgent to stop trimming
         igs.output_create("request_takeoff_clearance", igs.IMPULSION_T, None)  # Impulsion to request takeoff clearance
         igs.output_create("declare_mayday", igs.IMPULSION_T, None)  # Impulsion to declare mayday
         igs.output_create("declare_pan", igs.IMPULSION_T, None)  # Impulsion to declare pan
@@ -2719,12 +2721,6 @@ class TarsAgent:
             self.tts_completion_event.set()  # Clear any pending TTS
         
         # Stop any running threads
-        if self.trim_thread and self.trim_thread.is_alive():
-            self.trim_stop_event.set()
-            self.trim_thread.join(timeout=1.0)
-            self.trim_stop_event.clear()
-            print("  ✓ Stopped trim thread")
-        
         if self.atc_thread and self.atc_thread.is_alive():
             self.atc_stop_event.set()
             self.atc_thread.join(timeout=1.0)
@@ -2774,22 +2770,33 @@ class TarsAgent:
             if self.agent.alt_sel_i is not None and self.agent.alt_sel_i != self.CLEARED_ALTITUDE:
                 igs.output_set_int("alt_sel", self.CLEARED_ALTITUDE)
             igs.output_set_double("speed_mode", 1.0)  # Arm speed mode
-            if self.agent.autopilot_airspeed_i is not None:
-                _deadline = time.monotonic() + 2.0
-                while (abs(self.agent.autopilot_airspeed_i - self.V_ENR) > 2):  # Wait until airspeed is close to V_ENR
-                    if time.monotonic() >= _deadline:
-                        print("[TARS] ⚠️  nose_up/nose_down timeout (2s) in arm_speed_mode_send_signal")
-                        break
-                    if self.agent.autopilot_airspeed_i > self.V_ENR:
-                        igs.output_set_impulsion("nose_down")  # Command nose down to increase speed
-                        print(f"Current airspeed: {self.agent.autopilot_airspeed_i} - commanding nose down to increase speed")
-                    elif self.agent.autopilot_airspeed_i < self.V_ENR:
-                        igs.output_set_impulsion("nose_up")  # Command nose up to reduce speed
-                        print(f"Current airspeed: {self.agent.autopilot_airspeed_i} - commanding nose up to reduce speed")
-                    time.sleep(0.1)  # Check every 100ms
+            # Adjustment loop must run in a background thread: calling igs.output_set_impulsion()
+            # from the FSM thread holds Ingescape's internal lock, which prevents the incoming
+            # autopilot_airspeed callback from ever updating autopilot_airspeed_i mid-loop.
+            threading.Thread(target=self._adjust_ap_speed_worker, daemon=True, name="APSpeedAdjust").start()
             self.on_speak_action("Speed mode armed.")
             msg = create_interaction_message("", "Speed mode armed.")
             igs.output_set_string("interaction_message", msg)
+
+    def _adjust_ap_speed_worker(self):
+        """Background thread: nudge AP airspeed to V_ENR via nose_up / nose_down impulsions."""
+        _deadline = time.monotonic() + 30.0
+        while time.monotonic() < _deadline:
+            current = self.agent.autopilot_airspeed_i
+            if current is None:
+                break
+            if abs(current - self.V_ENR) <= 5:
+                print(f"[TARS] ✓ AP airspeed at {current:.0f} kts (target {self.V_ENR})")
+                break
+            if current > self.V_ENR:
+                igs.output_set_impulsion("nose_down")
+                print(f"[TARS] AP speed adjust: {current:.0f} → {self.V_ENR} (nose_down)")
+            else:
+                igs.output_set_impulsion("nose_up")
+                print(f"[TARS] AP speed adjust: {current:.0f} → {self.V_ENR} (nose_up)")
+            time.sleep(0.15)
+        else:
+            print(f"[TARS] ⚠️  AP speed adjust timeout — final: {self.agent.autopilot_airspeed_i}")
     
     def set_fd_to_mode(self):
         """Set Flight Director to takeoff/departure mode:
@@ -2886,102 +2893,20 @@ class TarsAgent:
                 self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset
 
     def trim_action(self):
-        """Non-blocking trim action - starts background thread after approval"""
+        """Request approval then signal the standalone RudderTrimAgent to start trimming."""
         allow_string = f"Ready to trim rudder for {self.engine_failed_side} engine failure. Please approve or deny."
         self.on_speak_action(allow_string)
         igs.output_set_string("interaction_message", create_interaction_message("", allow_string, left_button="DENY", right_button="APPROVE"))
-        # Check if denied
         while self.task_approval_status[0] == ApprovalStatus.NOT_ANSWERED:
-            time.sleep(0.1)  # Wait for user response
-        if self.task_approval_status[0] == ApprovalStatus.DENIED :
-            self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset
+            time.sleep(0.1)
+        if self.task_approval_status[0] == ApprovalStatus.DENIED:
+            self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED
             return
-        
-        # Approved - start trim in background thread
-        print("✅ Trim action approved - starting background thread")
-        self.stop_trim_action()  # Stop any existing trim thread
-        self.trim_stop_event.clear()  # Clear stop flag
-        
-        # Start trim worker in background
-        self.trim_thread = threading.Thread(target=self._trim_worker, daemon=True, name="TrimWorker")
-        self.trim_thread.start()
-        
-        # Return immediately - FSM can continue!
-        self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED  # Reset for next use
-    
-    def _trim_worker(self):
-        """Background worker thread for continuous trim adjustment"""
-        try:
-            # Determine trim direction based on failed engine
-            # Left engine failure: need right rudder (positive trim), slip target is negative
-            # Right engine failure: need left rudder (negative trim), slip target is positive
-            is_left_failure = self.engine_failed_side == "Left"
-            trim_direction = 1 if is_left_failure else -1  # +1 for right, -1 for left
-            slip_target = -1 if is_left_failure else 1  # Slip threshold to correct
-            
-            direction_name = "right" if is_left_failure else "left"
-            self.on_speak_action(f"Trimming {direction_name} rudder for {self.engine_failed_side.lower()} engine failure.")
-            igs.output_set_string("tars_status", f"Trimming {direction_name}")
 
-            stable_start_time = None
-            stable_announced = False
-            
-            # Single loop for both engine sides - runs until stop event
-            while not self.trim_stop_event.is_set():
-                current_trim = self.agent.trim_rudder_i if self.agent.trim_rudder_i is not None else 0.0
-                current_slip = self.agent.slip_i if self.agent.slip_i is not None else 0.0
-                
-                # Check if conditions are met
-                if self.is_slip_skid_centered() and self.is_rudder_control_release():
-                    if stable_start_time is None:
-                        stable_start_time = time.time()
-                        print(f"Conditions met, waiting for 3 seconds of stability...")
-                    elif time.time() - stable_start_time >= 3.0 and not stable_announced:
-                        print(f"✅ Conditions stable for 3 seconds, trim complete - continuing to monitor")
-                        #self.on_speak_action("Rudder trim complete")
-                        igs.output_set_string("tars_status", f"Trim {direction_name} - stable")
-                        stable_announced = True  # Announce only once
-                    # Continue monitoring (don't break) - trim might need adjustment if conditions change
-                else:
-                    # Conditions lost - reset and resume trimming if needed
-                    if stable_announced:
-                        print(f"⚠️ Stability lost, resuming trim adjustments...")
-                        stable_announced = False
-                    stable_start_time = None
-                    
-                    # Trim logic: check if we need to apply trim or if we've overshot
-                    if current_slip * trim_direction < -1 and abs(current_trim) < 5:  # Need to trim in primary direction
-                        #print(f"Current rudder trim: {current_trim}, slip: {current_slip:.2f}, trimming {direction_name}...")
-                        igs.output_set_double("trim_rudder", current_trim + (0.1 * trim_direction))
-                    elif current_slip * trim_direction > 1 and abs(current_trim) < 5:  # Overshot, need to correct opposite direction
-                        #print(f"Overshot! Current trim: {current_trim}, slip: {current_slip:.2f}, correcting...")
-                        igs.output_set_double("trim_rudder", current_trim - (0.1 * trim_direction))
-                time.sleep(0.5)
-            
-            igs.output_set_string("tars_status", "Agent RUNNING")
-            print("🛑 Trim worker thread exiting")
-        except Exception as e:
-            print(f"❌ Error in trim worker thread: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def stop_trim_action(self):
-        """Stop the trim action thread if running
-        
-        This will be called when:
-        - Manual rudder input detected (placeholder for future implementation)
-        - Application shutdown
-        - New trim action needs to start
-        """
-        if self.trim_thread and self.trim_thread.is_alive():
-            print("🛑 Stopping trim action thread...")
-            self.trim_stop_event.set()
-            self.trim_thread.join(timeout=2.0)
-            if self.trim_thread.is_alive():
-                print("⚠️ Trim thread did not stop gracefully")
-            else:
-                print("✅ Trim thread stopped successfully")
-    
+        print("✅ Trim action approved - signalling RudderTrimAgent")
+        igs.output_set_impulsion("rudder_trim_start")
+        self.task_approval_status[0] = ApprovalStatus.NOT_ANSWERED
+
     def send_vector_signals(self):
         igs.output_set_string("interaction_message", create_interaction_message("",self.get_vectors_prompt(), left_button="DENY", right_button="APPROVE"))
         self.on_speak_action("Do you want me to set the heading and altitude following ATC vectors?")
@@ -2989,17 +2914,29 @@ class TarsAgent:
     def set_heading_action(self):
         if self.agent.autopilot_heading_set_i is not None and self.VECTOR_HEADING is not None and self.FALSE_VECTOR_HEADING is not None and self.agent.heading_i is not None:
             if self.TARS_RELIABLE:
-                half_brg = self.agent.heading_i + ((self.VECTOR_HEADING - self.agent.heading_i) / 2)
-                igs.output_set_double("autopilot_heading_set", half_brg)  # Set initial heading to halfway between current and vector for smoother transition
-                time.sleep(1)  # Brief pause before setting final heading
-                igs.output_set_double("autopilot_heading_set", self.VECTOR_HEADING)
-                self.on_speak_action(f"Setting heading to {self.VECTOR_HEADING} degrees.")
-                msg = create_interaction_message("", f"Heading set to {self.VECTOR_HEADING} degrees.")
+                target = self.VECTOR_HEADING
+                current_hdg = self.agent.heading_i
+                # Step 1: nudge ±1° to force autopilot into the correct turn direction
+                nudge = current_hdg + (1.0 if self.VECTOR_TURN_DIRECTION == "right" else -1.0)
+                igs.output_set_double("autopilot_heading_set", nudge % 360)
+                time.sleep(0.5)
+                # Step 2: set half-bearing for a smoother arc
+                # Compute angular difference respecting turn direction
+                diff = (target - current_hdg) % 360
+                if self.VECTOR_TURN_DIRECTION == "left":
+                    diff = diff - 360 if diff > 0 else diff  # force negative
+                half_brg = (current_hdg + diff / 2) % 360
+                igs.output_set_double("autopilot_heading_set", half_brg)
+                time.sleep(1)
+                # Step 3: set final target heading
+                igs.output_set_double("autopilot_heading_set", target)
+                self.on_speak_action(f"Setting heading to {target} degrees.")
+                msg = create_interaction_message("", f"Heading set to {target}°.")
                 igs.output_set_string("interaction_message", msg)
             else:
                 igs.output_set_double("autopilot_heading_set", self.FALSE_VECTOR_HEADING)
                 self.on_speak_action(f"Setting heading to {self.FALSE_VECTOR_HEADING} degrees.")
-                msg = create_interaction_message("", f"Heading set to {self.FALSE_VECTOR_HEADING} degrees.")
+                msg = create_interaction_message("", f"Heading set to {self.FALSE_VECTOR_HEADING}°.")
                 igs.output_set_string("interaction_message", msg)
     
     def set_altitude_action(self):
@@ -3210,11 +3147,12 @@ class TarsAgent:
             self.INITIAL_LATITUDE = closest_coords[0]
             self.INITIAL_LONGITUDE = closest_coords[1]
             print(f"🛫 [initialize] Runway detected: {self.RUNWAY_NUMBER}")
-            igs.output_set_string("runway_number", self.RUNWAY_NUMBER)
+            if self.RUNWAY_NUMBER:
+                igs.output_set_string("runway_number", self.RUNWAY_NUMBER)
         else:
             print("⚠️  [initialize] No GPS position available — runway not auto-detected")
 
-        # 2. Set runway heading based on detected runway
+        # 2. Set runway heading and vector parameters based on detected runway
         runway_headings = {
             RUNWAY_06L: 57,
             RUNWAY_06R: 57,
@@ -3224,6 +3162,15 @@ class TarsAgent:
         if self.RUNWAY_NUMBER in runway_headings:
             self.RUNWAY_HEADING = runway_headings[self.RUNWAY_NUMBER]
             print(f"🧭 [initialize] Runway heading set to {self.RUNWAY_HEADING}°")
+        
+        # Update vector heading/turn direction from per-runway table
+        if self.RUNWAY_NUMBER:
+            vec = _VECTOR_TABLE.get(self.RUNWAY_NUMBER)
+        if vec:
+            self.VECTOR_HEADING = vec["heading"]
+            self.FALSE_VECTOR_HEADING = vec["false_heading"]
+            self.VECTOR_TURN_DIRECTION = vec["turn"]
+            print(f"🧭 [initialize] Vector: {self.VECTOR_TURN_DIRECTION} turn to {self.VECTOR_HEADING}° (unreliable: {self.FALSE_VECTOR_HEADING}°)")
 
         # 3. Sync wind from Ingescape inputs if available
         if self.agent.wind_dir_i is not None:
@@ -3896,10 +3843,20 @@ class TarsAgent:
         return f"C-POLY, Montréal Tower, roger. Turn right heading three-three-zero, descend and maintain three thousand feet. Expect ILS approach runway two-four right."
 
     def get_vectors_prompt(self) -> str:
+        turn = self.VECTOR_TURN_DIRECTION  # 'right' or 'left'
+        runway = self.RUNWAY_NUMBER or "24R"
         if self.TARS_RELIABLE:
-            return f"ATC has instructed to turn right heading {VECTOR_HEADING} degrees, descend and maintain {VECTOR_ALTITUDE} feet. Expect ILS approach runway 24R.\n\nDo you want me to set the heading and altitude?"
+            return (
+                f"ATC has instructed to turn {turn} heading {self.VECTOR_HEADING} degrees, "
+                f"descend and maintain {self.VECTOR_ALTITUDE} feet. "
+                f"Expect ILS approach runway {runway}.\n\nDo you want me to set the heading and altitude?"
+            )
         else:
-            return f"ATC has instructed to turn right heading {FALSE_VECTOR_HEADING} degrees, descend and maintain {VECTOR_ALTITUDE} feet. Expect ILS approach runway 24R.\n\nDo you want me to set the heading and altitude?"
+            return (
+                f"ATC has instructed to turn {turn} heading {self.FALSE_VECTOR_HEADING} degrees, "
+                f"descend and maintain {self.VECTOR_ALTITUDE} feet. "
+                f"Expect ILS approach runway {runway}.\n\nDo you want me to set the heading and altitude?"
+            )
     # Display Messages
     INTERACTION_DISPLAY_TRIM_RUDDER = "Adjusting rudder trim for single-engine operation"
     INTERACTION_DISPLAY_ALARM = "Alarm: Engine Fire"

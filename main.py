@@ -166,6 +166,10 @@ class MainWindow(QMainWindow):
         # Start TTS (Text-to-Speech) subprocess
         self.tts_process: subprocess.Popen | None = None
         self.start_tts_subprocess()
+
+        # Start Rudder Trim Agent subprocess
+        self.rudder_trim_process: subprocess.Popen | None = None
+        self.start_rudder_trim_subprocess()
         
         # Phase 6: FSM Worker and threading removed - TARS Agent now runs independently
         # All FSM logic is handled by TARS Agent subprocess
@@ -265,6 +269,7 @@ class MainWindow(QMainWindow):
         # INITIALIZE SPEECH LOG (replaces tars_output_speech_label)
         # ///////////////////////////////////////////////////////////////
         self._init_speech_log()
+        self._setup_trim_indicator()
 
         # INITIALIZE GUI AGENT (Phase 4 & 6)
         # ///////////////////////////////////////////////////////////////
@@ -325,6 +330,15 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QSizePolicy
         self.speech_log.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.insertWidget(idx, self.speech_log, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+
+    def _setup_trim_indicator(self):
+        """Create and embed the TrimIndicatorWidget in the TARS status bar."""
+        from widgets.trim_indicator import TrimIndicatorWidget
+        from PySide6.QtCore import Qt
+        self._trim_indicator = TrimIndicatorWidget(self.ui.status_container_H)
+        self._trim_indicator.hide()
+        self.ui.tars_status_container.addWidget(
+            self._trim_indicator, 0, Qt.AlignmentFlag.AlignVCenter)
 
     def setup_page_connections(self):
         """
@@ -709,6 +723,16 @@ class MainWindow(QMainWindow):
     def on_tars_status(self, text: str):
         """Update the TARS status label from any thread via signal."""
         self.ui.tars_status_label.setText(text)
+        if text in ("TRIMMING", "STABLE"):
+            self._trim_indicator.set_stable(text == "STABLE")
+            self._trim_indicator.show()
+        else:
+            self._trim_indicator.hide()
+
+    @QtCore.Slot(float)
+    def on_trim_rudder_value(self, value: float):
+        """Update the trim indicator bar with the latest trim_rudder output."""
+        self._trim_indicator.set_trim(value)
 
     def _get_tars_image(self, state: str) -> str:
         """Return image path for the current condition and visual state.
@@ -1437,6 +1461,85 @@ class MainWindow(QMainWindow):
         monitor_thread = threading.Thread(target=monitor_tts, daemon=True)
         monitor_thread.start()
     
+    def start_rudder_trim_subprocess(self):
+        """Start the Rudder Trim Agent as a subprocess."""
+        try:
+            project_root = Path(__file__).parent
+            trim_script = project_root / "Core" / "rudder_trim_agent.py"
+
+            if not trim_script.exists():
+                print(f"⚠️  Rudder Trim Agent script not found at {trim_script}")
+                return
+
+            if sys.platform == "win32":
+                python_exe = project_root / ".venv" / "Scripts" / "python.exe"
+            else:
+                python_exe = project_root / ".venv" / "bin" / "python"
+
+            if not python_exe.exists():
+                python_exe = sys.executable
+                print(f"⚠️  Virtual environment Python not found, using system Python: {python_exe}")
+
+            self.rudder_trim_process = subprocess.Popen(
+                [str(python_exe), "-u", str(trim_script)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                bufsize=1,
+                cwd=str(project_root),
+            )
+
+            print(f"✂️  Rudder Trim Agent subprocess started (PID: {self.rudder_trim_process.pid})")
+            self.start_rudder_trim_monitor()
+
+        except Exception as e:
+            print(f"❌ Failed to start Rudder Trim Agent subprocess: {e}")
+            import traceback
+            traceback.print_exc()
+            self.rudder_trim_process = None
+
+    def start_rudder_trim_monitor(self):
+        """Start a background thread to monitor RudderTrim subprocess output."""
+        def monitor():
+            if not self.rudder_trim_process or not self.rudder_trim_process.stdout:
+                return
+            print("📊 Rudder Trim monitor thread started")
+            try:
+                for line in iter(self.rudder_trim_process.stdout.readline, ""):
+                    if line:
+                        print(f"[TRIM] {line.rstrip()}")
+                    if self.rudder_trim_process.poll() is not None:
+                        break
+                exit_code = self.rudder_trim_process.poll()
+                if exit_code not in (0, None):
+                    print(f"⚠️  Rudder Trim Agent subprocess crashed with exit code {exit_code}")
+                else:
+                    print("✅ Rudder Trim Agent subprocess exited normally")
+            except Exception as e:
+                print(f"❌ Error in Rudder Trim monitor thread: {e}")
+
+        threading.Thread(target=monitor, daemon=True).start()
+
+    def stop_rudder_trim_subprocess(self):
+        """Stop the Rudder Trim Agent subprocess gracefully."""
+        if self.rudder_trim_process:
+            try:
+                print("🛑 Stopping Rudder Trim Agent subprocess...")
+                self.rudder_trim_process.terminate()
+                try:
+                    self.rudder_trim_process.wait(timeout=5)
+                    print("✅ Rudder Trim Agent subprocess stopped")
+                except subprocess.TimeoutExpired:
+                    print("⚠️  Rudder Trim Agent subprocess didn't stop gracefully, forcing...")
+                    self.rudder_trim_process.kill()
+                    self.rudder_trim_process.wait()
+                    print("✅ Rudder Trim Agent subprocess killed")
+            except Exception as e:
+                print(f"❌ Error stopping Rudder Trim Agent subprocess: {e}")
+            finally:
+                self.rudder_trim_process = None
+
     def stop_tars_subprocess(self):
         """Stop the TARS Agent subprocess gracefully"""
         if self.tars_process:
@@ -1528,7 +1631,10 @@ class MainWindow(QMainWindow):
         
         # Stop TTS subprocess
         self.stop_tts_subprocess()
-        
+
+        # Stop Rudder Trim Agent subprocess
+        self.stop_rudder_trim_subprocess()
+
         event.accept()
 
 

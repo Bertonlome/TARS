@@ -46,6 +46,7 @@ class GUIAgent(QObject):
     _allocation_reloaded_signal = Signal(str)  # CSV filename after TARS reloads allocation
     _external_task_acked_signal = Signal()  # joystick task_acknowledged routed through GUI
     _condition_changed_signal = Signal(str)  # condition input → switch TARS persona images
+    _trim_rudder_signal = Signal(float)  # RudderTrimAgent trim_rudder value → trim indicator
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
@@ -87,6 +88,7 @@ class GUIAgent(QObject):
         self._state_divider_signal.connect(self.main_window.on_state_divider)
         self._reset_speech_log_signal.connect(self.main_window.reset_speech_log)
         self._tars_status_signal.connect(self.main_window.on_tars_status)
+        self._trim_rudder_signal.connect(self.main_window.on_trim_rudder_value)
         self._allocation_reloaded_signal.connect(self.main_window.on_allocation_reloaded)
         self._condition_changed_signal.connect(main_window.on_condition_changed)
         
@@ -129,6 +131,7 @@ class GUIAgent(QObject):
         igs.input_create("allocation_reloaded", igs.STRING_T, None)  # JSON: {csv, states_count} when TARS reloads
         igs.input_create("task_acknowledged", igs.IMPULSION_T, None)  # joystick/external ack routed through GUI
         igs.input_create("condition", igs.STRING_T, None)  # persona selector: TARS | TARP-F | TARP-S | TARC
+        igs.input_create("trim_rudder_value", igs.DOUBLE_T, None)  # RudderTrimAgent current trim position
         
         # Observe inputs
         igs.observe_input("current_state", self._on_current_state_input, None)
@@ -155,6 +158,7 @@ class GUIAgent(QObject):
         igs.observe_input("allocation_reloaded", self._on_allocation_reloaded_input, None)
         igs.observe_input("task_acknowledged", self._on_ext_task_acknowledged_input, None)
         igs.observe_input("condition", self._on_condition_input, None)
+        igs.observe_input("trim_rudder_value", self._on_trim_rudder_input, None)
         self._external_task_acked_signal.connect(self._on_external_task_acknowledged)
         # Map ATC_Agent.speech_output → our atc_speech_output input
         igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
@@ -162,6 +166,10 @@ class GUIAgent(QObject):
         igs.mapping_add("stt_speech_output", "Speech_to_Text_Agent", "speech_output")
         # Map TARS_Agent.tars_status → our tars_status input
         igs.mapping_add("tars_status", "TARS_Agent", "tars_status")
+        # Map RudderTrimAgent.trim_status → same tars_status input so trim updates show on the label
+        igs.mapping_add("tars_status", "RudderTrimAgent", "trim_status")
+        # Map RudderTrimAgent.trim_rudder → our trim_rudder_value input for the indicator widget
+        igs.mapping_add("trim_rudder_value", "RudderTrimAgent", "trim_rudder")
         # Map TARS_Agent outputs → our inputs
         igs.mapping_add("current_state", "TARS_Agent", "current_state")
         igs.mapping_add("next_state", "TARS_Agent", "next_state")
@@ -257,6 +265,14 @@ class GUIAgent(QObject):
                 self._tars_status_signal.emit(str(value))
         except Exception as e:
             print(f"Error processing tars_status: {e}")
+
+    def _on_trim_rudder_input(self, io_type, name, value_type, value, my_data):
+        """Handle trim_rudder double from RudderTrimAgent — update the trim indicator."""
+        try:
+            if value is not None:
+                self._trim_rudder_signal.emit(float(value))
+        except Exception as e:
+            print(f"Error processing trim_rudder_value: {e}")
 
     def _on_allocation_reloaded_input(self, io_type, name, value_type, value, my_data):
         """Handle allocation_reloaded notification from TARS — GUI reloads its local stub."""
