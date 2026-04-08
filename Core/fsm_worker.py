@@ -40,6 +40,12 @@ class FSMWorker:
         # Action inhibition flag
         self.skip_current_action = False
         
+        # Override flag - when True, force next transition regardless of conditions
+        self.force_override = False
+        
+        # Flag to prevent double-trigger from task_override + next_step
+        self.override_in_progress = False
+        
         # Active condition monitoring registry
         # Dict: state_key -> monitoring_info
         self.active_monitored_conditions = {}
@@ -204,7 +210,12 @@ class FSMWorker:
                     if condition_time > 0.1:  # 100ms threshold
                         print(f"WARNING: Slow condition check for {t.from_state.procedure} {t.from_state.task_object} {t.from_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value}: {condition_time*1000:.2f}ms")
                     
-                    if condition_result:
+                    if condition_result or self.force_override:
+                        is_override = self.force_override
+                        if is_override:
+                            self.force_override = False
+                            self.override_in_progress = False  # Clear the flag
+                            print(f"⚡ Override: forcing transition regardless of conditions")
                         # State transition
                         transition_time = self.stop_performance_timer("transition_check", transition_start)
                         print(f"State transition: {fsm.current_state.procedure} {fsm.current_state.task_object} {fsm.current_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value} (check took {transition_time*1000:.2f}ms)")
@@ -385,7 +396,7 @@ class FSMWorker:
                             # Format condition name nicely for user
                             condition_name = to_state.condition_function.replace('is_', '').replace('_', ' ')
                             message = f"Cannot proceed: {condition_name} not satisfied yet."
-                            self._send_interaction_message(message)
+                            self._send_interaction_message(message, enable_override=True)
                             print(f"ℹ️  User checked but condition '{to_state.condition_function}' = False")
                             return
                     except Exception as e:
@@ -393,19 +404,24 @@ class FSMWorker:
             
             # Generic message if we can't determine specific condition
             message = "Task acknowledged, but transition conditions not yet satisfied. Please verify requirements."
-            self._send_interaction_message(message)
+            self._send_interaction_message(message, enable_override=True)
             print(f"ℹ️  User checked but conditions not satisfied for transition")
             
         except Exception as e:
             print(f"Error in _handle_failed_acknowledgment: {e}")
     
-    def _send_interaction_message(self, message: str):
+    def _send_interaction_message(self, message: str, enable_override: bool = False):
         """Send interaction message to GUI via Ingescape"""
         try:
             from Core.message_protocol import create_interaction_message
             import ingescape as igs
             
-            msg = create_interaction_message("", message)
+            # When override is enabled, show OVERRIDE button in interaction panel
+            if enable_override:
+                extra_data = {"enable_override": True}
+                msg = create_interaction_message("", message, left_button="OVERRIDE", extra_data=extra_data)
+            else:
+                msg = create_interaction_message("", message)
             igs.output_set_string("interaction_message", msg)
         except Exception as e:
             print(f"Error sending interaction message: {e}")

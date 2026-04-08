@@ -349,6 +349,7 @@ class MainWindow(QMainWindow):
         if home_page:
             home_page.task_done_signal.connect(self.handle_task_done)
             home_page.task_cancel_signal.connect(self.handle_task_cancel)
+            home_page.task_override_signal.connect(self.handle_task_override)
             home_page.task_allowed_signal.connect(self.handle_task_allowed)
             home_page.task_not_allowed_signal.connect(self.handle_task_not_allowed)
             home_page.countdown_zero_signal.connect(self.handle_countdown_zero)
@@ -358,6 +359,7 @@ class MainWindow(QMainWindow):
         if flight_page:
             flight_page.task_done_signal.connect(self.handle_task_done)
             flight_page.task_cancel_signal.connect(self.handle_task_cancel)
+            flight_page.task_override_signal.connect(self.handle_task_override)
             flight_page.task_allowed_signal.connect(self.handle_task_allowed)
             flight_page.task_not_allowed_signal.connect(self.handle_task_not_allowed)
             flight_page.countdown_zero_signal.connect(self.handle_countdown_zero)
@@ -424,6 +426,14 @@ class MainWindow(QMainWindow):
         # TARS agent will call fsm_worker.cancel_current_action() when it receives the signal
         
         self.countdown_completion_event.set()
+
+    def handle_task_override(self):
+        """
+        Handle task override signal - force next state transition
+        """
+        if hasattr(self, 'fsm_worker') and self.fsm_worker is not None:
+            self.fsm_worker.core_worker.force_override = True
+            print("⚡ Task override - forcing next state transition")
 
     def handle_task_allowed(self):
         """

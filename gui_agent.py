@@ -345,6 +345,10 @@ class GUIAgent(QObject):
             for key in ("runway_heading", "initial_wind_dir", "initial_wind_mag"):
                 if key in msg_data:
                     button_config[key] = msg_data[key]
+            
+            # Pass enable_override flag through button_config
+            if msg_data.get("enable_override"):
+                button_config["enable_override"] = True
                 
             self._interaction_message_signal.emit(message, tars_input, button_config)
         except Exception as e:
@@ -521,6 +525,15 @@ class GUIAgent(QObject):
         self.main_window.set_interaction_text(message)
         self.main_window.set_interaction_tars_input(tars_input, show=bool(tars_input))
 
+        # Switch cancel button to override mode if requested by TARS
+        if button_config.get("enable_override"):
+            home_page   = self.main_window.page_manager.get_page('home')
+            flight_page = self.main_window.page_manager.get_page('flight')
+            for p in (home_page, flight_page):
+                if p:
+                    p._button_in_override_mode = True
+                    p._update_cancel_button_text()
+
         if not button_config:
             return
 
@@ -531,9 +544,14 @@ class GUIAgent(QObject):
         right_text = button_config.get("right_button", "")
         mid_text   = button_config.get("middle_button", "")
 
-        use_approval_mode = left_text in ("APPROVE", "DENY") or right_text in ("APPROVE", "DENY")
-        if home_page:
-            home_page.connect_int_panel_buttons(default=not use_approval_mode)
+        # Check if we have special buttons that need custom wiring
+        has_special_left_button = left_text in ("EDIT", "LISTEN TO ATIS", "OVERRIDE")
+        
+        # Only connect default int panel buttons if we don't have special buttons
+        if not has_special_left_button:
+            use_approval_mode = left_text in ("APPROVE", "DENY") or right_text in ("APPROVE", "DENY")
+            if home_page:
+                home_page.connect_int_panel_buttons(default=not use_approval_mode)
 
         # ---- left button ----
         if "left_button" in button_config:
@@ -541,7 +559,7 @@ class GUIAgent(QObject):
             if lbt is None:
                 for p in (home_page, flight_page):
                     if p: p.int_panel_left_button.hide()
-            elif lbt in ("EDIT", "LISTEN TO ATIS"):
+            elif lbt in ("EDIT", "LISTEN TO ATIS", "OVERRIDE"):
                 # Cache wind metadata for later use by the dialog / ATIS request
                 self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
                 self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
@@ -557,8 +575,10 @@ class GUIAgent(QObject):
                         pass
                     if lbt == "EDIT":
                         p.int_panel_left_button.clicked.connect(self._open_wind_edit_dialog)
-                    else:  # LISTEN TO ATIS
+                    elif lbt == "LISTEN TO ATIS":
                         p.int_panel_left_button.clicked.connect(self._send_request_atis)
+                    elif lbt == "OVERRIDE":
+                        p.int_panel_left_button.clicked.connect(self._send_task_override)
             elif lbt:
                 for p in (home_page, flight_page):
                     if p:

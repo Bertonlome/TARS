@@ -1882,6 +1882,13 @@ class TarsAgent:
             # Task cancellation is handled by the FSM execution loop
             # No action needed here - the cancellation signal itself is sufficient
             
+        elif name == "task_override":
+            print("⚡ Task override from user - forcing next state transition")
+            if hasattr(self, 'fsm_worker') and self.fsm_worker is not None:
+                self.fsm_worker.force_override = True
+                # Set a flag to block next_step from also processing
+                self.fsm_worker.override_in_progress = True
+            
         elif name == "start_procedure":
             print("▶️  Start procedure requested from GUI")
             self.is_on_off[0] = True
@@ -1918,6 +1925,13 @@ class TarsAgent:
         
         # Dev mode inputs
         elif name == "next_step":
+            # Check if override is in progress - if so, skip next_step to avoid double-trigger
+            if hasattr(self, 'fsm_worker') and self.fsm_worker is not None:
+                if getattr(self.fsm_worker, 'override_in_progress', False):
+                    print("⏭️  Skipping next_step - override already in progress")
+                    self.fsm_worker.override_in_progress = False
+                    return
+            
             print("🔧 DEV MODE: Next step impulsion received")
             # Force FSM to next state
             if self.fsm:
@@ -2246,6 +2260,40 @@ class TarsAgent:
                 
                 if target_state:
                     print(f"✅ Jumping to state: {target_state.procedure} {target_state.task_object} {target_state.value}")
+                    
+                    # Find the "normal" transition that leads to the target state
+                    # This is the transition where to_state == target_state
+                    incoming_transition = None
+                    for t in self.fsm.transitions:
+                        if t and t.to_state == target_state:
+                            incoming_transition = t
+                            break
+                    
+                    # Execute the actions from the "normal" workflow transition
+                    if incoming_transition:
+                        print(f"  → Executing workflow from {incoming_transition.from_state.task_object} to {target_state.task_object}")
+                        
+                        # Execute transition_action if present
+                        if hasattr(incoming_transition, 'transition_action') and incoming_transition.transition_action:
+                            print(f"  → Executing transition_action")
+                            try:
+                                incoming_transition.transition_action()
+                            except Exception as e:
+                                print(f"ERROR in transition_action during jump: {e}")
+                                import traceback
+                                traceback.print_exc()
+                        
+                        # Execute action if present
+                        if incoming_transition.action:
+                            print(f"  → Executing action")
+                            try:
+                                incoming_transition.action()
+                            except Exception as e:
+                                print(f"ERROR in action during jump: {e}")
+                                import traceback
+                                traceback.print_exc()
+                    
+                    # Now jump to the target state
                     self.fsm.current_state = target_state
                     # Publish the new state
                     from Core.message_protocol import encode_state_to_json
@@ -2466,6 +2514,7 @@ class TarsAgent:
         igs.input_create("task_approval", igs.BOOL_T, None)  # User approved/denied current task
         igs.input_create("task_acknowledged", igs.IMPULSION_T, None)  # User acknowledged task completion
         igs.input_create("task_cancelled", igs.IMPULSION_T, None)  # User cancelled action (reclaim authority)
+        igs.input_create("task_override", igs.IMPULSION_T, None)  # User forces next state transition
         igs.input_create("start_procedure", igs.IMPULSION_T, None)  # Start FSM execution
         igs.input_create("stop_procedure", igs.IMPULSION_T, None)  # Stop/pause FSM execution
         igs.input_create("emergency_inject", igs.STRING_T, None)  # Emergency procedure name to inject
@@ -2542,6 +2591,7 @@ class TarsAgent:
         igs.observe_input("task_approval", self.bool_input_callback, self.agent)
         igs.observe_input("task_acknowledged", self.impulsion_input_callback, self.agent)
         igs.observe_input("task_cancelled", self.impulsion_input_callback, self.agent)
+        igs.observe_input("task_override", self.impulsion_input_callback, self.agent)
         igs.observe_input("start_procedure", self.impulsion_input_callback, self.agent)
         igs.observe_input("stop_procedure", self.impulsion_input_callback, self.agent)
         igs.observe_input("emergency_inject", self.string_input_callback, self.agent)
@@ -2608,6 +2658,7 @@ class TarsAgent:
         igs.mapping_add("task_approval", "Shared Interface", "task_approval")
         igs.mapping_add("task_acknowledged", "Shared Interface", "task_acknowledged")
         igs.mapping_add("task_cancelled", "Shared Interface", "task_cancelled")
+        igs.mapping_add("task_override", "Shared Interface", "task_override")
         igs.mapping_add("start_procedure", "Shared Interface", "start_procedure")
         igs.mapping_add("stop_procedure", "Shared Interface", "stop_procedure")
         igs.mapping_add("emergency_inject", "Shared Interface", "emergency_inject")
@@ -3555,17 +3606,17 @@ class TarsAgent:
         if self.agent.exterior_lights_i is not None and self.agent.exterior_lights_i == 2:
             interaction_json = create_interaction_message("", f"{self.INTERACTION_LANDING_LIGHT_RUNWAY}\nLanding light is ON")
             igs.output_set_string("interaction_message", interaction_json)
-            if self.states[("BEFORE TAKEOFF", "Landing Light Switch", "AS DESIRED")].autonomy_role == "performer":
+            if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "performer":
                 self.on_speak_action("Landing light is ON")
         elif self.agent.exterior_lights_i is not None and self.agent.exterior_lights_i == 0:
             interaction_json = create_interaction_message("", f"{self.INTERACTION_LANDING_LIGHT_RUNWAY}\nLanding light is OFF")
             igs.output_set_string("interaction_message", interaction_json)
-            #if self.states[("BEFORE TAKEOFF", "Landing Light Switch", "AS DESIRED")].autonomy_role == "performer":
+            #if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "performer":
                 #self.on_speak_action("Landing light is OFF")
         else:
             interaction_json = create_interaction_message("", f"{self.INTERACTION_LANDING_LIGHT_RUNWAY}\nLanding light state is UNKNOWN")
             igs.output_set_string("interaction_message", interaction_json)
-            if self.states[("BEFORE TAKEOFF", "Landing Light Switch", "AS DESIRED")].autonomy_role == "performer":
+            if self.states[("BEFORE TAKEOFF", "LANDING Light Switch", "AS DESIRED")].autonomy_role == "performer":
                 self.on_speak_action("Landing light state is UNKNOWN")
         
         
