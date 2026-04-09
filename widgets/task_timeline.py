@@ -719,15 +719,3 @@ class TaskTimelineWidget(QWidget):
             self._line_color = QColor(line_color)
         self._cache_valid = False
         self.update()
-    
-    def mark_task_violated(self, state_key):
-        """Visually mark a task as violated (red text)"""
-        task_item = self._task_items.get(state_key)
-        if task_item:
-            task_item.setStyleSheet("color: red;")
-
-    def mark_task_restored(self, state_key):
-        """Visually mark a task as restored (green text)"""
-        task_item = self._task_items.get(state_key)
-        if task_item:
-            task_item.setStyleSheet("color: green;")

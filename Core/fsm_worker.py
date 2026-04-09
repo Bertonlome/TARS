@@ -46,11 +46,6 @@ class FSMWorker:
         # Flag to prevent double-trigger from task_override + next_step
         self.override_in_progress = False
         
-        # Active condition monitoring registry
-        # Dict: state_key -> monitoring_info
-        self.active_monitored_conditions = {}
-        self.current_procedure = None  # Track current procedure for scope management
-        
         # Control flags
         self.should_stop = False
         
@@ -60,8 +55,6 @@ class FSMWorker:
         # Callbacks for UI updates (replaces Qt Signals)
         self._state_changed_callback: Optional[Callable] = None
         self._action_about_to_fire_callback: Optional[Callable] = None
-        self._condition_violated_callback: Optional[Callable] = None
-        self._condition_restored_callback: Optional[Callable] = None
     
     # Callback registration methods
     def set_state_changed_callback(self, callback: Callable[[Any], None]):
@@ -71,14 +64,6 @@ class FSMWorker:
     def set_action_about_to_fire_callback(self, callback: Callable[[Any], None]):
         """Register callback for action about to fire"""
         self._action_about_to_fire_callback = callback
-    
-    def set_condition_violated_callback(self, callback: Callable[[Any, str], None]):
-        """Register callback for condition violations"""
-        self._condition_violated_callback = callback
-    
-    def set_condition_restored_callback(self, callback: Callable[[Any, str], None]):
-        """Register callback for condition restorations"""
-        self._condition_restored_callback = callback
     
     # Performance monitoring
     def start_performance_timer(self, action_name: str) -> float:
@@ -112,69 +97,6 @@ class FSMWorker:
     def stop(self):
         """Stop the FSM worker loop"""
         self.should_stop = True
-    
-    # Condition monitoring
-    def add_to_monitoring(self, state):
-        """Add state to continuous condition monitoring"""
-        # Only monitor states with 'continuous' condition type
-        if state.condition_type != 'continuous' or not state.condition_function:
-            return
-        
-        state_key = (state.procedure, state.task_object, state.value)
-        
-        # Get condition function by name from agent
-        try:
-            condition_func = getattr(self.agent, state.condition_function)
-        except AttributeError:
-            print(f"Warning: Condition function '{state.condition_function}' not found in agent")
-            return
-        
-        # Evaluate initial value
-        try:
-            initial_value = condition_func()
-        except Exception as e:
-            print(f"Error evaluating initial condition {state.condition_function}: {e}")
-            initial_value = None
-        
-        # Set state.condition to initial value
-        state.condition = initial_value
-        
-        self.active_monitored_conditions[state_key] = {
-            'state': state,
-            'condition_func_name': state.condition_function,
-            'condition_func': condition_func,
-            'last_value': initial_value,
-            'monitor_scope': state.monitor_scope,
-            'procedure': state.procedure
-        }
-        
-        print(f"📊 Monitoring: {state.procedure} - {state.task_object} - {state.condition_function} = {initial_value}")
-    
-    def remove_from_monitoring(self, state_key):
-        """Stop monitoring a condition"""
-        if state_key in self.active_monitored_conditions:
-            monitor_info = self.active_monitored_conditions[state_key]
-            print(f"🛑 Stop monitoring: {monitor_info['procedure']} - {monitor_info['state'].task_object}")
-            del self.active_monitored_conditions[state_key]
-    
-    def cleanup_monitoring_for_scope(self, scope_type, current_state):
-        """Remove conditions from monitoring based on scope"""
-        to_remove = []
-        
-        for state_key, monitor_info in self.active_monitored_conditions.items():
-            monitor_scope = monitor_info['monitor_scope']
-            
-            if scope_type == 'next_task' and monitor_scope == 'next_task':
-                # Remove conditions that should only be monitored until next task
-                to_remove.append(state_key)
-            
-            elif scope_type == 'procedure_change':
-                # Remove conditions when procedure changes
-                if monitor_scope == 'end_of_procedure' and monitor_info['procedure'] != current_state.procedure:
-                    to_remove.append(state_key)
-        
-        for state_key in to_remove:
-            self.remove_from_monitoring(state_key)
 
     def run(self):
         """
@@ -201,6 +123,15 @@ class FSMWorker:
                 if t is None:  # Skip None transitions
                     continue
                 if t.from_state == fsm.current_state:
+                    # BASELINE mode: block cross-procedure transitions
+                    # When autonomy_role is None/"", pilot must switch procedures manually via tab
+                    if (not self.force_override
+                            and t.from_state.procedure != t.to_state.procedure
+                            and not t.from_state.autonomy_role
+                            and t.from_state.procedure not in ('IDLE', 'FINISHED')
+                            and t.to_state.procedure not in ('IDLE', 'FINISHED')):
+                        continue
+
                     # Time the condition check
                     condition_start = self.start_performance_timer("condition_check")
                     condition_result = t.condition()
@@ -219,15 +150,6 @@ class FSMWorker:
                         # State transition
                         transition_time = self.stop_performance_timer("transition_check", transition_start)
                         print(f"State transition: {fsm.current_state.procedure} {fsm.current_state.task_object} {fsm.current_state.value} -> {t.to_state.procedure} {t.to_state.task_object} {t.to_state.value} (check took {transition_time*1000:.2f}ms)")
-                        
-                        # CONDITION MONITORING: Cleanup for 'next_task' scope
-                        self.cleanup_monitoring_for_scope('next_task', t.to_state)
-                        
-                        # CONDITION MONITORING: Check if procedure changed
-                        if self.current_procedure and self.current_procedure != t.to_state.procedure:
-                            self.cleanup_monitoring_for_scope('procedure_change', t.to_state)
-                        
-                        self.current_procedure = t.to_state.procedure
                         
                         # === Execute transition_action IMMEDIATELY (before state change, no delays) ===
                         if hasattr(t, 'transition_action') and t.transition_action and not getattr(t, 'action_performed', False):
@@ -265,9 +187,6 @@ class FSMWorker:
                         # Notify via callback instead of Qt Signal
                         if self._state_changed_callback:
                             self._state_changed_callback(fsm.current_state)
-                        
-                        # CONDITION MONITORING: Add new state to monitoring if it has continuous condition
-                        self.add_to_monitoring(fsm.current_state)
                         
                         # === Only handle delays if there's an action ===
                         if t.action:

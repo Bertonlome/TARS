@@ -89,56 +89,6 @@ class HomePage(TaskPageBase):
                     background-color: rgba(85, 170, 255, 50);
                 }}
             """)
-    
-    def set_checklist_label_violated(self, procedure_name, task_object, value):
-        """Revert checklist button to white when condition is violated (subtle indication)"""
-        button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
-        if not button:
-            return
-        # Revert to show it's no longer validated
-        button.setStyleSheet("""
-            QPushButton {
-                font: 600 12pt 'OCR A';
-                color: white;
-                text-align: left;
-                border: none;
-                border-radius: 0px;
-                padding: 4px;
-                background-color: transparent;
-            }
-            QPushButton:hover {
-                background-color: rgba(85, 170, 255, 30);
-                border-radius: 5px;
-            }
-            QPushButton:pressed {
-                background-color: rgba(85, 170, 255, 50);
-            }
-        """)
-    
-    def set_checklist_label_restored(self, procedure_name, task_object, value):
-        """Restore checklist button to green when condition is restored"""
-        button = self.checklist_item_labels.get(procedure_name, {}).get((task_object, value))
-        if not button:
-            return
-        # Restore green color to show validation is back
-        button.setStyleSheet("""
-            QPushButton {
-                font: 600 12pt 'OCR A';
-                color: #55de71;
-                text-align: left;
-                border: none;
-                border-radius: 0px;
-                padding: 4px;
-                background-color: transparent;
-            }
-            QPushButton:hover {
-                background-color: rgba(85, 170, 255, 30);
-                border-radius: 5px;
-            }
-            QPushButton:pressed {
-                background-color: rgba(85, 170, 255, 50);
-            }
-        """)
     """
     Home page implementation
     Contains the main dashboard and status information
@@ -172,6 +122,10 @@ class HomePage(TaskPageBase):
         self.task_timeline_widgets = {}  # Dict: procedure_name -> TaskTimelineWidget
         self.current_procedure = None  # Track current active procedure
         self.discovered_procedures = set()  # Track which procedures have been revealed
+
+        # Guard flag: True while we do programmatic tab switches so the
+        # currentChanged handler does not trigger a force_state_jump.
+        self._programmatic_tab_switch = False
         
         # Initialize glow effect timer (inherited from base but needs tracking here)
         # self._glow_timer, self._glow_steps, etc. already in TaskPageBase
@@ -454,6 +408,9 @@ class HomePage(TaskPageBase):
         
         print(f"Created {len(self.task_timeline_widgets)} normal procedure timeline tabs")
 
+        # Connect tab change for BASELINE manual procedure switching
+        tab_widget.currentChanged.connect(self._on_tab_changed_by_user)
+
         self._create_checklists_tabs(agent.checklists)
 
     def _create_procedure_tab(self, procedure_name, classification='NORM'):
@@ -580,7 +537,9 @@ class HomePage(TaskPageBase):
                 # Remove emoji prefix for comparison
                 tab_text = tab_widget.tabText(i).replace("⚠️ ", "").replace("⚡ ", "").replace("📋 ", "").strip()
                 if tab_text == procedure_name:
+                    self._programmatic_tab_switch = True
                     tab_widget.setCurrentIndex(i)
+                    self._programmatic_tab_switch = False
                     break
             return
         
@@ -628,7 +587,9 @@ class HomePage(TaskPageBase):
             tab_widget.tabBar().setTabData(tab_index, {'emergency': 'true'})
         
         # Switch to the newly created tab
+        self._programmatic_tab_switch = True
         tab_widget.setCurrentIndex(tab_index)
+        self._programmatic_tab_switch = False
         
         print(f"✅ Inserted procedure tab at position {insert_position}, switched to index {tab_index}")
     
@@ -666,7 +627,9 @@ class HomePage(TaskPageBase):
             if timeline_widget_for_lookup:
                 idx = tab_widget.indexOf(timeline_widget_for_lookup)
                 if idx >= 0:
+                    self._programmatic_tab_switch = True
                     tab_widget.setCurrentIndex(idx)
+                    self._programmatic_tab_switch = False
         
         # Get the timeline widget for this procedure
         timeline_widget = self.task_timeline_widgets.get(procedure_name)
@@ -697,6 +660,45 @@ class HomePage(TaskPageBase):
         # Recreate all tabs with fresh data
         self._setup_task_timeline()
     
+    @QtCore.Slot(int)
+    def _on_tab_changed_by_user(self, index: int):
+        """Handle manual tab click — jump FSM to first task of the selected procedure.
+
+        Programmatic tab switches (from update_task_timeline / inject_emergency_procedure)
+        set ``_programmatic_tab_switch`` so this handler early-returns for those.
+        """
+        if self._programmatic_tab_switch:
+            return
+
+        tab_widget = self.widgets.stack_tab_container
+        widget = tab_widget.widget(index)
+        if widget is None:
+            return
+
+        # Reverse-lookup: widget → procedure name
+        procedure_name = None
+        for proc, timeline in self.task_timeline_widgets.items():
+            if timeline is widget:
+                procedure_name = proc
+                break
+
+        if not procedure_name:
+            return  # Likely a checklist tab, ignore
+
+        # Find the first task of this procedure from agent states
+        agent = getattr(self.main_window, 'agent', None)
+        if not agent:
+            return
+
+        for state_key, state in agent.states.items():
+            if state.procedure == procedure_name:
+                procedure, task_object, value = state_key
+                gui_agent = getattr(self.main_window, 'gui_agent', None)
+                if gui_agent:
+                    print(f"📑 Tab clicked → jumping to first task of {procedure_name}")
+                    gui_agent.send_force_state_jump(procedure, task_object, value)
+                break
+
     @QtCore.Slot(tuple)
     def on_task_clicked(self, task_key):
         """Handle task click from timeline widget

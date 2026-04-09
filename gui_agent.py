@@ -116,8 +116,6 @@ class GUIAgent(QObject):
         igs.input_create("countdown_max_next", igs.INTEGER_T, None)
         igs.input_create("alert", igs.STRING_T, None)
         igs.input_create("alert_clear", igs.IMPULSION_T, None)
-        igs.input_create("condition_violated", igs.STRING_T, None)
-        igs.input_create("condition_restored", igs.STRING_T, None)
         igs.input_create("tts_speaking", igs.BOOL_T, None)
         igs.input_create("tts_text", igs.STRING_T, None)
         igs.input_create("stt_listening", igs.BOOL_T, None)
@@ -143,8 +141,6 @@ class GUIAgent(QObject):
         igs.observe_input("countdown_max_next", self._on_countdown_max_next_input, None)
         igs.observe_input("alert", self._on_alert_input, None)
         igs.observe_input("alert_clear", self._on_alert_clear_input, None)
-        igs.observe_input("condition_violated", self._on_condition_violated_input, None)
-        igs.observe_input("condition_restored", self._on_condition_restored_input, None)
         igs.observe_input("tts_speaking", self._on_tts_speaking_input, None)
         igs.observe_input("tts_text", self._on_tts_text_input, None)
         igs.observe_input("stt_listening", self._on_stt_listening_input, None)
@@ -180,8 +176,6 @@ class GUIAgent(QObject):
         igs.mapping_add("countdown_max_next", "TARS_Agent", "countdown_max_next")
         igs.mapping_add("alert", "TARS_Agent", "alert")
         igs.mapping_add("alert_clear", "TARS_Agent", "alert_clear")
-        igs.mapping_add("condition_violated", "TARS_Agent", "condition_violated")
-        igs.mapping_add("condition_restored", "TARS_Agent", "condition_restored")
         igs.mapping_add("action_about_to_fire", "TARS_Agent", "action_about_to_fire")
         igs.mapping_add("checklist_item_complete", "TARS_Agent", "checklist_item_complete")
         igs.mapping_add("emergency_procedure_inject", "TARS_Agent", "emergency_procedure_inject")
@@ -417,24 +411,6 @@ class GUIAgent(QObject):
             pass
         except Exception as e:
             print(f"Error processing countdown_max_next: {e}")
-    
-    def _on_condition_violated_input(self, io_type, name, value_type, value, my_data):
-        """Handle condition violated notification from TARS"""
-        try:
-            condition_data = json.loads(value)
-            print(f"⚠️ Condition violated: {condition_data.get('condition_name')} for {condition_data.get('task_object')}")
-            # Could display warning in UI
-        except Exception as e:
-            print(f"Error processing condition_violated: {e}")
-    
-    def _on_condition_restored_input(self, io_type, name, value_type, value, my_data):
-        """Handle condition restored notification from TARS"""
-        try:
-            condition_data = json.loads(value)
-            print(f"✅ Condition restored: {condition_data.get('condition_name')} for {condition_data.get('task_object')}")
-            # Could clear warning in UI
-        except Exception as e:
-            print(f"Error processing condition_restored: {e}")
     
     def _on_tts_speaking_input(self, io_type, name, value_type, value, my_data):
         """Handle TTS speaking status from TARS"""
@@ -771,10 +747,6 @@ class GUIAgent(QObject):
             delay_before_action=state_data.get('delay_before_action', 0),
             delay_after_action=state_data.get('delay_after_action', 0),
             callout=state_data.get('callout', ''),
-            condition=state_data.get('condition'),
-            condition_type=state_data.get('condition_type'),
-            condition_function=state_data.get('condition_function'),
-            monitor_scope=state_data.get('monitor_scope'),
             transition_kind=state_data.get('transition_kind', 'waiting'),
         )
         
@@ -870,10 +842,6 @@ class GUIAgent(QObject):
                 delay_before_action=state_data.get('delay_before_action', 0),
                 delay_after_action=state_data.get('delay_after_action', 0),
                 callout=state_data.get('callout', ''),
-                condition=state_data.get('condition'),
-                condition_type=state_data.get('condition_type'),
-                condition_function=state_data.get('condition_function'),
-                monitor_scope=state_data.get('monitor_scope'),
                 transition_kind=state_data.get('transition_kind', 'waiting'),
             )
             

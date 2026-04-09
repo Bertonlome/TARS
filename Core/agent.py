@@ -170,33 +170,6 @@ class TarsAgent:
         
         # TTS speaking state tracking
         self.tts_speaking_before = False
-        
-        # Input-to-condition mapping for event-driven monitoring
-        # Maps input names to condition function names that depend on them
-        self.input_to_conditions = {
-            'control_throttle': ['is_thrust_toga', 'is_throttle_clb'],
-            'control_gear': ['is_gear_up'],
-            'control_flaps': ['is_flaps_retracted', 'is_flaps_takeoff_pos'],
-            'airspeed': ['is_airspeed_alive', 'is_seventy_kts', 'is_v_one', 'is_v_rotate', 'is_airspeed_v_two', 'is_v2_plus_10', 'is_v2_plus_12'],
-            'altitude': ['is_400_ft_no_alarm', 'is_ap_altitude', 'is_v2_plus_12'],
-            'master_warning': ['is_alarm', 'is_400_ft_no_alarm', 'is_master_warning_reset'],
-            'e1_n1_percent': ['is_engine_spool_even', 'is_n1_percent_above_90', 'is_failed', 'is_not_failed'],
-            'e2_n1_percent': ['is_engine_spool_even', 'is_n1_percent_above_90', 'is_failed', 'is_not_failed'],
-            'vertical_speed': ['is_positive_rate'],
-            'pitch': ['is_pitch_maintained'],
-            'park_brake': ['is_brake_released'],
-            'n1_match_bug': ['is_fadec_bug_to'],
-            'l_throttle': ['is_throttle_idle', 'is_throttle_cutoff'],
-            'r_throttle': ['is_throttle_idle', 'is_throttle_cutoff'],
-            'fuel_boost_l': ['is_fuel_boost_off', 'is_fuel_boost_norm'],
-            'fuel_boost_r': ['is_fuel_boost_off', 'is_fuel_boost_norm'],
-            'test_knob': ['is_test_knob_turned'],
-            'l_gen_switch': ['is_gen_switch_off'],
-            'r_gen_switch': ['is_gen_switch_off'],
-            'l_ign_switch': ['is_ignition_switch_norm'],
-            'r_ign_switch': ['is_ignition_switch_norm'],
-            'slip': ['is_slip_skid_centered'],
-        }
 
         # Load task definitions with role allocations
         allocation_csv_path = Path(__file__).parent / self.CURRENT_BRIEFING_EXPORT_LOADED        
@@ -343,7 +316,7 @@ class TarsAgent:
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
             self.states[("TAKEOFF", "CAS", "CHECK CLEAR")], 
             lambda: self.allow_transition() if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer" else self.is_acked(),
-            action= lambda: self.send_reset_signal()))
+            action= lambda: self.dummy_action()))
         
         
         ###----------------------------------------------------------------------------------------------------------------###
@@ -468,7 +441,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")], 
-            lambda: self.is_flight_director_on() if self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].autonomy_role == "performer" else self.allow_transition(), 
+            lambda: self.is_flight_director_on() or self.is_acked() if self.states[("ENG FAILURE DURING TAKEOFF", "Flight Director", "SET TO MODE")].autonomy_role in ("supporter", "performer") else self.is_acked(), 
             action=lambda: self.check_pitch_send_signal() if self.states[("ENG FAILURE DURING TAKEOFF", "Pitch", "MAINTAIN 10°")].autonomy_role == "supporter" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
@@ -515,7 +488,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")], 
             self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")], 
-            lambda: self.is_slip_skid_centered() or self.task_approval_status[0] == ApprovalStatus.DENIED or self.flight_director_mode == 2 or self.is_acked(),
+            lambda: self.is_slip_skid_centered() or self.task_approval_status[0] == ApprovalStatus.DENIED or self.flight_director_mode == 2 or self.is_acked() if self.states[("ENG FAILURE DURING TAKEOFF", "Autopilot", "ENGAGE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action=lambda: igs.output_set_string("alert", create_alert_message(self.get_alert_engine_fire(), "red")) if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role in ("supporter", "performer") else self.dummy_action(),
             transition_action=lambda: (self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].callout), igs.output_set_string("interaction_message", create_interaction_message("", self.get_alarm_callout()))) if self.states[("ENG FAILURE DURING TAKEOFF", "Alarm", "ANNOUNCE")].autonomy_role in ("performer", "supporter") else self.dummy_action()))
         
@@ -534,6 +507,14 @@ class TarsAgent:
             lambda: self.is_safe_altitude_reached() if self.states[("ENGINE FIRE", "Throttle (affected engine)", "IDLE")].autonomy_role in ("supporter", "performer") else self.is_acked(),
             action=lambda: self.throttle_idle_action() if self.states[("ENGINE FIRE", "Throttle (affected engine)", "IDLE")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")].callout) if self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")].autonomy_role == "performer" else self.dummy_action()))
+
+        # BASELINE mode: skip ENGINE FIRE memory items, continue ENG FAILURE procedure directly
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")],
+            self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")],
+            lambda: self.is_acked() if not self.states[("ENG FAILURE DURING TAKEOFF", "Check", "SAFE ALTITUDE REACHED")].autonomy_role else False,
+            action=lambda: self._run_check_with_live_updates(self.check_1500_ft_send_signal, ("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")),
+            transition_action=lambda: self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Throttle (affected engine)", "IDLE")], 
@@ -561,6 +542,14 @@ class TarsAgent:
             self.states[("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL")],
             lambda: self.is_acked(), 
             action=lambda: self._run_check_with_live_updates(self.check_1500_ft_send_signal, ("ENG FAILURE DURING TAKEOFF", "Altitude", "CHECK 1500ft AGL"))))
+
+        # BASELINE mode: skip the ENG FAILURE interleaving (altitude/airspeed/obstacles/flaps/ATC)
+        # and continue directly to the rest of the ENGINE FIRE procedure
+        self.fsm.add_transition(Transition(
+            self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")],
+            self.states[("ENGINE FIRE", "Checklist", "ORDER START")],
+            lambda: self.is_acked() if not self.states[("ENGINE FIRE", "Illuminated ENGINE FIRE Switch", "LIFT COVER AND PUSH")].autonomy_role else False,
+            action=lambda: self.dummy_action()))
 
         
         self.fsm.add_transition(Transition(
@@ -607,13 +596,20 @@ class TarsAgent:
             action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Checklist", "ORDER START")].callout) if self.states[("ENGINE FIRE", "Checklist", "ORDER START")].autonomy_role == "performer" else self.dummy_action(),
             transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'task_approval_status', [ApprovalStatus.NOT_ANSWERED]))))
         
+        # BASELINE mode: ATC CONTACT → ATC READBACK stays within ENG FAILURE procedure
+        self.fsm.add_transition(Transition(
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")], 
+            self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
+            lambda: self.is_acked() if not self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "CONTACT")].autonomy_role else False,
+            action=lambda: self.dummy_action()))
+
         self.fsm.add_transition(Transition(
             self.states[("ENG FAILURE DURING TAKEOFF", "ATC", "READBACK")], 
             self.states[("ENGINE FIRE", "Checklist", "ORDER START")], 
             lambda: self.allow_transition() if self.states[("ENGINE FIRE", "Checklist", "ORDER START")].autonomy_role == "performer" else self.is_acked(), 
             action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Checklist", "ORDER START")].callout) if self.states[("ENGINE FIRE", "Checklist", "ORDER START")].autonomy_role == "performer" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Checklist", "ORDER START")].callout) if self.states[("ENGINE FIRE", "Checklist", "ORDER START")].autonomy_role == "performer" else self.dummy_action()))
-        
+
         # to ENGINE FIRE procedure
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Checklist", "ORDER START")], 
@@ -689,14 +685,26 @@ class TarsAgent:
             self.is_allowed,
             lambda: self.send_vector_signals(),
             transition_action=lambda: self.contact_atc_action("panpan") if self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
+
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")], 
+            self.states[("DECLARE PANPAN", "ATC", "READBACK")],
+            lambda: self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role == "" and self.is_acked() or self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role == None and self.is_acked(),
+            lambda: self.dummy_action()))
         
+        self.fsm.add_transition(Transition(
+            self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
+            self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")], 
+            lambda: self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role == "" and self.is_acked() or self.states[("DECLARE PANPAN", "ATC", "ANNOUNCE PANPAN AND REQUEST VECTOR")].autonomy_role == None and self.is_acked(),
+            action=lambda: self.dummy_action()))
+
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
             self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")], 
             lambda: self.is_denied(),
             action=lambda: igs.output_set_string("interaction_message", create_interaction_message(self.get_interaction_set_heading(), "")),
             transition_action=lambda: (self.on_speak_action("Action denied"), setattr(self, 'follow_vectors_status', [ApprovalStatus.DENIED])) if self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")].autonomy_role == "performer" else self.dummy_action()))
-        
+
         self.fsm.add_transition(Transition(
             self.states[("DECLARE PANPAN", "ATC", "READBACK")], 
             self.states[("DECLARE PANPAN", "Heading", "SET ACCORDINGLY")], 
@@ -726,8 +734,7 @@ class TarsAgent:
             self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")], 
             self.states[("AFTER TAKEOFF", "LANDING GEAR Handle", "UP")], 
             lambda: self.allow_transition() if self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")].autonomy_role == "performer" else self.is_acked(),
-            self.dummy_action,
-            self.check_gear_up_send_signal,))
+            lambda: self.check_gear_up_send_signal() if self.states[("AFTER TAKEOFF", "Checklist", "ORDER START")].autonomy_role == "performer" else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("AFTER TAKEOFF", "LANDING GEAR Handle", "UP")], 
@@ -1091,19 +1098,6 @@ class TarsAgent:
                     
                     callout = row.get('Callout', '').strip()
                     
-                    # Parse condition monitoring fields
-                    condition_type = row.get('Condition Type', '').strip().lower()
-                    if not condition_type:
-                        condition_type = None
-                    
-                    condition_function = row.get('Condition Function', '').strip()
-                    if not condition_function:
-                        condition_function = None
-                    
-                    monitor_scope = row.get('Monitor Scope', '').strip().lower()
-                    if not monitor_scope:
-                        monitor_scope = None
-                    
                     # Create State object
                     state = State(
                         procedure=procedure,
@@ -1118,11 +1112,7 @@ class TarsAgent:
                         interaction=interaction,
                         delay_before_action=delay_before_action,
                         delay_after_action=delay_after_action,
-                        callout=callout,
-                        condition=None,  # Initialize as None (will be set to True/False during monitoring)
-                        condition_type=condition_type,
-                        condition_function=condition_function,
-                        monitor_scope=monitor_scope
+                        callout=callout
                     )
                     states[state_key] = state
                 else:
@@ -1801,20 +1791,6 @@ class TarsAgent:
         if self.agent.park_brakes_i is not None and self.agent.park_brakes_i == 0:
             return True
         return False
-    
-    def check_affected_conditions(self, input_name, new_value, affected_condition_names):
-        """
-        Event-driven condition monitoring - called when an input changes
-        
-        Args:
-            input_name: Name of the input that changed (e.g., 'control_gear')
-            new_value: New value of the input
-            affected_condition_names: List of condition function names that depend on this input
-        """
-        # Condition monitoring is now handled by FSMWorker
-        # This method is kept for backward compatibility but does nothing
-        # The FSMWorker independently monitors conditions
-        pass
 
     def on_start(self):
         print("Action: Starting FSM...")
@@ -2119,12 +2095,6 @@ class TarsAgent:
             self._wind_mag = int(value)
         elif name == "autopilot_airspeed":
             agent_object.autopilot_airspeed_i = value
-        
-        # EVENT-DRIVEN CONDITION MONITORING
-        # Check if this input affects any monitored conditions
-        if name in self.input_to_conditions:
-            affected_condition_names = self.input_to_conditions[name]
-            self.check_affected_conditions(name, value, affected_condition_names)
 
     def string_input_callback(self, io_type, name, value_type, value, my_data):
         agent_object = my_data
@@ -2295,6 +2265,9 @@ class TarsAgent:
                     
                     # Now jump to the target state
                     self.fsm.current_state = target_state
+                    # Clear any stale acknowledgment so the first item of the new procedure
+                    # doesn't auto-fire (e.g. a check pressed on a BASELINE-blocked transition)
+                    self.task_acked[0] = False
                     # Publish the new state
                     from Core.message_protocol import encode_state_to_json
                     igs.output_set_string("current_state", encode_state_to_json(target_state))
@@ -2427,8 +2400,6 @@ class TarsAgent:
         igs.output_create("countdown_max_next", igs.INTEGER_T, None)  # Max next countdown
         igs.output_create("alert", igs.STRING_T, None)  # JSON alert message with color and severity
         igs.output_create("alert_clear", igs.IMPULSION_T, None)  # Clear alert display
-        igs.output_create("condition_violated", igs.STRING_T, None)  # JSON condition violation
-        igs.output_create("condition_restored", igs.STRING_T, None)  # JSON condition restoration
         igs.output_create("action_about_to_fire", igs.STRING_T, None)  # JSON state before action fires
         igs.output_create("checklist_item_complete", igs.STRING_T, None)  # JSON checklist completion
         igs.output_create("emergency_procedure_inject", igs.STRING_T, None)  # Emergency procedure name

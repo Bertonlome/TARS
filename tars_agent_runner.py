@@ -261,44 +261,10 @@ def main():
         except Exception as e:
             print(f"Error publishing action about to fire: {e}")
     
-    def on_condition_violated(state, condition_name):
-        """Publish condition violation via Ingescape"""
-        from Core.message_protocol import create_condition_message
-        try:
-            import ingescape as igs
-            condition_json = create_condition_message(
-                state.procedure,
-                state.task_object,
-                state.value,
-                condition_name
-            )
-            igs.output_set_string("condition_violated", condition_json)
-            print(f"📤 Published condition violated: {state.procedure} - {state.task_object} - {condition_name}")
-        except Exception as e:
-            print(f"Error publishing condition violated: {e}")
-    
-    def on_condition_restored(state, condition_name):
-        """Publish condition restoration via Ingescape"""
-        from Core.message_protocol import create_condition_message
-        try:
-            import ingescape as igs
-            condition_json = create_condition_message(
-                state.procedure,
-                state.task_object,
-                state.value,
-                condition_name
-            )
-            igs.output_set_string("condition_restored", condition_json)
-            print(f"📤 Published condition restored: {state.procedure} - {state.task_object} - {condition_name}")
-        except Exception as e:
-            print(f"Error publishing condition restored: {e}")
-    
     # Start FSM worker in background thread  
     fsm_worker = FSMWorkerCore(tars_agent)
     fsm_worker.set_state_changed_callback(on_state_changed)
     fsm_worker.set_action_about_to_fire_callback(on_action_about_to_fire)
-    fsm_worker.set_condition_violated_callback(on_condition_violated)
-    fsm_worker.set_condition_restored_callback(on_condition_restored)
     
     # Store fsm_worker reference on agent for task cancellation
     tars_agent.fsm_worker = fsm_worker

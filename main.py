@@ -54,8 +54,6 @@ class FSMWorker(QtCore.QObject):
     """
     state_changed = QtCore.Signal(object)  # Changed from str to object to emit State object
     action_about_to_fire = QtCore.Signal(object)  # Emitted right before action executes (after countdown)
-    condition_violated_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now False
-    condition_restored_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now True
 
     def __init__(self, agent: TarsAgent):
         super().__init__()
@@ -67,15 +65,6 @@ class FSMWorker(QtCore.QObject):
         # Register callbacks to emit Qt signals
         self.core_worker.set_state_changed_callback(self._on_state_changed)
         self.core_worker.set_action_about_to_fire_callback(self._on_action_about_to_fire)
-        
-        # Expose properties for backwards compatibility
-        @property
-        def active_monitored_conditions(self):
-            return self.core_worker.active_monitored_conditions
-        
-        @property
-        def current_procedure(self):
-            return self.core_worker.current_procedure
     
     @property
     def current_state(self):
@@ -87,12 +76,6 @@ class FSMWorker(QtCore.QObject):
     
     def _on_action_about_to_fire(self, state):
         self.action_about_to_fire.emit(state)
-    
-    def _on_condition_violated(self, state, condition_name):
-        self.condition_violated_signal.emit(state, condition_name)
-    
-    def _on_condition_restored(self, state, condition_name):
-        self.condition_restored_signal.emit(state, condition_name)
     
     @QtCore.Slot()
     def cancel_current_action(self):
@@ -646,62 +629,6 @@ class MainWindow(QMainWindow):
             else:
                 pixmap = QPixmap(self._get_tars_image('idle'))
             self.ui.tars_picture.setPixmap(pixmap)
-    
-    @QtCore.Slot(object, str)
-    def handle_condition_violation(self, state_obj, condition_name):
-        """Handle condition violation signal from FSM worker
-        Args:
-            state_obj: State object with violated condition
-            condition_name: Name of the condition function that was violated
-        """
-        #print(f"🚨 CONDITION VIOLATION: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
-        # Get home page
-        home_page = self.get_home_page()
-        if not home_page:
-            return
-        
-        # Update checklist to show violation (revert to white)
-        home_page.set_checklist_label_violated(
-            state_obj.procedure, 
-            state_obj.task_object, 
-            state_obj.value
-        )
-        print(f"  → Checklist item reverted to white for {state_obj.procedure} - {state_obj.task_object}")
-        
-        # Update timeline to show violation
-        timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
-        if timeline_widget:
-            state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
-            timeline_widget.mark_task_violated(state_key)
-            print(f"  → Task marked violated in timeline for procedure {state_obj.procedure}")
-    
-    @QtCore.Slot(object, str)
-    def handle_condition_restoration(self, state_obj, condition_name):
-        """Handle condition restoration signal from FSM worker
-        Args:
-            state_obj: State object with restored condition
-            condition_name: Name of the condition function that was restored
-        """
-        #print(f"✅ CONDITION RESTORED: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
-        # Get home page
-        home_page = self.get_home_page()
-        if not home_page:
-            return
-        
-        # Update checklist to show restoration (restore green)
-        home_page.set_checklist_label_restored(
-            state_obj.procedure, 
-            state_obj.task_object, 
-            state_obj.value
-        )
-        print(f"  → Checklist item restored to green for {state_obj.procedure} - {state_obj.task_object}")
-        
-        # Update timeline to show restoration
-        timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
-        if timeline_widget:
-            state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
-            timeline_widget.mark_task_restored(state_key)
-            print(f"  → Task marked restored in timeline for procedure {state_obj.procedure}")
     
     @QtCore.Slot(str)
     def on_atc_speech(self, text):
