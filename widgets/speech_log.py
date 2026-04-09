@@ -95,6 +95,12 @@ class SpeechLogWidget(QWidget):
         self.scroll_area.setWidget(self.messages_widget)
         outer.addWidget(self.scroll_area)
 
+        # Auto-scroll whenever the scrollable range grows (new content or
+        # animated bubble expansion) so new messages are always visible.
+        self.scroll_area.verticalScrollBar().rangeChanged.connect(
+            lambda _min, _max: self.scroll_area.verticalScrollBar().setValue(_max)
+        )
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------

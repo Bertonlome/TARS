@@ -4,7 +4,7 @@ import time
 # This code defines a simple FSM with states, transitions, and actions.
 
 class State:
-    def __init__(self, procedure, classification, type, category, task_object, value, human_role=None, autonomy_role=None, information_requirement=None, interaction=None, delay_before_action: int | float | str = 0, delay_after_action: int | float | str = 0, callout=None, condition=None, condition_type=None, condition_function=None, monitor_scope=None):
+    def __init__(self, procedure, classification, type, category, task_object, value, human_role=None, autonomy_role=None, information_requirement=None, interaction=None, delay_before_action: int | float | str = 0, delay_after_action: int | float | str = 0, callout=None, transition_kind=None):
         self.procedure = procedure
         self.classification = classification
         self.type = type
@@ -18,13 +18,10 @@ class State:
         self.delay_before_action = delay_before_action
         self.delay_after_action = delay_after_action
         self.callout = callout
-        self.condition = condition  # None, False, or True
-        self.condition_type = condition_type  # 'continuous', 'transition', or None
-        self.condition_function = condition_function  # Name of condition function (string)
-        self.monitor_scope = monitor_scope  # 'end_of_procedure', 'next_task', or None
+        self.transition_kind = transition_kind  # 'waiting', 'sensing', or None
 
     def __repr__(self):
-        return f"State({self.procedure}, {self.classification}, {self.task_object}, {self.value}, condition={self.condition})"
+        return f"State({self.procedure}, {self.classification}, {self.task_object}, {self.value})"
     
     def __eq__(self, other):
         """Two states are equal if they have the same procedure, task_object, and value"""

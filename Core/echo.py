@@ -70,9 +70,16 @@ class Echo(metaclass=Singleton):
         self.pitot_heat_i = None  # Pitot heat on/off
         self.latitude_i = None  # Latitude
         self.longitude_i = None  # Longitude
+        self.wind_dir_i = None  # Wind direction (0-359 degrees)
+        self.wind_magn_i = None  # Wind magnitude (knots)
         self.anti_coll_lights_i = None  # Anti-collision lights on/off
+        self.l_engine_anti_ice_i = None  # Left engine anti-ice on/off
+        self.r_engine_anti_ice_i = None  # Right engine anti-ice on/off
+        self.l_windshield_anti_ice_i = None  # Left windshield anti-ice on/off
+        self.r_windshield_anti_ice_i = None  # Right windshield anti-ice on/off
         self.alt_sel_i = None  # Altitude select in feet
         self.heading_sel_i = None  # Heading select in degrees
+        self.exterior_lights_i = None  # Exterior lights state
         self.autopilot_airspeed_i = None  # Airspeed set for autopilot
         self.fd_pitch_deg_i = None  # Flight director pitch reference in degrees
         self.freq_1_i = None  # COM1 frequency (e.g. 11990 = 119.90 MHz)

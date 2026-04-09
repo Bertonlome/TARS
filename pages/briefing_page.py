@@ -179,12 +179,31 @@ class ClickNode(QGraphicsEllipseItem):
         self.role = role
         self.scene_parent = scene_parent
         self.is_selected = False
+        self._radius = radius
+
+        # Speed label (S/F) shown inside the TARS performer circle
+        self._speed_label = QGraphicsSimpleTextItem("", self)
+        font = QFont()
+        font.setPointSize(11)
+        font.setBold(True)
+        self._speed_label.setFont(font)
+        self._speed_label.setBrush(QBrush(Qt.black))
+        self._speed_label.setZValue(11)
+        self._speed_label.setVisible(False)
+
+    def _center_speed_label(self):
+        """Center the speed label inside the circle."""
+        br = self._speed_label.boundingRect()
+        self._speed_label.setPos(
+            self._radius - br.width() / 2,
+            self._radius - br.height() / 2
+        )
 
     def mousePressEvent(self, event):
         """Handle node click"""
         self.scene_parent.on_node_clicked(self.row, self.role)
         super().mousePressEvent(event)
-    
+
     def set_selected(self, selected: bool):
         """Update visual appearance based on selection state"""
         self.is_selected = selected
@@ -197,15 +216,32 @@ class ClickNode(QGraphicsEllipseItem):
             self.setBrush(QBrush())  # No fill color (transparent)
             self.setPen(QPen(Qt.white, 2.0, Qt.DashLine))  # Dashed white outline
 
+    def set_speed_label(self, label: str | None):
+        """Display a speed letter (S or F) inside the circle, or hide if None."""
+        if label:
+            self._speed_label.setText(label)
+            self._center_speed_label()
+            self._speed_label.setVisible(True)
+        else:
+            self._speed_label.setVisible(False)
+
 class SupportNode(QGraphicsRectItem):
-    """Rectangle marker for supporter (purely visual)."""
+    """Toggle-able support square. Filled = supporter active, outlined = inactive."""
     def __init__(self, center: QPointF, size: float = 14):
         super().__init__(0, 0, size, size)
         self.setPos(center - QPointF(size/2, size/2))
-        self.setBrush(QBrush(Qt.white))
-        pen = QPen(Qt.darkGreen, 1.2, Qt.SolidLine)
-        self.setPen(pen)
         self.setZValue(9)
+        self.setVisible(False)  # Hidden until a performer is selected for this row
+        self.set_active(True)   # Default appearance when shown
+
+    def set_active(self, active: bool):
+        """Switch between filled (active supporter) and outlined (inactive) appearance."""
+        if active:
+            self.setBrush(QBrush(Qt.white))
+            self.setPen(QPen(Qt.darkGreen, 1.2, Qt.SolidLine))
+        else:
+            self.setBrush(QBrush())                       # transparent
+            self.setPen(QPen(Qt.gray, 1.2, Qt.DashLine))
 
 
 class RoleDescriptionBox(QGraphicsItem):
@@ -302,6 +338,13 @@ class InterdependenceScene(QGraphicsScene):
         # Persistent items
         self.path_items: list[QGraphicsPathItem] = []   # solid path between rows
         self.dashed_items: list[QGraphicsLineItem] = [] # dashed supporter lines
+
+        # Supporter toggle state: row -> whether the supporter role is currently active
+        self.supporters: dict[int, bool] = {}
+        # Support square references: (row, supporter_role) -> SupportNode
+        self.support_nodes: dict[tuple[int, str], SupportNode] = {}
+        # TARS speed per row: "S" (slow, with delays) or "F" (fast, no delays)
+        self.tars_speed: dict[int, str] = {}
         
         # Category filtering state
         self.active_category_filter = None  # None means no filter, otherwise holds category name
@@ -515,27 +558,29 @@ class InterdependenceScene(QGraphicsScene):
             if t.human_can:
                 node = ClickNode(row, "HUMAN", QPointF(self.col_x["HUMAN"], y), self.node_r, self)
                 self.addItem(node)
-                self.nodes[(row, "HUMAN")] = node  # Store reference
-                self.row_elements[row].append(node)  # Track this element
-                
-                # Show support rectangle in TARS column if TARS can support this task
+                self.nodes[(row, "HUMAN")] = node
+                self.row_elements[row].append(node)
+
+                # Support square in TARS column (TARS is supporter when HUMAN performs)
                 if t.agent_supports:
                     sup = SupportNode(QPointF(self.col_x["TARS"], y))
                     self.addItem(sup)
-                    self.row_elements[row].append(sup)  # Track this element
+                    self.support_nodes[(row, "TARS")] = sup
+                    self.row_elements[row].append(sup)
 
             # TARS performer
             if t.agent_can:
                 node = ClickNode(row, "TARS", QPointF(self.col_x["TARS"], y), self.node_r, self)
                 self.addItem(node)
-                self.nodes[(row, "TARS")] = node  # Store reference
-                self.row_elements[row].append(node)  # Track this element
-                
-                # Show support rectangle in HUMAN column if HUMAN can support this task
+                self.nodes[(row, "TARS")] = node
+                self.row_elements[row].append(node)
+
+                # Support square in HUMAN column (HUMAN is supporter when TARS performs)
                 if t.human_supports:
                     sup = SupportNode(QPointF(self.col_x["HUMAN"], y))
                     self.addItem(sup)
-                    self.row_elements[row].append(sup)  # Track this element
+                    self.support_nodes[(row, "HUMAN")] = sup
+                    self.row_elements[row].append(sup)
 
     def _add_dashed(self, x1, x2, y):
         """Add dashed support line"""
@@ -580,78 +625,146 @@ class InterdependenceScene(QGraphicsScene):
         return self.margin_top + row * self.row_h
 
     def on_node_clicked(self, row: int, role: str):
-        """Handle node click"""
-        # Update selection state
-        old_selection = self.selected.get(row)
-        self.selected[row] = role
-        
-        # Update visual state of nodes in this row
-        for (node_row, node_role), node in self.nodes.items():
-            if node_row == row:
-                # Set selected state based on whether this node is the selected one
-                node.set_selected(node_role == role)
-        
-        # Update role description box
+        """Handle node click.
+
+        First click on a role: set as performer.
+        - TARS performer re-click: toggles S (slow/with-delays) ↔ F (fast/no-delays).
+        - HUMAN performer re-click: toggles TARS supporter on/off.
+        """
+        task = self.tasks[row]
+        current_performer = self.selected.get(row)
+
+        if current_performer == role:
+            if role == "TARS":
+                # Re-click on TARS performer: cycle S ↔ F speed
+                current_speed = self.tars_speed.get(row, "S")
+                new_speed = "F" if current_speed == "S" else "S"
+                self.tars_speed[row] = new_speed
+                node = self.nodes.get((row, "TARS"))
+                if node:
+                    node.set_speed_label(new_speed)
+            else:
+                # Re-click on HUMAN performer: toggle TARS supporter
+                if task.agent_supports:
+                    self.supporters[row] = not self.supporters.get(row, True)
+                    self._update_support_node_visuals(row)
+        else:
+            # New performer selected
+            self.selected[row] = role
+
+            # Auto-enable supporter if the capability exists
+            can_support = (
+                (role == "HUMAN" and task.agent_supports) or
+                (role == "TARS" and task.human_supports)
+            )
+            self.supporters[row] = can_support
+
+            # Update circle visuals
+            for (node_row, node_role), node in self.nodes.items():
+                if node_row == row:
+                    node.set_selected(node_role == role)
+
+            # Speed label: show "S" on TARS circle when TARS is performer, clear otherwise
+            tars_node = self.nodes.get((row, "TARS"))
+            human_node = self.nodes.get((row, "HUMAN"))
+            if role == "TARS":
+                self.tars_speed[row] = "S"
+                if tars_node:
+                    tars_node.set_speed_label("S")
+                if human_node:
+                    human_node.set_speed_label(None)
+            else:
+                self.tars_speed.pop(row, None)
+                if tars_node:
+                    tars_node.set_speed_label(None)
+
+            # Show/update the support square for this row
+            self._update_support_node_visuals(row)
+
+        # Role description, support lines and path always refresh
         self._update_role_description(row, role)
-        
-        # Update support lines based on current selections
         self._update_support_lines()
-        
-        # Update connecting paths
         self._update_path()
-        
-        # Notify parent of selection change
+
         if self.selection_callback:
             self.selection_callback()
 
+    def _update_support_node_visuals(self, row: int):
+        """Show the correct support square for *row* and reflect its active state."""
+        performer = self.selected.get(row)
+        is_active = self.supporters.get(row, False)
+
+        if performer == "HUMAN":
+            visible_role = "TARS"
+            hidden_role  = "HUMAN"
+        elif performer == "TARS":
+            visible_role = "HUMAN"
+            hidden_role  = "TARS"
+        else:
+            # No performer yet — hide both support squares
+            for r in ("HUMAN", "TARS"):
+                node = self.support_nodes.get((row, r))
+                if node:
+                    node.setVisible(False)
+            return
+
+        active_node = self.support_nodes.get((row, visible_role))
+        if active_node:
+            active_node.setVisible(True)
+            active_node.set_active(is_active)
+
+        hidden_node = self.support_nodes.get((row, hidden_role))
+        if hidden_node:
+            hidden_node.setVisible(False)
+
     def _update_role_description(self, row: int, role: str):
-        """Update role description box based on selection."""
+        """Update role description box based on selection and current supporter state."""
         if row not in self.role_boxes:
             return
-        
+
         role_box = self.role_boxes[row]
         task = self.tasks[row]
-        
+        supporter_active = self.supporters.get(row, False)
+
         if role == "TARS":
-            # TARS is performer - show performer role
+            # TARS is performer — show performer role description
             if task.tars_performer_role and task.tars_performer_role.strip():
-                role_box.text_item.setDefaultTextColor(QColor("#ffffff"))  # White for content
+                role_box.text_item.setDefaultTextColor(QColor("#ffffff"))
                 role_box.set_text(task.tars_performer_role)
             else:
                 role_box.clear_text()
-        elif role == "HUMAN" and task.agent_supports:
-            # HUMAN is performer and TARS can support - show supporter role
+        elif role == "HUMAN" and task.agent_supports and supporter_active:
+            # HUMAN is performer and TARS support is currently enabled
             if task.tars_supporter_role and task.tars_supporter_role.strip():
-                role_box.text_item.setDefaultTextColor(QColor("#ffffff"))  # White for content
+                role_box.text_item.setDefaultTextColor(QColor("#ffffff"))
                 role_box.set_text(task.tars_supporter_role)
             else:
                 role_box.clear_text()
         else:
-            # Clear the box
             role_box.clear_text()
     
     def _update_support_lines(self):
-        """Update support lines based on current selections"""
+        """Update support lines based on current selections and supporter toggle state."""
         # Remove old support lines
         for item in self.dashed_items:
             self.removeItem(item)
         self.dashed_items.clear()
-        
+
         # Skip support line creation if a category filter is active
         if self.active_category_filter:
             return
-        
-        # Add support lines only for selected performers who have support available
+
+        # Only draw a dashed line when the supporter is actively enabled
         for row, selected_role in self.selected.items():
+            if not self.supporters.get(row, False):
+                continue  # Supporter toggled off for this row
+
             task = self.tasks[row]
             y = self._row_y(row, self.active_category_filter)
-            
+
             if selected_role == "HUMAN" and task.agent_supports:
-                # Human is selected as performer and TARS can support
                 self._add_dashed(self.col_x["TARS"], self.col_x["HUMAN"], y)
-                
             elif selected_role == "TARS" and task.human_supports:
-                # TARS is selected as performer and HUMAN can support
                 self._add_dashed(self.col_x["HUMAN"], self.col_x["TARS"], y)
 
     def _update_path(self):
@@ -741,7 +854,8 @@ class InterdependenceScene(QGraphicsScene):
         self.role_boxes.clear()
         self.path_items.clear()
         self.dashed_items.clear()
-    
+        self.support_nodes.clear()
+
     def _rebuild_scene(self, filtered_category=None):
         """Completely rebuild the scene with optional category filter
         
@@ -767,12 +881,24 @@ class InterdependenceScene(QGraphicsScene):
         for row, selected_role in self.selected.items():
             # Update role description
             self._update_role_description(row, selected_role)
-            
-            # Update node visual state for this row
+
+            # Update circle visuals
             if (row, "HUMAN") in self.nodes:
                 self.nodes[(row, "HUMAN")].set_selected(selected_role == "HUMAN")
             if (row, "TARS") in self.nodes:
                 self.nodes[(row, "TARS")].set_selected(selected_role == "TARS")
+
+            # Restore TARS speed label
+            tars_node = self.nodes.get((row, "TARS"))
+            if tars_node:
+                if selected_role == "TARS":
+                    speed = self.tars_speed.get(row, "S")
+                    tars_node.set_speed_label(speed)
+                else:
+                    tars_node.set_speed_label(None)
+
+            # Restore support square visibility and active state
+            self._update_support_node_visuals(row)
     
     def filter_by_category(self, category: str):
         """Filter the graph to show only tasks from the specified category"""
@@ -839,6 +965,16 @@ class BriefingPage(BasePage):
         # Store clear filter buttons (created dynamically)
         self.clear_filter_button_1 = None
         self.clear_filter_button_2 = None
+
+        # Delay lookup tables keyed by (procedure, task_object, value)
+        # Loaded from Core CSVs during setup_interdependence_analysis
+        self._delays_slow: dict = {}  # TARS_PERF_AND_SUPPORT_DELAYS.csv (S = slow)
+        self._delays_fast: dict = {}  # TARS_PERF_AND_SUPPORT_NO_DELAYS.csv (F = fast)
+
+        # Per-category per-tab state for the radio button toggles
+        self._cat_current_performer: dict = {}  # {cat: {tab: "HUMAN"|"TARS"|None}}
+        self._cat_support_on: dict = {}          # {cat: {tab: bool}}  HUMAN-support line visible
+        self._cat_tars_speed: dict = {}          # {cat: {tab: "S"|"F"}}
         
     def initialize_page(self):
         """
@@ -880,10 +1016,35 @@ class BriefingPage(BasePage):
             # Setup category radio buttons for task allocation
             self._setup_category_radio_buttons()
                 
+            # Load delay lookup tables from Core CSVs
+            core_dir = Path(__file__).parent.parent / "Core"
+            self._delays_slow = self._load_delay_lookup(core_dir / "TARS_PERF_AND_SUPPORT_DELAYS.csv")
+            self._delays_fast = self._load_delay_lookup(core_dir / "TARS_PERF_AND_SUPPORT_NO_DELAYS.csv")
+
         except Exception as e:
             print(f"Error setting up interdependence analysis: {e}")
             import traceback
             traceback.print_exc()
+
+    def _load_delay_lookup(self, path: Path) -> dict:
+        """Load a delay CSV and return a dict: (procedure, task_object, value) -> {delay_before, delay_after}"""
+        lookup = {}
+        if not path.exists():
+            print(f"Warning: delay CSV not found: {path}")
+            return lookup
+        with open(path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                key = (
+                    row.get("Procedure", "").strip(),
+                    row.get("Task Object", "").strip(),
+                    row.get("Value", "").strip(),
+                )
+                lookup[key] = {
+                    "delay_before": str(row.get("Time to Initiate Action", "0") or "0").strip(),
+                    "delay_after": str(row.get("Time after Ending Action", "0") or "0").strip(),
+                }
+        return lookup
 
     def _setup_normal_operations_graph(self):
         """Setup the normal operations interdependence graph"""
@@ -1117,23 +1278,33 @@ class BriefingPage(BasePage):
                 bg_1.addButton(tars_1)
                 bg_1.addButton(human_1)
                 cat_layout_1.addWidget(tars_1, alignment=Qt.AlignCenter)
+                # Dotted connector: shown when HUMAN is performer and TARS support is active
+                from PySide6.QtWidgets import QLabel
+                support_line_1 = QLabel("┊")
+                support_line_1.setStyleSheet(
+                    "QLabel { color: rgba(53, 222, 113, 180); font-size: 16px; padding: 0; margin: 0; }")
+                support_line_1.setAlignment(Qt.AlignCenter)
+                support_line_1.setFixedHeight(14)
+                support_line_1.setVisible(False)
+                cat_layout_1.addWidget(support_line_1, alignment=Qt.AlignCenter)
                 cat_layout_1.addWidget(human_1, alignment=Qt.AlignCenter)
                 container_1.addLayout(cat_layout_1)
 
                 self.category_filter_buttons.setdefault(category, {})["button_1"] = btn_1
                 self.category_radio_buttons.setdefault(category, {}).update({
-                    "TARS_1": tars_1, "HUMAN_1": human_1, "button_group_1": bg_1
+                    "TARS_1": tars_1, "HUMAN_1": human_1, "button_group_1": bg_1,
+                    "support_line_1": support_line_1,
                 })
 
                 btn_1.clicked.connect(
                     lambda checked, cat=category, btn=btn_1:
                     self._on_category_filter_clicked(1, cat, btn))
-                tars_1.toggled.connect(
-                    lambda checked, cat=category:
-                    self._on_category_radio_toggled_normal(cat, "TARS", checked))
-                human_1.toggled.connect(
-                    lambda checked, cat=category:
-                    self._on_category_radio_toggled_normal(cat, "HUMAN", checked))
+                tars_1.clicked.connect(
+                    lambda checked=False, cat=category:
+                    self._on_category_btn_clicked_normal(cat, "TARS"))
+                human_1.clicked.connect(
+                    lambda checked=False, cat=category:
+                    self._on_category_btn_clicked_normal(cat, "HUMAN"))
 
             # --- Tab 2: Contingency Planning ---
             if c_count > 0:
@@ -1153,50 +1324,131 @@ class BriefingPage(BasePage):
                 bg_2.addButton(tars_2)
                 bg_2.addButton(human_2)
                 cat_layout_2.addWidget(tars_2, alignment=Qt.AlignCenter)
+                # Dotted connector for tab 2
+                from PySide6.QtWidgets import QLabel
+                support_line_2 = QLabel("┊")
+                support_line_2.setStyleSheet(
+                    "QLabel { color: rgba(53, 222, 113, 180); font-size: 16px; padding: 0; margin: 0; }")
+                support_line_2.setAlignment(Qt.AlignCenter)
+                support_line_2.setFixedHeight(14)
+                support_line_2.setVisible(False)
+                cat_layout_2.addWidget(support_line_2, alignment=Qt.AlignCenter)
                 cat_layout_2.addWidget(human_2, alignment=Qt.AlignCenter)
                 container_2.addLayout(cat_layout_2)
 
                 self.category_filter_buttons.setdefault(category, {})["button_2"] = btn_2
                 self.category_radio_buttons.setdefault(category, {}).update({
-                    "TARS_2": tars_2, "HUMAN_2": human_2, "button_group_2": bg_2
+                    "TARS_2": tars_2, "HUMAN_2": human_2, "button_group_2": bg_2,
+                    "support_line_2": support_line_2,
                 })
 
                 btn_2.clicked.connect(
                     lambda checked, cat=category, btn=btn_2:
                     self._on_category_filter_clicked(2, cat, btn))
-                tars_2.toggled.connect(
-                    lambda checked, cat=category:
-                    self._on_category_radio_toggled_contingency(cat, "TARS", checked))
-                human_2.toggled.connect(
-                    lambda checked, cat=category:
-                    self._on_category_radio_toggled_contingency(cat, "HUMAN", checked))
+                tars_2.clicked.connect(
+                    lambda checked=False, cat=category:
+                    self._on_category_btn_clicked_contingency(cat, "TARS"))
+                human_2.clicked.connect(
+                    lambda checked=False, cat=category:
+                    self._on_category_btn_clicked_contingency(cat, "HUMAN"))
 
         container_1.addStretch()
         container_2.addStretch()
     
-    def _on_category_radio_toggled_normal(self, category, performer, checked):
-        """Batch-allocate all normal tasks of this category to the chosen performer."""
-        if not checked:
-            return
-        if self.normal_interdependence_scene and self.normal_tasks:
-            for task_id, task in enumerate(self.normal_tasks):
-                if task.category == category:
-                    if performer == "HUMAN" and task.human_can:
-                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
-                    elif performer == "TARS" and task.agent_can:
-                        self.normal_interdependence_scene.on_node_clicked(task_id, performer)
+    def _on_category_btn_clicked_normal(self, category: str, performer: str):
+        """Handle click (including re-click) on a Normal Operations category radio button."""
+        self._handle_category_click(
+            category, performer, tab=1,
+            scene=self.normal_interdependence_scene,
+            tasks=self.normal_tasks,
+        )
 
-    def _on_category_radio_toggled_contingency(self, category, performer, checked):
-        """Batch-allocate all contingency tasks of this category to the chosen performer."""
-        if not checked:
+    def _on_category_btn_clicked_contingency(self, category: str, performer: str):
+        """Handle click (including re-click) on a Contingency Planning category radio button."""
+        self._handle_category_click(
+            category, performer, tab=2,
+            scene=self.contingency_interdependence_scene,
+            tasks=self.contingency_tasks,
+        )
+
+    def _handle_category_click(self, category: str, performer: str, tab: int, scene, tasks):
+        """Shared logic for category button clicks.
+
+        First click (or switch to a different performer): batch-assign.
+        Re-click on the already-active performer:
+          - HUMAN  → toggle TARS support on/off for all tasks in category
+          - TARS   → cycle speed S ↔ F for all tasks in category
+        """
+        if scene is None or tasks is None:
             return
-        if self.contingency_interdependence_scene and self.contingency_tasks:
-            for task_id, task in enumerate(self.contingency_tasks):
+
+        support_dict = self._cat_support_on.setdefault(category, {})
+        speed_dict   = self._cat_tars_speed.setdefault(category, {})
+        current_performer = self._cat_current_performer.get(category, {}).get(tab)
+
+        if current_performer == performer:
+            # ── Re-click ──────────────────────────────────────────────────────────
+            if performer == "HUMAN":
+                new_support = not support_dict.get(tab, True)
+                support_dict[tab] = new_support
+                for task_id, task in enumerate(tasks):
+                    if task.category == category and scene.selected.get(task_id) == "HUMAN":
+                        if task.agent_supports:
+                            scene.supporters[task_id] = new_support
+                            scene._update_support_node_visuals(task_id)
+                scene._update_support_lines()
+                self._update_category_support_line(category, tab, new_support)
+            else:  # TARS
+                current_speed = speed_dict.get(tab, "S")
+                new_speed = "F" if current_speed == "S" else "S"
+                speed_dict[tab] = new_speed
+                for task_id, task in enumerate(tasks):
+                    if task.category == category and scene.selected.get(task_id) == "TARS":
+                        scene.tars_speed[task_id] = new_speed
+                        tars_node = scene.nodes.get((task_id, "TARS"))
+                        if tars_node:
+                            tars_node.set_speed_label(new_speed)
+                self._update_category_tars_label(category, tab, new_speed)
+        else:
+            # ── First / switch click: batch assign ────────────────────────────────
+            for task_id, task in enumerate(tasks):
                 if task.category == category:
-                    if performer == "HUMAN" and task.human_can:
-                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
-                    elif performer == "TARS" and task.agent_can:
-                        self.contingency_interdependence_scene.on_node_clicked(task_id, performer)
+                    if scene.selected.get(task_id) == performer:
+                        continue  # already on the right performer, skip re-click side-effects
+                    if (performer == "HUMAN" and task.human_can) or \
+                       (performer == "TARS"  and task.agent_can):
+                        scene.on_node_clicked(task_id, performer)
+
+            self._cat_current_performer.setdefault(category, {})[tab] = performer
+
+            if performer == "HUMAN":
+                has_support = any(
+                    scene.supporters.get(tid, False)
+                    for tid, t in enumerate(tasks)
+                    if t.category == category and scene.selected.get(tid) == "HUMAN"
+                )
+                support_dict[tab] = has_support
+                self._update_category_support_line(category, tab, has_support)
+                self._update_category_tars_label(category, tab, None)  # clear speed label
+            else:  # TARS
+                speed_dict[tab] = "S"
+                support_dict[tab] = False
+                self._update_category_support_line(category, tab, False)
+                self._update_category_tars_label(category, tab, "S")
+
+    def _update_category_support_line(self, category: str, tab: int, visible: bool):
+        """Show or hide the dotted green support line for a category+tab."""
+        key = f"support_line_{tab}"
+        line = self.category_radio_buttons.get(category, {}).get(key)
+        if line:
+            line.setVisible(visible)
+
+    def _update_category_tars_label(self, category: str, tab: int, speed: str | None):
+        """Update the TARS radio button text to show the speed badge (S or F) or clear it."""
+        key = f"TARS_{tab}"
+        btn = self.category_radio_buttons.get(category, {}).get(key)
+        if btn:
+            btn.setText("TARS" if speed is None else f"TARS  {speed}")
     
     def _on_category_filter_clicked(self, tab, category, clicked_button):
         """Handle category filter button click for a specific tab (1=Normal, 2=Contingency)."""
@@ -1654,15 +1906,18 @@ class BriefingPage(BasePage):
             else:
                 continue  # Skip unknown classification
             
-            # Determine roles based on performer selection and task capabilities
+            # Determine roles based on performer selection and user's supporter toggle
+            if task.classification == 'NORM':
+                supporter_active = self.normal_interdependence_scene.supporters.get(normal_task_index, False)
+            else:
+                supporter_active = self.contingency_interdependence_scene.supporters.get(contingency_task_index, False)
+
             if performer == "HUMAN":
                 human_role = "performer"
-                # Only assign autonomy as supporter if the task supports it
-                autonomy_role = "supporter" if task.agent_supports else ""
+                autonomy_role = "supporter" if supporter_active else ""
             else:  # performer == "TARS"
                 autonomy_role = "performer"
-                # Only assign human as supporter if the task supports it
-                human_role = "supporter" if task.human_supports else ""
+                human_role = "supporter" if supporter_active else ""
             
             # Build export row with all original CSV columns preserved
             export_row = {
@@ -1679,7 +1934,21 @@ class BriefingPage(BasePage):
             # Add all extra fields from the original CSV
             if hasattr(task, 'extra_fields'):
                 export_row.update(task.extra_fields)
-            
+
+            # For TARS performer tasks: override delay fields from the chosen speed CSV
+            if performer == "TARS":
+                if task.classification == 'NORM':
+                    speed = self.normal_interdependence_scene.tars_speed.get(normal_task_index, "S")
+                else:
+                    speed = self.contingency_interdependence_scene.tars_speed.get(contingency_task_index, "S")
+                delay_table = self._delays_slow if speed == "S" else self._delays_fast
+                delay_key = (task.procedure_name, task.name, task.value)
+                delay_info = delay_table.get(delay_key, {})
+                if delay_info:
+                    export_row['time_to_initiate_action'] = delay_info.get('delay_before', export_row.get('time_to_initiate_action', '0'))
+                    export_row['time_after_ending_action'] = delay_info.get('delay_after', export_row.get('time_after_ending_action', '0'))
+                export_row['tars_speed'] = speed
+
             export_data.append(export_row)
         
         # Store at app level (accessible to main_window and other pages)
@@ -1844,7 +2113,9 @@ class BriefingPage(BasePage):
                     state_key = (procedure, task_object, value)
                     allocation_for_agent[state_key] = {
                         'human_role': human_role,
-                        'autonomy_role': autonomy_role
+                        'autonomy_role': autonomy_role,
+                        'delay_before_action': row_data.get('time_to_initiate_action', ''),
+                        'delay_after_action': row_data.get('time_after_ending_action', ''),
                     }
             
             # Build the payload list for transmission
@@ -1855,6 +2126,8 @@ class BriefingPage(BasePage):
                     'value': value,
                     'human_role': roles['human_role'],
                     'autonomy_role': roles['autonomy_role'],
+                    'delay_before_action': roles['delay_before_action'],
+                    'delay_after_action': roles['delay_after_action'],
                 }
                 for (procedure, task_object, value), roles in allocation_for_agent.items()
             ]
@@ -1947,22 +2220,24 @@ class BriefingPage(BasePage):
                     human_role = row['Human Role'].strip()
                     autonomy_role = row['Autonomy Role'].strip()
                     
-                    # Determine performer based on roles
+                    # Determine performer and supporter state from roles
                     if human_role.strip() == "performer":
                         performer = "HUMAN"
+                        supporter_active = (autonomy_role.strip() == "supporter")
                     elif autonomy_role.strip() == "performer":
                         performer = "TARS"
+                        supporter_active = (human_role.strip() == "supporter")
                     else:
                         print(f"Warning: Could not determine performer for task {task_object} (human_role='{human_role}', autonomy_role='{autonomy_role}')")
                         continue
 
-                    # Store allocation data based on classification
                     allocation_key = (procedure, task_object, value)
+                    allocation_entry = {"performer": performer, "supporter": supporter_active}
 
                     if classification == "NORM":
-                        normal_allocation_data[allocation_key] = performer
+                        normal_allocation_data[allocation_key] = allocation_entry
                     elif classification in ["EMER", "ABNORM"]:
-                        contingency_allocation_data[allocation_key] = performer
+                        contingency_allocation_data[allocation_key] = allocation_entry
             
             # Apply allocations to both task sets
             normal_applied = self._apply_allocation_to_normal_tasks(normal_allocation_data)
@@ -1993,26 +2268,42 @@ class BriefingPage(BasePage):
         
         for task_id, task in enumerate(self.normal_tasks):
             allocation_key = (task.procedure_name, task.name, task.value)
-            
+
             if allocation_key in allocation_data:
-                performer = allocation_data[allocation_key]
-                
-                # Set the selection in the scene
+                entry = allocation_data[allocation_key]
+                performer = entry["performer"] if isinstance(entry, dict) else entry
+                supporter = entry.get("supporter", False) if isinstance(entry, dict) else False
+
+                # Set performer and supporter state
                 self.normal_interdependence_scene.selected[task_id] = performer
-                
-                # Update visual representation
+                self.normal_interdependence_scene.supporters[task_id] = supporter
+
+                # Restore TARS speed (default S if not stored in allocation file)
+                tars_node = self.normal_interdependence_scene.nodes.get((task_id, "TARS"))
+                if performer == "TARS":
+                    speed = entry.get("tars_speed", "S") if isinstance(entry, dict) else "S"
+                    self.normal_interdependence_scene.tars_speed[task_id] = speed
+                    if tars_node:
+                        tars_node.set_speed_label(speed)
+                else:
+                    self.normal_interdependence_scene.tars_speed.pop(task_id, None)
+                    if tars_node:
+                        tars_node.set_speed_label(None)
+
+                # Update circle visuals
                 if (task_id, "HUMAN") in self.normal_interdependence_scene.nodes:
-                    human_node = self.normal_interdependence_scene.nodes[(task_id, "HUMAN")]
-                    human_node.set_selected(performer == "HUMAN")
-                    
+                    self.normal_interdependence_scene.nodes[(task_id, "HUMAN")].set_selected(performer == "HUMAN")
                 if (task_id, "TARS") in self.normal_interdependence_scene.nodes:
-                    tars_node = self.normal_interdependence_scene.nodes[(task_id, "TARS")]
-                    tars_node.set_selected(performer == "TARS")
-                
+                    self.normal_interdependence_scene.nodes[(task_id, "TARS")].set_selected(performer == "TARS")
+
+                # Restore support square state
+                self.normal_interdependence_scene._update_support_node_visuals(task_id)
+
                 applied_count += 1
-        
-        # Update path visualization and check assignment status
+
+        # Update path and support lines, then check assignment status
         self.normal_interdependence_scene._update_path()
+        self.normal_interdependence_scene._update_support_lines()
         self._check_normal_tasks_assigned()
         
         return applied_count
@@ -2027,26 +2318,42 @@ class BriefingPage(BasePage):
         
         for task_id, task in enumerate(self.contingency_tasks):
             allocation_key = (task.procedure_name, task.name, task.value)
-            
+
             if allocation_key in allocation_data:
-                performer = allocation_data[allocation_key]
-                
-                # Set the selection in the scene
+                entry = allocation_data[allocation_key]
+                performer = entry["performer"] if isinstance(entry, dict) else entry
+                supporter = entry.get("supporter", False) if isinstance(entry, dict) else False
+
+                # Set performer and supporter state
                 self.contingency_interdependence_scene.selected[task_id] = performer
-                
-                # Update visual representation
+                self.contingency_interdependence_scene.supporters[task_id] = supporter
+
+                # Restore TARS speed (default S if not stored in allocation file)
+                tars_node = self.contingency_interdependence_scene.nodes.get((task_id, "TARS"))
+                if performer == "TARS":
+                    speed = entry.get("tars_speed", "S") if isinstance(entry, dict) else "S"
+                    self.contingency_interdependence_scene.tars_speed[task_id] = speed
+                    if tars_node:
+                        tars_node.set_speed_label(speed)
+                else:
+                    self.contingency_interdependence_scene.tars_speed.pop(task_id, None)
+                    if tars_node:
+                        tars_node.set_speed_label(None)
+
+                # Update circle visuals
                 if (task_id, "HUMAN") in self.contingency_interdependence_scene.nodes:
-                    human_node = self.contingency_interdependence_scene.nodes[(task_id, "HUMAN")]
-                    human_node.set_selected(performer == "HUMAN")
-                    
+                    self.contingency_interdependence_scene.nodes[(task_id, "HUMAN")].set_selected(performer == "HUMAN")
                 if (task_id, "TARS") in self.contingency_interdependence_scene.nodes:
-                    tars_node = self.contingency_interdependence_scene.nodes[(task_id, "TARS")]
-                    tars_node.set_selected(performer == "TARS")
-                
+                    self.contingency_interdependence_scene.nodes[(task_id, "TARS")].set_selected(performer == "TARS")
+
+                # Restore support square state
+                self.contingency_interdependence_scene._update_support_node_visuals(task_id)
+
                 applied_count += 1
-        
-        # Update path visualization and check assignment status
+
+        # Update path and support lines, then check assignment status
         self.contingency_interdependence_scene._update_path()
+        self.contingency_interdependence_scene._update_support_lines()
         self._check_contingency_tasks_assigned()
         
         return applied_count

@@ -103,25 +103,6 @@ TARS_OUTPUTS = {
         "description": "Clear current alert display",
     },
     
-    # Condition Monitoring
-    "condition_violated": {
-        "type": "string",  # JSON encoded
-        "description": "Continuous condition no longer met",
-        "format": {
-            "procedure": "str",
-            "task_object": "str",
-            "value": "str",
-            "condition_name": "str - Name of violated condition function",
-            "timestamp": "float",
-        },
-    },
-    
-    "condition_restored": {
-        "type": "string",  # JSON encoded
-        "description": "Previously violated condition now restored",
-        "format": "Same as condition_violated",
-    },
-    
     # TTS Status
     "tts_speaking": {
         "type": "bool",
@@ -255,18 +236,19 @@ ATC_INTERFACE = {
 # HELPER FUNCTIONS
 # ============================================================================
 
-def encode_state_to_json(state) -> str:
+def encode_state_to_json(state, **extra_fields) -> str:
     """
     Encode State object to JSON string for transmission
     
     Args:
         state: State object from Core.fsm
+        **extra_fields: Additional fields to include in the JSON
         
     Returns:
         JSON string representation
     """
     import json
-    return json.dumps({
+    data = {
         "procedure": state.procedure,
         "classification": state.classification,
         "type": state.type,
@@ -280,11 +262,10 @@ def encode_state_to_json(state) -> str:
         "delay_before_action": state.delay_before_action,
         "delay_after_action": state.delay_after_action,
         "callout": state.callout,
-        "condition": state.condition,
-        "condition_type": state.condition_type,
-        "condition_function": state.condition_function,
-        "monitor_scope": state.monitor_scope,
-    })
+        "transition_kind": getattr(state, 'transition_kind', None),
+    }
+    data.update(extra_fields)
+    return json.dumps(data)
 
 
 def decode_json_to_dict(json_str: str) -> Dict[str, Any]:
@@ -319,30 +300,6 @@ def create_alert_message(message: str, color: str = "red", severity: str = "warn
         "message": message,
         "color": color,
         "severity": severity,
-        "timestamp": time.time(),
-    })
-
-
-def create_condition_message(procedure: str, task_object: str, value: str, condition_name: str) -> str:
-    """
-    Create condition violation/restoration message
-    
-    Args:
-        procedure: Procedure name
-        task_object: Task object
-        value: Task value
-        condition_name: Condition function name
-        
-    Returns:
-        JSON string
-    """
-    import json
-    import time
-    return json.dumps({
-        "procedure": procedure,
-        "task_object": task_object,
-        "value": value,
-        "condition_name": condition_name,
         "timestamp": time.time(),
     })
 
@@ -407,8 +364,7 @@ Key Message Flows:
 3. Alerts: TARS → GUI (alert JSON, alert_clear)
 4. Approvals: GUI → TARS (task_approval, specific approval integers)
 5. TTS Status: TARS → GUI (tts_speaking bool, tts_text)
-6. Conditions: TARS → GUI (condition_violated/restored JSON)
-7. Emergency: TARS → GUI (emergency_procedure_inject) | GUI → TARS (emergency_inject)
+6. Emergency: TARS → GUI (emergency_procedure_inject) | GUI → TARS (emergency_inject)
 
 Benefits:
 - Technology Independence: TARS agent has no Qt dependencies

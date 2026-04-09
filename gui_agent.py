@@ -45,6 +45,8 @@ class GUIAgent(QObject):
     _tars_status_signal = Signal(str)  # Status label text update
     _allocation_reloaded_signal = Signal(str)  # CSV filename after TARS reloads allocation
     _external_task_acked_signal = Signal()  # joystick task_acknowledged routed through GUI
+    _condition_changed_signal = Signal(str)  # condition input → switch TARS persona images
+    _trim_rudder_signal = Signal(float)  # RudderTrimAgent trim_rudder value → trim indicator
     
     def __init__(self, main_window: MainWindow, agent_name: str = "Shared Interface", 
                  device: str = "wlp0s20f3", port: int = 5670, no_next_countdown: bool = False):
@@ -86,7 +88,9 @@ class GUIAgent(QObject):
         self._state_divider_signal.connect(self.main_window.on_state_divider)
         self._reset_speech_log_signal.connect(self.main_window.reset_speech_log)
         self._tars_status_signal.connect(self.main_window.on_tars_status)
+        self._trim_rudder_signal.connect(self.main_window.on_trim_rudder_value)
         self._allocation_reloaded_signal.connect(self.main_window.on_allocation_reloaded)
+        self._condition_changed_signal.connect(main_window.on_condition_changed)
         
         # Connect MainWindow user action signals to TARS inputs
         self._connect_ui_to_tars()
@@ -112,8 +116,6 @@ class GUIAgent(QObject):
         igs.input_create("countdown_max_next", igs.INTEGER_T, None)
         igs.input_create("alert", igs.STRING_T, None)
         igs.input_create("alert_clear", igs.IMPULSION_T, None)
-        igs.input_create("condition_violated", igs.STRING_T, None)
-        igs.input_create("condition_restored", igs.STRING_T, None)
         igs.input_create("tts_speaking", igs.BOOL_T, None)
         igs.input_create("tts_text", igs.STRING_T, None)
         igs.input_create("stt_listening", igs.BOOL_T, None)
@@ -126,6 +128,8 @@ class GUIAgent(QObject):
         igs.input_create("tars_status", igs.STRING_T, None)  # TARS status text for the GUI label
         igs.input_create("allocation_reloaded", igs.STRING_T, None)  # JSON: {csv, states_count} when TARS reloads
         igs.input_create("task_acknowledged", igs.IMPULSION_T, None)  # joystick/external ack routed through GUI
+        igs.input_create("condition", igs.STRING_T, None)  # persona selector: TARS | TARP-F | TARP-S | TARC
+        igs.input_create("trim_rudder_value", igs.DOUBLE_T, None)  # RudderTrimAgent current trim position
         
         # Observe inputs
         igs.observe_input("current_state", self._on_current_state_input, None)
@@ -137,8 +141,6 @@ class GUIAgent(QObject):
         igs.observe_input("countdown_max_next", self._on_countdown_max_next_input, None)
         igs.observe_input("alert", self._on_alert_input, None)
         igs.observe_input("alert_clear", self._on_alert_clear_input, None)
-        igs.observe_input("condition_violated", self._on_condition_violated_input, None)
-        igs.observe_input("condition_restored", self._on_condition_restored_input, None)
         igs.observe_input("tts_speaking", self._on_tts_speaking_input, None)
         igs.observe_input("tts_text", self._on_tts_text_input, None)
         igs.observe_input("stt_listening", self._on_stt_listening_input, None)
@@ -151,6 +153,8 @@ class GUIAgent(QObject):
         igs.observe_input("tars_status", self._on_tars_status_input, None)
         igs.observe_input("allocation_reloaded", self._on_allocation_reloaded_input, None)
         igs.observe_input("task_acknowledged", self._on_ext_task_acknowledged_input, None)
+        igs.observe_input("condition", self._on_condition_input, None)
+        igs.observe_input("trim_rudder_value", self._on_trim_rudder_input, None)
         self._external_task_acked_signal.connect(self._on_external_task_acknowledged)
         # Map ATC_Agent.speech_output → our atc_speech_output input
         igs.mapping_add("atc_speech_output", "ATC_Agent", "speech_output")
@@ -158,6 +162,10 @@ class GUIAgent(QObject):
         igs.mapping_add("stt_speech_output", "Speech_to_Text_Agent", "speech_output")
         # Map TARS_Agent.tars_status → our tars_status input
         igs.mapping_add("tars_status", "TARS_Agent", "tars_status")
+        # Map RudderTrimAgent.trim_status → same tars_status input so trim updates show on the label
+        igs.mapping_add("tars_status", "RudderTrimAgent", "trim_status")
+        # Map RudderTrimAgent.trim_rudder → our trim_rudder_value input for the indicator widget
+        igs.mapping_add("trim_rudder_value", "RudderTrimAgent", "trim_rudder")
         # Map TARS_Agent outputs → our inputs
         igs.mapping_add("current_state", "TARS_Agent", "current_state")
         igs.mapping_add("next_state", "TARS_Agent", "next_state")
@@ -168,8 +176,6 @@ class GUIAgent(QObject):
         igs.mapping_add("countdown_max_next", "TARS_Agent", "countdown_max_next")
         igs.mapping_add("alert", "TARS_Agent", "alert")
         igs.mapping_add("alert_clear", "TARS_Agent", "alert_clear")
-        igs.mapping_add("condition_violated", "TARS_Agent", "condition_violated")
-        igs.mapping_add("condition_restored", "TARS_Agent", "condition_restored")
         igs.mapping_add("action_about_to_fire", "TARS_Agent", "action_about_to_fire")
         igs.mapping_add("checklist_item_complete", "TARS_Agent", "checklist_item_complete")
         igs.mapping_add("emergency_procedure_inject", "TARS_Agent", "emergency_procedure_inject")
@@ -213,6 +219,18 @@ class GUIAgent(QObject):
     # TARS → GUI: Ingescape input callbacks (run in Ingescape thread)
     # ========================================================================
     
+    def _on_condition_input(self, io_type, name, value_type, value, my_data):
+        """Handle condition string from Ingescape — switch TARS persona images."""
+        try:
+            if value and isinstance(value, str):
+                condition = value.strip()
+                if condition in ("TARS", "TARP-F", "TARP-S", "TARC"):
+                    self._condition_changed_signal.emit(condition)
+                else:
+                    print(f"⚠️ Unknown condition value: '{condition}'")
+        except Exception as e:
+            print(f"Error processing condition: {e}")
+
     def _on_ext_task_acknowledged_input(self, io_type, name, value_type, value, my_data):
         """Ingescape thread: joystick sent task_acknowledged — route through main thread."""
         self._external_task_acked_signal.emit()
@@ -241,6 +259,14 @@ class GUIAgent(QObject):
                 self._tars_status_signal.emit(str(value))
         except Exception as e:
             print(f"Error processing tars_status: {e}")
+
+    def _on_trim_rudder_input(self, io_type, name, value_type, value, my_data):
+        """Handle trim_rudder double from RudderTrimAgent — update the trim indicator."""
+        try:
+            if value is not None:
+                self._trim_rudder_signal.emit(float(value))
+        except Exception as e:
+            print(f"Error processing trim_rudder_value: {e}")
 
     def _on_allocation_reloaded_input(self, io_type, name, value_type, value, my_data):
         """Handle allocation_reloaded notification from TARS — GUI reloads its local stub."""
@@ -313,6 +339,10 @@ class GUIAgent(QObject):
             for key in ("runway_heading", "initial_wind_dir", "initial_wind_mag"):
                 if key in msg_data:
                     button_config[key] = msg_data[key]
+            
+            # Pass enable_override flag through button_config
+            if msg_data.get("enable_override"):
+                button_config["enable_override"] = True
                 
             self._interaction_message_signal.emit(message, tars_input, button_config)
         except Exception as e:
@@ -381,24 +411,6 @@ class GUIAgent(QObject):
             pass
         except Exception as e:
             print(f"Error processing countdown_max_next: {e}")
-    
-    def _on_condition_violated_input(self, io_type, name, value_type, value, my_data):
-        """Handle condition violated notification from TARS"""
-        try:
-            condition_data = json.loads(value)
-            print(f"⚠️ Condition violated: {condition_data.get('condition_name')} for {condition_data.get('task_object')}")
-            # Could display warning in UI
-        except Exception as e:
-            print(f"Error processing condition_violated: {e}")
-    
-    def _on_condition_restored_input(self, io_type, name, value_type, value, my_data):
-        """Handle condition restored notification from TARS"""
-        try:
-            condition_data = json.loads(value)
-            print(f"✅ Condition restored: {condition_data.get('condition_name')} for {condition_data.get('task_object')}")
-            # Could clear warning in UI
-        except Exception as e:
-            print(f"Error processing condition_restored: {e}")
     
     def _on_tts_speaking_input(self, io_type, name, value_type, value, my_data):
         """Handle TTS speaking status from TARS"""
@@ -489,6 +501,15 @@ class GUIAgent(QObject):
         self.main_window.set_interaction_text(message)
         self.main_window.set_interaction_tars_input(tars_input, show=bool(tars_input))
 
+        # Switch cancel button to override mode if requested by TARS
+        if button_config.get("enable_override"):
+            home_page   = self.main_window.page_manager.get_page('home')
+            flight_page = self.main_window.page_manager.get_page('flight')
+            for p in (home_page, flight_page):
+                if p:
+                    p._button_in_override_mode = True
+                    p._update_cancel_button_text()
+
         if not button_config:
             return
 
@@ -499,9 +520,14 @@ class GUIAgent(QObject):
         right_text = button_config.get("right_button", "")
         mid_text   = button_config.get("middle_button", "")
 
-        use_approval_mode = left_text in ("APPROVE", "DENY") or right_text in ("APPROVE", "DENY")
-        if home_page:
-            home_page.connect_int_panel_buttons(default=not use_approval_mode)
+        # Check if we have special buttons that need custom wiring
+        has_special_left_button = left_text in ("EDIT", "LISTEN TO ATIS", "OVERRIDE")
+        
+        # Only connect default int panel buttons if we don't have special buttons
+        if not has_special_left_button:
+            use_approval_mode = left_text in ("APPROVE", "DENY") or right_text in ("APPROVE", "DENY")
+            if home_page:
+                home_page.connect_int_panel_buttons(default=not use_approval_mode)
 
         # ---- left button ----
         if "left_button" in button_config:
@@ -509,7 +535,7 @@ class GUIAgent(QObject):
             if lbt is None:
                 for p in (home_page, flight_page):
                     if p: p.int_panel_left_button.hide()
-            elif lbt in ("EDIT", "LISTEN TO ATIS"):
+            elif lbt in ("EDIT", "LISTEN TO ATIS", "OVERRIDE"):
                 # Cache wind metadata for later use by the dialog / ATIS request
                 self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
                 self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
@@ -525,8 +551,10 @@ class GUIAgent(QObject):
                         pass
                     if lbt == "EDIT":
                         p.int_panel_left_button.clicked.connect(self._open_wind_edit_dialog)
-                    else:  # LISTEN TO ATIS
+                    elif lbt == "LISTEN TO ATIS":
                         p.int_panel_left_button.clicked.connect(self._send_request_atis)
+                    elif lbt == "OVERRIDE":
+                        p.int_panel_left_button.clicked.connect(self._send_task_override)
             elif lbt:
                 for p in (home_page, flight_page):
                     if p:
@@ -719,10 +747,7 @@ class GUIAgent(QObject):
             delay_before_action=state_data.get('delay_before_action', 0),
             delay_after_action=state_data.get('delay_after_action', 0),
             callout=state_data.get('callout', ''),
-            condition=state_data.get('condition'),
-            condition_type=state_data.get('condition_type'),
-            condition_function=state_data.get('condition_function'),
-            monitor_scope=state_data.get('monitor_scope'),
+            transition_kind=state_data.get('transition_kind', 'waiting'),
         )
         
         # If returning to IDLE, clear the speech log
@@ -817,10 +842,7 @@ class GUIAgent(QObject):
                 delay_before_action=state_data.get('delay_before_action', 0),
                 delay_after_action=state_data.get('delay_after_action', 0),
                 callout=state_data.get('callout', ''),
-                condition=state_data.get('condition'),
-                condition_type=state_data.get('condition_type'),
-                condition_function=state_data.get('condition_function'),
-                monitor_scope=state_data.get('monitor_scope'),
+                transition_kind=state_data.get('transition_kind', 'waiting'),
             )
             
             # Call MainWindow handler to show tick mark animation

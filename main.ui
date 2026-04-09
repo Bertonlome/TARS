@@ -1823,7 +1823,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
                                      <string notr="true">font: 500 16pt &quot;JetBrains Mono&quot;;</string>
                                     </property>
                                     <property name="text">
-                                     <string>TARS RUNNING</string>
+                                     <string>AGENT RUNNING</string>
                                     </property>
                                    </widget>
                                   </item>
@@ -1898,7 +1898,7 @@ font: 600 16pt &quot;JetBrains Mono&quot;;</string>
                                 <string/>
                                </property>
                                <property name="pixmap">
-                                <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                <pixmap resource="resources.qrc">:/images/images/images/TARS.png</pixmap>
                                </property>
                                <property name="scaledContents">
                                 <bool>true</bool>
@@ -2018,7 +2018,7 @@ background-color: rgba(0, 40, 80, 220);
                                       <string/>
                                      </property>
                                      <property name="pixmap">
-                                      <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                      <pixmap>:/images/images/images/TARS_female.png</pixmap>
                                      </property>
                                      <property name="scaledContents">
                                       <bool>true</bool>
@@ -2132,7 +2132,7 @@ background-color: rgba(0, 40, 80, 220);
                                    <string/>
                                   </property>
                                   <property name="pixmap">
-                                   <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                   <pixmap>:/images/images/images/TARS_female.png</pixmap>
                                   </property>
                                   <property name="scaledContents">
                                    <bool>true</bool>
@@ -2349,7 +2349,7 @@ background-color: rgba(0, 40, 80, 220);
                                       <string/>
                                      </property>
                                      <property name="pixmap">
-                                      <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                      <pixmap>:/images/images/images/TARS_female.png</pixmap>
                                      </property>
                                      <property name="scaledContents">
                                       <bool>true</bool>
@@ -2931,7 +2931,7 @@ background-color: rgba(0, 40, 80, 220);
                                       <string/>
                                      </property>
                                      <property name="pixmap">
-                                      <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                      <pixmap>:/images/images/images/TARS_female.png</pixmap>
                                      </property>
                                      <property name="scaledContents">
                                       <bool>true</bool>
@@ -3096,7 +3096,7 @@ background-color: rgba(0, 40, 80, 220);
                                         <string/>
                                        </property>
                                        <property name="pixmap">
-                                        <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                        <pixmap>:/images/images/images/TARS_female.png</pixmap>
                                        </property>
                                        <property name="scaledContents">
                                         <bool>true</bool>
@@ -3378,7 +3378,7 @@ background-color: rgba(0, 40, 80, 220);
                                       <string/>
                                      </property>
                                      <property name="pixmap">
-                                      <pixmap resource="resources.qrc">:/images/images/images/TARS_female.png</pixmap>
+                                      <pixmap>:/images/images/images/TARS_female.png</pixmap>
                                      </property>
                                      <property name="scaledContents">
                                       <bool>true</bool>

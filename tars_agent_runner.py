@@ -148,7 +148,24 @@ def main():
             threading.Thread(target=play_swipe_sound, daemon=True).start()
             
             # Publish current state
-            state_json = encode_state_to_json(state)
+            # Determine transition condition kind for this state
+            transition_kind = "waiting"  # Default: waiting for pilot acknowledgment
+            if tars_agent is not None:
+                for transition in tars_agent.fsm.transitions:
+                    if transition is None:
+                        continue
+                    if transition.from_state == state:
+                        if transition.condition is tars_agent.is_acked:
+                            transition_kind = "waiting"
+                        elif transition.condition is tars_agent.allow_transition:
+                            transition_kind = "waiting"
+                        elif state.autonomy_role not in ("performer", "supporter"):
+                            transition_kind = "waiting"
+                        else:
+                            transition_kind = "sensing"
+                        break
+            
+            state_json = encode_state_to_json(state, transition_kind=transition_kind)
             igs.output_set_string("current_state", state_json)
             igs.output_set_string("current_procedure", state.procedure)
             igs.output_set_string("interaction_message", "")
@@ -220,51 +237,34 @@ def main():
         """Publish action about to fire notification via Ingescape"""
         from Core.message_protocol import encode_state_to_json
         try:
-            state_json = encode_state_to_json(state)
+            # Determine transition condition kind for this state
+            transition_kind = "waiting"
+            if tars_agent is not None:
+                for transition in tars_agent.fsm.transitions:
+                    if transition is None:
+                        continue
+                    if transition.from_state == state:
+                        if transition.condition is tars_agent.is_acked:
+                            transition_kind = "waiting"
+                        elif transition.condition is tars_agent.allow_transition:
+                            transition_kind = "waiting"
+                        elif state.autonomy_role not in ("performer", "supporter"):
+                            transition_kind = "waiting"
+                        else:
+                            transition_kind = "sensing"
+                        break
+            
+            state_json = encode_state_to_json(state, transition_kind=transition_kind)
             import ingescape as igs
             igs.output_set_string("action_about_to_fire", state_json)
-            print(f"📤 Published action about to fire: {state.procedure} - {state.task_object}")
+            print(f"📤 Published action about to fire: {state.procedure} - {state.task_object} (transition_kind={transition_kind})")
         except Exception as e:
             print(f"Error publishing action about to fire: {e}")
-    
-    def on_condition_violated(state, condition_name):
-        """Publish condition violation via Ingescape"""
-        from Core.message_protocol import create_condition_message
-        try:
-            import ingescape as igs
-            condition_json = create_condition_message(
-                state.procedure,
-                state.task_object,
-                state.value,
-                condition_name
-            )
-            igs.output_set_string("condition_violated", condition_json)
-            print(f"📤 Published condition violated: {state.procedure} - {state.task_object} - {condition_name}")
-        except Exception as e:
-            print(f"Error publishing condition violated: {e}")
-    
-    def on_condition_restored(state, condition_name):
-        """Publish condition restoration via Ingescape"""
-        from Core.message_protocol import create_condition_message
-        try:
-            import ingescape as igs
-            condition_json = create_condition_message(
-                state.procedure,
-                state.task_object,
-                state.value,
-                condition_name
-            )
-            igs.output_set_string("condition_restored", condition_json)
-            print(f"📤 Published condition restored: {state.procedure} - {state.task_object} - {condition_name}")
-        except Exception as e:
-            print(f"Error publishing condition restored: {e}")
     
     # Start FSM worker in background thread  
     fsm_worker = FSMWorkerCore(tars_agent)
     fsm_worker.set_state_changed_callback(on_state_changed)
     fsm_worker.set_action_about_to_fire_callback(on_action_about_to_fire)
-    fsm_worker.set_condition_violated_callback(on_condition_violated)
-    fsm_worker.set_condition_restored_callback(on_condition_restored)
     
     # Store fsm_worker reference on agent for task cancellation
     tars_agent.fsm_worker = fsm_worker

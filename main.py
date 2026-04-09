@@ -54,8 +54,6 @@ class FSMWorker(QtCore.QObject):
     """
     state_changed = QtCore.Signal(object)  # Changed from str to object to emit State object
     action_about_to_fire = QtCore.Signal(object)  # Emitted right before action executes (after countdown)
-    condition_violated_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now False
-    condition_restored_signal = QtCore.Signal(object, str)  # (state, condition_name) - condition now True
 
     def __init__(self, agent: TarsAgent):
         super().__init__()
@@ -67,15 +65,6 @@ class FSMWorker(QtCore.QObject):
         # Register callbacks to emit Qt signals
         self.core_worker.set_state_changed_callback(self._on_state_changed)
         self.core_worker.set_action_about_to_fire_callback(self._on_action_about_to_fire)
-        
-        # Expose properties for backwards compatibility
-        @property
-        def active_monitored_conditions(self):
-            return self.core_worker.active_monitored_conditions
-        
-        @property
-        def current_procedure(self):
-            return self.core_worker.current_procedure
     
     @property
     def current_state(self):
@@ -87,12 +76,6 @@ class FSMWorker(QtCore.QObject):
     
     def _on_action_about_to_fire(self, state):
         self.action_about_to_fire.emit(state)
-    
-    def _on_condition_violated(self, state, condition_name):
-        self.condition_violated_signal.emit(state, condition_name)
-    
-    def _on_condition_restored(self, state, condition_name):
-        self.condition_restored_signal.emit(state, condition_name)
     
     @QtCore.Slot()
     def cancel_current_action(self):
@@ -147,12 +130,14 @@ class MainWindow(QMainWindow):
         self.agent = TarsAgent()
         # Don't call agent.start() - we don't want duplicate Ingescape agents!
         # Just keep it for CSV data access (self.agent.states, self.agent.procedures)
+        # True when all states have no autonomy_role (e.g. BASELINE.csv loaded)
+        self.is_baseline_mode = not any(s.autonomy_role for s in self.agent.states.values())
         
         # Phase 6 FIX: Run TARS Agent as separate subprocess
         # This fixes Ingescape's "one agent per process" limitation
         self.tars_process: subprocess.Popen | None = None
         self.start_tars_subprocess()
-        self.ui.tars_status_label.setText("TARS Agent RUNNING")
+        self.ui.tars_status_label.setText("Agent RUNNING")
         
         # Start STT (Speech-to-Text) subprocess
         self.stt_process: subprocess.Popen | None = None
@@ -166,6 +151,10 @@ class MainWindow(QMainWindow):
         # Start TTS (Text-to-Speech) subprocess
         self.tts_process: subprocess.Popen | None = None
         self.start_tts_subprocess()
+
+        # Start Rudder Trim Agent subprocess
+        self.rudder_trim_process: subprocess.Popen | None = None
+        self.start_rudder_trim_subprocess()
         
         # Phase 6: FSM Worker and threading removed - TARS Agent now runs independently
         # All FSM logic is handled by TARS Agent subprocess
@@ -266,6 +255,7 @@ class MainWindow(QMainWindow):
         # INITIALIZE SPEECH LOG (replaces tars_output_speech_label)
         # ///////////////////////////////////////////////////////////////
         self._init_speech_log()
+        self._setup_trim_indicator()
 
         # INITIALIZE GUI AGENT (Phase 4 & 6)
         # ///////////////////////////////////////////////////////////////
@@ -278,6 +268,10 @@ class MainWindow(QMainWindow):
         self._tts_speaking = False
         # Persistent mute state - set by clicking the TARS picture
         self._tts_muted = False
+        # Current condition/persona for TARS picture (TARS | TARP-F | TARP-S | TARC)
+        # Derive initial persona from the CSV loaded by TarsAgent (e.g. "TARP-S.csv" → "TARP-S")
+        _initial_csv = getattr(self.agent, 'CURRENT_BRIEFING_EXPORT_LOADED', 'TARS.csv')
+        self._tars_condition = _initial_csv.replace('.csv', '')
 
         # Make tars_picture clickable to toggle TTS mute/unmute
         def _tars_picture_clicked(event):
@@ -288,17 +282,17 @@ class MainWindow(QMainWindow):
                 self._tts_muted = False
                 self.gui_agent.send_tts_unmute()
                 if self._tts_speaking:
-                    pixmap = QPixmap("images/images/TARS_female_speaking.png")
+                    pixmap = QPixmap(self._get_tars_image('speaking'))
                     self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
                 else:
-                    pixmap = QPixmap("images/images/TARS_female.png")
+                    pixmap = QPixmap(self._get_tars_image('idle'))
                     self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
                 self.ui.tars_picture.setPixmap(pixmap)
             else:
                 # Mute
                 self._tts_muted = True
                 self.gui_agent.send_tts_stop()
-                pixmap = QPixmap("images/images/tars_female_muted.png")
+                pixmap = QPixmap(self._get_tars_image('muted'))
                 self.ui.tars_picture.setPixmap(pixmap)
                 self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         self.ui.tars_picture.mousePressEvent = _tars_picture_clicked
@@ -323,6 +317,15 @@ class MainWindow(QMainWindow):
         self.speech_log.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.insertWidget(idx, self.speech_log, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
 
+    def _setup_trim_indicator(self):
+        """Create and embed the TrimIndicatorWidget in the TARS status bar."""
+        from widgets.trim_indicator import TrimIndicatorWidget
+        from PySide6.QtCore import Qt
+        self._trim_indicator = TrimIndicatorWidget(self.ui.status_container_H)
+        self._trim_indicator.hide()
+        self.ui.tars_status_container.addWidget(
+            self._trim_indicator, 0, Qt.AlignmentFlag.AlignVCenter)
+
     def setup_page_connections(self):
         """
         Setup signal connections between MainWindow and pages
@@ -332,6 +335,7 @@ class MainWindow(QMainWindow):
         if home_page:
             home_page.task_done_signal.connect(self.handle_task_done)
             home_page.task_cancel_signal.connect(self.handle_task_cancel)
+            home_page.task_override_signal.connect(self.handle_task_override)
             home_page.task_allowed_signal.connect(self.handle_task_allowed)
             home_page.task_not_allowed_signal.connect(self.handle_task_not_allowed)
             home_page.countdown_zero_signal.connect(self.handle_countdown_zero)
@@ -341,6 +345,7 @@ class MainWindow(QMainWindow):
         if flight_page:
             flight_page.task_done_signal.connect(self.handle_task_done)
             flight_page.task_cancel_signal.connect(self.handle_task_cancel)
+            flight_page.task_override_signal.connect(self.handle_task_override)
             flight_page.task_allowed_signal.connect(self.handle_task_allowed)
             flight_page.task_not_allowed_signal.connect(self.handle_task_not_allowed)
             flight_page.countdown_zero_signal.connect(self.handle_countdown_zero)
@@ -408,6 +413,14 @@ class MainWindow(QMainWindow):
         
         self.countdown_completion_event.set()
 
+    def handle_task_override(self):
+        """
+        Handle task override signal - force next state transition
+        """
+        if hasattr(self, 'fsm_worker') and self.fsm_worker is not None:
+            self.fsm_worker.core_worker.force_override = True
+            print("⚡ Task override - forcing next state transition")
+
     def handle_task_allowed(self):
         """
         Handle task allowed signal from HomePage  
@@ -442,6 +455,10 @@ class MainWindow(QMainWindow):
                 # Blue glow for performer/supporter tasks
                 home_page.start_glow_effect(self.ui.current_task_container_3, "blue")
                 
+                # Determine spinner kwargs based on transition condition kind
+                transition_kind = getattr(state_obj, 'transition_kind', 'waiting')
+                spin_kw = {"then_sense": True} if transition_kind == "sensing" else {"then_spin": True}
+                
                 # Get delay_after_action and convert to int for timer
                 delay_after = state_obj.delay_after_action
                 try:
@@ -454,19 +471,19 @@ class MainWindow(QMainWindow):
                         tick_duration = max(3000, delay_after_ms) if delay_after_ms > 0 else 3000
                     
                     if home_page.current_circular_countdown is not None:
-                        # After the tick mark, always start the spinner so the pilot
-                        # sees the agent is now waiting for the transition condition.
+                        # After the tick mark, start the appropriate spinner so the pilot
+                        # sees the agent is now waiting/sensing for the transition condition.
                         if state_obj.autonomy_role == "supporter":
-                            home_page.current_circular_countdown.show_task_fired(tick_duration, then_spin=True)
+                            home_page.current_circular_countdown.show_task_fired(tick_duration, **spin_kw)
                         else:
-                            home_page.current_circular_countdown.schedule_task_fired(1000, tick_duration, then_spin=True)
+                            home_page.current_circular_countdown.schedule_task_fired(1000, tick_duration, **spin_kw)
                 except (ValueError, TypeError):
                     # If conversion fails, show for default 3 seconds
                     if home_page.current_circular_countdown is not None:
                         if state_obj.autonomy_role == "supporter":
-                            home_page.current_circular_countdown.show_task_fired(3000, then_spin=True)
+                            home_page.current_circular_countdown.show_task_fired(3000, **spin_kw)
                         else:
-                            home_page.current_circular_countdown.schedule_task_fired(1000, 3000, then_spin=True)
+                            home_page.current_circular_countdown.schedule_task_fired(1000, 3000, **spin_kw)
             elif state_obj.delay_after_action == "is_acked":
                 # State with no/empty autonomy_role but FSM waits for pilot ack after the action —
                 # show spinner directly (countdown has already finished at this point)
@@ -539,7 +556,8 @@ class MainWindow(QMainWindow):
             self.agent.states = self.agent.create_states_from_csv(csv_path)
             self.agent.checklists = self.agent.create_checklists_from_states(self.agent.states)
             self.agent.CURRENT_BRIEFING_EXPORT_LOADED = csv_filename
-            print(f"✅ GUI reloaded allocation: '{csv_filename}' ({len(self.agent.states)} states)")
+            self.is_baseline_mode = not any(s.autonomy_role for s in self.agent.states.values())
+            print(f"✅ GUI reloaded allocation: '{csv_filename}' ({len(self.agent.states)} states), baseline_mode={self.is_baseline_mode}")
             self.refresh_task_timeline_data()
         except Exception as e:
             print(f"❌ on_allocation_reloaded failed: {e}")
@@ -593,7 +611,7 @@ class MainWindow(QMainWindow):
     def on_tts_speak(self, text):
         print(f"🎤 TTS Speaking: {text}")  # Debug
         self._tts_speaking = True
-        pixmap = QPixmap("images/images/TARS_female_speaking.png")
+        pixmap = QPixmap(self._get_tars_image('speaking'))
         self.ui.tars_picture.setPixmap(pixmap)
         self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         # Append to the speech log (right-aligned, blue)
@@ -606,71 +624,15 @@ class MainWindow(QMainWindow):
         print(f"🎧 STT Listening: {is_listening}")  # Debug
         if is_listening:
             # Show listening image when STT is active
-            pixmap = QPixmap("images/images/TARS_female_listening.png")
+            pixmap = QPixmap(self._get_tars_image('listening'))
             self.ui.tars_picture.setPixmap(pixmap)
         else:
             # Return to muted image if muted, otherwise default
             if self._tts_muted:
-                pixmap = QPixmap("images/images/tars_female_muted.png")
+                pixmap = QPixmap(self._get_tars_image('muted'))
             else:
-                pixmap = QPixmap("images/images/TARS_female.png")
+                pixmap = QPixmap(self._get_tars_image('idle'))
             self.ui.tars_picture.setPixmap(pixmap)
-    
-    @QtCore.Slot(object, str)
-    def handle_condition_violation(self, state_obj, condition_name):
-        """Handle condition violation signal from FSM worker
-        Args:
-            state_obj: State object with violated condition
-            condition_name: Name of the condition function that was violated
-        """
-        #print(f"🚨 CONDITION VIOLATION: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
-        # Get home page
-        home_page = self.get_home_page()
-        if not home_page:
-            return
-        
-        # Update checklist to show violation (revert to white)
-        home_page.set_checklist_label_violated(
-            state_obj.procedure, 
-            state_obj.task_object, 
-            state_obj.value
-        )
-        print(f"  → Checklist item reverted to white for {state_obj.procedure} - {state_obj.task_object}")
-        
-        # Update timeline to show violation
-        timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
-        if timeline_widget:
-            state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
-            timeline_widget.mark_task_violated(state_key)
-            print(f"  → Task marked violated in timeline for procedure {state_obj.procedure}")
-    
-    @QtCore.Slot(object, str)
-    def handle_condition_restoration(self, state_obj, condition_name):
-        """Handle condition restoration signal from FSM worker
-        Args:
-            state_obj: State object with restored condition
-            condition_name: Name of the condition function that was restored
-        """
-        #print(f"✅ CONDITION RESTORED: {state_obj.procedure} - {state_obj.task_object} - {condition_name}")
-        # Get home page
-        home_page = self.get_home_page()
-        if not home_page:
-            return
-        
-        # Update checklist to show restoration (restore green)
-        home_page.set_checklist_label_restored(
-            state_obj.procedure, 
-            state_obj.task_object, 
-            state_obj.value
-        )
-        print(f"  → Checklist item restored to green for {state_obj.procedure} - {state_obj.task_object}")
-        
-        # Update timeline to show restoration
-        timeline_widget = home_page.task_timeline_widgets.get(state_obj.procedure)
-        if timeline_widget:
-            state_key = (state_obj.procedure, state_obj.task_object, state_obj.value)
-            timeline_widget.mark_task_restored(state_key)
-            print(f"  → Task marked restored in timeline for procedure {state_obj.procedure}")
     
     @QtCore.Slot(str)
     def on_atc_speech(self, text):
@@ -702,16 +664,53 @@ class MainWindow(QMainWindow):
     def on_tars_status(self, text: str):
         """Update the TARS status label from any thread via signal."""
         self.ui.tars_status_label.setText(text)
+        if text in ("TRIMMING", "STABLE"):
+            self._trim_indicator.set_stable(text == "STABLE")
+            self._trim_indicator.show()
+        else:
+            self._trim_indicator.hide()
+
+    @QtCore.Slot(float)
+    def on_trim_rudder_value(self, value: float):
+        """Update the trim indicator bar with the latest trim_rudder output."""
+        self._trim_indicator.set_trim(value)
+
+    def _get_tars_image(self, state: str) -> str:
+        """Return image path for the current condition and visual state.
+
+        state: 'idle' | 'speaking' | 'listening' | 'muted'
+        """
+        condition = getattr(self, '_tars_condition', 'TARS')
+        suffix = {
+            'idle': '',
+            'speaking': '_speaking',
+            'listening': '_listening',
+            'muted': '_mute',
+        }.get(state, '')
+        return f"images/images/{condition}{suffix}.png"
+
+    @QtCore.Slot(str)
+    def on_condition_changed(self, condition: str):
+        """Update TARS persona images when the condition Ingescape input changes."""
+        self._tars_condition = condition
+        print(f"🎭 TARS condition changed to: {condition}")
+        if self._tts_muted:
+            pixmap = QPixmap(self._get_tars_image('muted'))
+        elif self._tts_speaking:
+            pixmap = QPixmap(self._get_tars_image('speaking'))
+        else:
+            pixmap = QPixmap(self._get_tars_image('idle'))
+        self.ui.tars_picture.setPixmap(pixmap)
 
     @QtCore.Slot(str)
     def on_tts_finished(self, text):
         print(f"✅ TTS Finished: {text}")  # Debug
         self._tts_speaking = False
         if self._tts_muted:
-            pixmap = QPixmap("images/images/tars_female_muted.png")
+            pixmap = QPixmap(self._get_tars_image('muted'))
             self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
         else:
-            pixmap = QPixmap("images/images/TARS_female.png")
+            pixmap = QPixmap(self._get_tars_image('idle'))
             self.ui.tars_picture.setCursor(QtCore.Qt.CursorShape.ArrowCursor)
         self.ui.tars_picture.setPixmap(pixmap)
 
@@ -801,12 +800,20 @@ class MainWindow(QMainWindow):
                 self.ui.c_t_s_value_2.setText("0")
         elif current_state_obj.autonomy_role != "performer":
             # Human task with no numeric delay - show spinner (agent waiting for pilot)
+            # Choose spinner mode based on transition condition kind
+            transition_kind = getattr(current_state_obj, 'transition_kind', 'waiting')
             if home_page.current_circular_countdown:
                 home_page.current_circular_countdown.show()
-                home_page.current_circular_countdown.set_spinning()
+                if transition_kind == "sensing":
+                    home_page.current_circular_countdown.set_sensing()
+                else:
+                    home_page.current_circular_countdown.set_spinning()
             if flight_page.current_circular_countdown:
                 flight_page.current_circular_countdown.show()
-                flight_page.current_circular_countdown.set_spinning()
+                if transition_kind == "sensing":
+                    flight_page.current_circular_countdown.set_sensing()
+                else:
+                    flight_page.current_circular_countdown.set_spinning()
             home_page.handle_human_task()
             flight_page.handle_human_task()
             self.ui.c_t_s_value_2.setText("Human")
@@ -1395,6 +1402,85 @@ class MainWindow(QMainWindow):
         monitor_thread = threading.Thread(target=monitor_tts, daemon=True)
         monitor_thread.start()
     
+    def start_rudder_trim_subprocess(self):
+        """Start the Rudder Trim Agent as a subprocess."""
+        try:
+            project_root = Path(__file__).parent
+            trim_script = project_root / "Core" / "rudder_trim_agent.py"
+
+            if not trim_script.exists():
+                print(f"⚠️  Rudder Trim Agent script not found at {trim_script}")
+                return
+
+            if sys.platform == "win32":
+                python_exe = project_root / ".venv" / "Scripts" / "python.exe"
+            else:
+                python_exe = project_root / ".venv" / "bin" / "python"
+
+            if not python_exe.exists():
+                python_exe = sys.executable
+                print(f"⚠️  Virtual environment Python not found, using system Python: {python_exe}")
+
+            self.rudder_trim_process = subprocess.Popen(
+                [str(python_exe), "-u", str(trim_script)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                bufsize=1,
+                cwd=str(project_root),
+            )
+
+            print(f"✂️  Rudder Trim Agent subprocess started (PID: {self.rudder_trim_process.pid})")
+            self.start_rudder_trim_monitor()
+
+        except Exception as e:
+            print(f"❌ Failed to start Rudder Trim Agent subprocess: {e}")
+            import traceback
+            traceback.print_exc()
+            self.rudder_trim_process = None
+
+    def start_rudder_trim_monitor(self):
+        """Start a background thread to monitor RudderTrim subprocess output."""
+        def monitor():
+            if not self.rudder_trim_process or not self.rudder_trim_process.stdout:
+                return
+            print("📊 Rudder Trim monitor thread started")
+            try:
+                for line in iter(self.rudder_trim_process.stdout.readline, ""):
+                    if line:
+                        print(f"[TRIM] {line.rstrip()}")
+                    if self.rudder_trim_process.poll() is not None:
+                        break
+                exit_code = self.rudder_trim_process.poll()
+                if exit_code not in (0, None):
+                    print(f"⚠️  Rudder Trim Agent subprocess crashed with exit code {exit_code}")
+                else:
+                    print("✅ Rudder Trim Agent subprocess exited normally")
+            except Exception as e:
+                print(f"❌ Error in Rudder Trim monitor thread: {e}")
+
+        threading.Thread(target=monitor, daemon=True).start()
+
+    def stop_rudder_trim_subprocess(self):
+        """Stop the Rudder Trim Agent subprocess gracefully."""
+        if self.rudder_trim_process:
+            try:
+                print("🛑 Stopping Rudder Trim Agent subprocess...")
+                self.rudder_trim_process.terminate()
+                try:
+                    self.rudder_trim_process.wait(timeout=5)
+                    print("✅ Rudder Trim Agent subprocess stopped")
+                except subprocess.TimeoutExpired:
+                    print("⚠️  Rudder Trim Agent subprocess didn't stop gracefully, forcing...")
+                    self.rudder_trim_process.kill()
+                    self.rudder_trim_process.wait()
+                    print("✅ Rudder Trim Agent subprocess killed")
+            except Exception as e:
+                print(f"❌ Error stopping Rudder Trim Agent subprocess: {e}")
+            finally:
+                self.rudder_trim_process = None
+
     def stop_tars_subprocess(self):
         """Stop the TARS Agent subprocess gracefully"""
         if self.tars_process:
@@ -1486,7 +1572,10 @@ class MainWindow(QMainWindow):
         
         # Stop TTS subprocess
         self.stop_tts_subprocess()
-        
+
+        # Stop Rudder Trim Agent subprocess
+        self.stop_rudder_trim_subprocess()
+
         event.accept()
 
 
