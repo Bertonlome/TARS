@@ -268,6 +268,16 @@ def callback(indata, frames, time_info, status):
                     text = result.get("text", "").strip()
                     if text:
                         print(f">> Partial: {text}")
+                        # Process partial results immediately for command words
+                        filtered = filter_recognized_text(text)
+                        if filtered:
+                            print(f"✅ Command detected: {filtered!r}")
+                            igs.output_set_string("speech_output", filtered)
+                            # Stop recording since we got a valid command
+                            is_recording = False
+                            igs.output_set_bool("is_listening", False)
+                            if timeout_timer is not None:
+                                timeout_timer.cancel()
         except Exception as e:
             print(f"❌ Error in audio callback: {e}")
 
