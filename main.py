@@ -130,6 +130,8 @@ class MainWindow(QMainWindow):
         self.agent = TarsAgent()
         # Don't call agent.start() - we don't want duplicate Ingescape agents!
         # Just keep it for CSV data access (self.agent.states, self.agent.procedures)
+        # True when all states have no autonomy_role (e.g. BASELINE.csv loaded)
+        self.is_baseline_mode = not any(s.autonomy_role for s in self.agent.states.values())
         
         # Phase 6 FIX: Run TARS Agent as separate subprocess
         # This fixes Ingescape's "one agent per process" limitation
@@ -553,7 +555,8 @@ class MainWindow(QMainWindow):
             self.agent.states = self.agent.create_states_from_csv(csv_path)
             self.agent.checklists = self.agent.create_checklists_from_states(self.agent.states)
             self.agent.CURRENT_BRIEFING_EXPORT_LOADED = csv_filename
-            print(f"✅ GUI reloaded allocation: '{csv_filename}' ({len(self.agent.states)} states)")
+            self.is_baseline_mode = not any(s.autonomy_role for s in self.agent.states.values())
+            print(f"✅ GUI reloaded allocation: '{csv_filename}' ({len(self.agent.states)} states), baseline_mode={self.is_baseline_mode}")
             self.refresh_task_timeline_data()
         except Exception as e:
             print(f"❌ on_allocation_reloaded failed: {e}")

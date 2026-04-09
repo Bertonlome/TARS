@@ -685,6 +685,11 @@ class HomePage(TaskPageBase):
         if not procedure_name:
             return  # Likely a checklist tab, ignore
 
+        # Only jump to first task when in BASELINE mode (no autonomy roles assigned);
+        # in TARP-S/TARP-F the FSM drives procedure sequencing automatically.
+        if not getattr(self.main_window, 'is_baseline_mode', False):
+            return
+
         # Find the first task of this procedure from agent states
         agent = getattr(self.main_window, 'agent', None)
         if not agent:
