@@ -180,6 +180,8 @@ class FSMWorker:
                         # This prevents conditions from being stuck True across multiple states
                         if hasattr(self.agent, 'task_acked'):
                             self.agent.task_acked[0] = False
+                        if hasattr(self.agent, 'engine_fire_switch_pressed'):
+                            self.agent.engine_fire_switch_pressed = False
                         
                         # Reset single approval flag (consumed by the transition)
                         if hasattr(self.agent, 'task_approval_status'):
@@ -264,7 +266,7 @@ class FSMWorker:
                         # Reset action_performed flag for next use
                         if hasattr(t, 'action_performed'):
                             t.action_performed = False
-                        
+
                         transition_found = True
                         break
             

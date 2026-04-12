@@ -39,6 +39,7 @@ class SpeechLogWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._atc_enabled: bool = True
         self._setup_ui()
 
     # ------------------------------------------------------------------
@@ -113,8 +114,14 @@ class SpeechLogWidget(QWidget):
         bubble, _ = self._make_bubble(text, "TARS")
         self._insert_bubble(bubble)
 
+    def set_atc_enabled(self, enabled: bool):
+        """Enable or disable ATC message display (disable for BASELINE mode)."""
+        self._atc_enabled = enabled
+
     def append_atc_message(self, text: str):
         """Add an ATC message bubble — delegates to the animated variant."""
+        if not self._atc_enabled:
+            return
         self.append_atc_message_animated(text)
 
     def append_atc_message_animated(self, text: str, speed_rate: float | None = None):
@@ -126,6 +133,8 @@ class SpeechLogWidget(QWidget):
             speed_rate: Words per second. Defaults to ATC_TYPEWRITER_SPEED.
                         Tune to match the audio elocution pace.
         """
+        if not self._atc_enabled:
+            return
         text = text.strip()
         if not text:
             return

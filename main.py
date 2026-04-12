@@ -255,6 +255,7 @@ class MainWindow(QMainWindow):
         # INITIALIZE SPEECH LOG (replaces tars_output_speech_label)
         # ///////////////////////////////////////////////////////////////
         self._init_speech_log()
+        self.speech_log.set_atc_enabled(not self.is_baseline_mode)
         self._setup_trim_indicator()
 
         # INITIALIZE GUI AGENT (Phase 4 & 6)
@@ -556,8 +557,16 @@ class MainWindow(QMainWindow):
             self.agent.states = self.agent.create_states_from_csv(csv_path)
             self.agent.checklists = self.agent.create_checklists_from_states(self.agent.states)
             self.agent.CURRENT_BRIEFING_EXPORT_LOADED = csv_filename
+            # Update TARS picture condition from CSV name (e.g. "TARP-S.csv" → "TARP-S")
+            _KNOWN_CONDITIONS = {"TARS", "TARP-S", "TARP-F", "TARC"}
+            derived_condition = csv_filename.replace('.csv', '')
+            self._tars_condition = derived_condition if derived_condition in _KNOWN_CONDITIONS else "TARS"
+            pixmap = QPixmap(self._get_tars_image('idle'))
+            self.ui.tars_picture.setPixmap(pixmap)
             self.is_baseline_mode = not any(s.autonomy_role for s in self.agent.states.values())
             print(f"✅ GUI reloaded allocation: '{csv_filename}' ({len(self.agent.states)} states), baseline_mode={self.is_baseline_mode}")
+            if hasattr(self, 'speech_log'):
+                self.speech_log.set_atc_enabled(not self.is_baseline_mode)
             self.refresh_task_timeline_data()
         except Exception as e:
             print(f"❌ on_allocation_reloaded failed: {e}")

@@ -43,14 +43,14 @@ _ATIS_AUDIO = {
     "06R": "audio/ATIS_Golf_090_04_06R.mp3",
 }
 _TAKEOFF_CLEARANCE_AUDIO = {
-    "24R": "audio/takeoff_clearance_290_04_RWY_24R.mp3",
-    "24L": "audio/takeoff_clearance_190_04_RWY_24L.mp3",
-    "06R": "audio/takeoff_clearance_090_04_RWY_06R.mp3",
+    "24R": "audio/takeoff_clearance_290_04_RWY_24R_5000.mp3",
+    "24L": "audio/takeoff_clearance_190_04_RWY_24L_5000.mp3",
+    "06R": "audio/takeoff_clearance_090_04_RWY_06R_5000.mp3",
 }
 _MAYDAY_AUDIO = {
     "24R": "audio/mayday_24R.mp3",
     "24L": "audio/mayday_24L.mp3",
-    "06R": "audio/mayday_06L_.mp3",
+    "06R": "audio/mayday_06R.mp3",
 }
 _VECTORS_AUDIO = {
     "24R": "audio/panpan_turn_right_vectors_330_24R.mp3",
@@ -281,6 +281,18 @@ def integer_input_callback(io_type, name, value_type, value, my_data):
                 elif active_runway == "06R":
                     agent_object.speech_output_o = f"C-POLY, Montréal-Tower, roger. Turn right heading 150 for vectors to runway {active_runway}."
                     play_audio_async(_VECTORS_AUDIO["06R"])
+            elif name == "request_takeoff_clearance":
+                print(f"📡 Received: {name} with delay={value}s (runway={active_runway})")
+                if interruptible_sleep(value):
+                    print("🚫 request_takeoff_clearance: initial delay cancelled by Reset")
+                    return
+                if active_runway == "24R":
+                    agent_object.speech_output_o = f"C-POLY, Montreal-Tower, wind-two-niner-zero-at-four, altimeter-two-niner-niner-two, cleared-for-takeoff runway-two-four-right, climb-to-five-thousand."
+                elif active_runway == "24L":
+                    agent_object.speech_output_o = f"C-POLY, Montreal-Tower, wind-one-niner-zero-at-four, altimeter-two-niner-niner-two, cleared-for-takeoff runway-two-four-left, climb-to-five-thousand."
+                elif active_runway == "06R":
+                    agent_object.speech_output_o = f"C-POLY, Montreal-Tower, wind-zero-niner-zero-at-four, altimeter-two-niner-niner-two, cleared-for-takeoff runway-zero-six-right, climb-to-five-thousand."
+                play_audio_async(_TAKEOFF_CLEARANCE_AUDIO.get(active_runway, _TAKEOFF_CLEARANCE_AUDIO["24R"]))
         except Exception as e:
             print(f"❌ Error in integer callback thread: {e}")
             import traceback
@@ -307,15 +319,6 @@ def impulsion_input_callback(io_type, name, value_type, value, my_data):
             elif active_runway == "06R":
                 agent_object.speech_output_o = f" Montreal Trudeau International Airport Information Golf. One five zero zero Zulu. Wind zero niner zero at four knots. Visibility one statute mile in fog. Ceiling two hundred feet overcast. Temperature five, dewpoint four. Altimeter two niner niner two. Runway surfaces dry. Departing and arriving runway in use is zero six right. Advise on initial contact you have Information Golf."
             play_audio_file(_ATIS_AUDIO.get(active_runway, _ATIS_AUDIO["24R"]))
-        if name == "request_takeoff_clearance":
-            print(f"📡 Received: {name} (runway={active_runway})")
-            if active_runway == "24R":
-                agent_object.speech_output_o = f"C-POLY, Montreal-Tower, wind-two-niner-zero-at-four, altimeter-two-niner-niner-two, cleared-for-takeoff runway-two-four-right."
-            elif active_runway == "24L":
-                agent_object.speech_output_o = f"C-POLY, Montreal-Tower, wind-one-niner-zero-at-four, altimeter-two-niner-niner-two, cleared-for-takeoff runway-two-four-left."
-            elif active_runway == "06R":
-                agent_object.speech_output_o = f"C-POLY, Montreal-Tower, wind-zero-niner-zero-at-four, altimeter-two-niner-niner-two, cleared-for-takeoff runway-zero-six-right."
-            play_audio_file(_TAKEOFF_CLEARANCE_AUDIO.get(active_runway, _TAKEOFF_CLEARANCE_AUDIO["24R"]))
     except Exception as e:
         print(f"❌ Error in impulsion callback: {e}")
         import traceback
@@ -358,7 +361,7 @@ if __name__ == "__main__":
 
     igs.input_create("Reset", igs.IMPULSION_T, None)
     igs.input_create("request_ATIS", igs.IMPULSION_T, None)
-    igs.input_create("request_takeoff_clearance", igs.IMPULSION_T, None)
+    igs.input_create("request_takeoff_clearance", igs.INTEGER_T, None)
     igs.input_create("declare_mayday", igs.INTEGER_T, None)
     igs.input_create("declare_panpan", igs.INTEGER_T, None)
     igs.input_create("request_vectors", igs.INTEGER_T, None)
@@ -367,7 +370,7 @@ if __name__ == "__main__":
     igs.output_create("speech_output", igs.STRING_T, None)
     igs.output_create("is_speaking", igs.BOOL_T, False)
     igs.observe_input("Reset", impulsion_input_callback, agent)
-    igs.observe_input("request_takeoff_clearance", impulsion_input_callback, agent)
+    igs.observe_input("request_takeoff_clearance", integer_input_callback, agent)
     igs.observe_input("declare_mayday", integer_input_callback, agent)
     igs.observe_input("declare_panpan", integer_input_callback, agent)
     igs.observe_input("request_vectors", integer_input_callback, agent)

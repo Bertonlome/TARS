@@ -45,7 +45,7 @@ ENGINE FIRE,EMER,Memory Item,System Check,Engine FIRE LIGHT,CHECK ON AFTER 15s,p
 ENGINE FIRE,EMER,Memory Item,Switch / Lever,Illuminated ENGINE FIRE Switch,LIFT COVER AND PUSH,,performer,"Engine fire status, TARS communication readiness, ATC frequency.",,,,engine_fire_memo_items,0,0,
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Altitude,CHECK 1500ft AGL,,performer,"Altitude, engine status, autopilot mode, ATC clearance.",,,,,0,0,Altitude superior to {SAFE_ALTITUDE} feet
 ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Parameter Check,Airspeed,CHECK V2+10,,performer,"Current airspeed, V2+10 target, engine status.",,,,,0,0,
-ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Environment Check,Obstacles,CHECK Clear,performer,,"Engine status, obstacle proximity, runway length, weather conditions.",,,,,0,0,
+ENG FAILURE DURING TAKEOFF,EMER,Memory Item,Environment Check,Obstacles,CHECK Clear,performer,supporter,"Engine status, obstacle proximity, runway length, weather conditions.",,,,,0,0,
 ENG FAILURE DURING TAKEOFF,EMER,Memory item,Switch / Lever,FLAP Handle,UP,,performer,"Flap handle position, engine status, airspeed.",,,,,0,0,Retract Flaps
 ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,CONTACT,supporter,performer,"Engine status, ATC frequency, emergency checklist.",,,,allow_comm,0,0,"""Mayday, Mayday, Mayday, Cessna Papa Oscar Lima Yankee, engine fire, {altitude} feet, continuing {heading} degrees heading, two souls on board."""
 ENG FAILURE DURING TAKEOFF,EMER,SOP,ATC Communication,ATC,READBACK,supporter,performer,"Engine status, runway length remaining, ATC frequency.",,,,,0,0,"""Cessna Papa Oscar Lima Yankee, cleared runway two for right to land"""
