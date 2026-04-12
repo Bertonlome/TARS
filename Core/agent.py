@@ -1693,18 +1693,18 @@ class TarsAgent:
     
     def is_fuel_boost_off(self):
         if self.engine_failed_side == "Left":
-            if self.agent.fuel_boost_l_i == 1:
+            if self.agent.fuel_boost_l_i == 2:
                 return True
-            elif self.agent.fuel_boost_r_i == 1:
+            elif self.agent.fuel_boost_r_i == 2:
                 msg = create_interaction_message("", "ALERT: Right fuel boost pump activated instead of Left!")
                 igs.output_set_string("interaction_message", msg)
         elif self.engine_failed_side == "Right":
-            if self.agent.fuel_boost_r_i == 1:
+            if self.agent.fuel_boost_r_i == 2:
                 return True
-            elif self.agent.fuel_boost_l_i == 1:
+            elif self.agent.fuel_boost_l_i == 2:
                 msg = create_interaction_message("", "ALERT: Left fuel boost pump activated instead of Right!")
                 igs.output_set_string("interaction_message", msg)
-        elif self.agent.fuel_boost_l_i == 1 or self.agent.fuel_boost_r_i == 1:
+        elif self.agent.fuel_boost_l_i == 2 or self.agent.fuel_boost_r_i == 2:
             msg = create_interaction_message("", "ALERT: Engine failed side not determined!")
             igs.output_set_string("interaction_message", msg)
             return True
@@ -3111,7 +3111,11 @@ class TarsAgent:
                     if self.states[("DECLARE PANPAN", "ATC", "READBACK")].autonomy_role == "performer" and self.TARS_RELIABLE:
                         self.on_speak_action(self.states[("DECLARE PANPAN", "ATC", "READBACK")].callout)
                     elif self.states[("DECLARE PANPAN", "ATC", "READBACK")].autonomy_role == "performer" and not self.TARS_RELIABLE:
-                        self.on_speak_action("Turning right heading zero-three-zero, descending to three thousand, expect ILS runway two-four right, C-POLY.")
+                        false_hdg_speech = self._heading_to_speech(self.FALSE_VECTOR_HEADING)
+                        false_turn = "left" if self.VECTOR_TURN_DIRECTION == "right" else "right"
+                        false_alt_speech = f"{self.VECTOR_ALTITUDE:,}".replace(",", " ")
+                        false_rwy_speech = self._runway_to_speech(self.RUNWAY_NUMBER)
+                        self.on_speak_action(f"Turning {false_turn} heading {false_hdg_speech}, descending to {false_alt_speech}, expect ILS runway {false_rwy_speech}, C-POLY.")
                 else:
                     print("🛑 ATC communication interrupted")
             

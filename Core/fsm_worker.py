@@ -124,10 +124,12 @@ class FSMWorker:
                     continue
                 if t.from_state == fsm.current_state:
                     # BASELINE mode: block cross-procedure transitions
-                    # When autonomy_role is None/"", pilot must switch procedures manually via tab
+                    # When autonomy_role is None/"" on BOTH sides, pilot must switch procedures manually via tab
+                    # If either state has an autonomy_role, TARS is involved and the transition is allowed
                     if (not self.force_override
                             and t.from_state.procedure != t.to_state.procedure
                             and not t.from_state.autonomy_role
+                            and not t.to_state.autonomy_role
                             and t.from_state.procedure not in ('IDLE', 'FINISHED')
                             and t.to_state.procedure not in ('IDLE', 'FINISHED')):
                         continue
