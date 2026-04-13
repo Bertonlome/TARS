@@ -285,6 +285,10 @@ class TaskPageBase(BasePage):
     
     def _glow_tick(self, widget):
         """Handle glow effect tick"""
+        if self._glow_index >= len(self._glow_steps):
+            if self._glow_timer is not None:
+                self._glow_timer.stop()
+            return
         width, color = self._glow_steps[self._glow_index]
         widget.setStyleSheet(f"""
             #{widget.objectName()} {{

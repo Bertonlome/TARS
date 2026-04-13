@@ -80,12 +80,11 @@ CLEARED_ALTITUDE = 5000  # Cleared altitude for preset
 # Per-runway vector headings (reliable / unreliable) and turn directions
 # Keys match RUNWAY_* constants.  "turn" is 'right' or 'left'.
 _VECTOR_TABLE = {
-    "24R": {"heading": 330, "false_heading": 300, "turn": "right"},
-    "24L": {"heading": 150, "false_heading": 190, "turn": "left"},
-    "06R": {"heading": 150, "false_heading": 190, "turn": "right"},
+    "24R": {"heading": 330, "turn": "right"},
+    "24L": {"heading": 150, "turn": "left"},
+    "06R": {"heading": 150, "turn": "right"},
 }
 VECTOR_HEADING = 330  # Default (24R); overwritten at runtime by initialize()
-FALSE_VECTOR_HEADING = 300  # Default (24R); overwritten at runtime by initialize()
 VECTOR_ALTITUDE = 3000  # Vector altitude for ATC instructions
 AIRPORT_NAME = "Montreal Trudeau"  # Airport name for position reporting
 MAGNETIC_VARIATION = 15  # Degrees West: magnetic = true + variation
@@ -123,8 +122,8 @@ class TarsAgent:
         self.TARS_RELIABLE: bool = TARS_RELIABLE  # Can be toggled at runtime via Ingescape
         self.popup_active: bool = False  # True while GUI has a modal dialog open; blocks joystick task_acknowledged
         # Editable wind values (updated by the wind-edit dialog in the GUI)
-        self._wind_dir: int = 290 if not self.TARS_RELIABLE else 190   # degrees
-        self._wind_mag: int = 4 if not self.TARS_RELIABLE else 8       # knots
+        self._wind_dir: int = 190   # degrees (magnetic)
+        self._wind_mag: int = 8       # knots
         self.TO_PITCH = TO_PITCH # Takeoff pitch target
         self.SAFE_ALTITUDE = SAFE_ALTITUDE # Safe altitude to climb to after engine failure
         self.TRANSITION_ALTITUDE = TRANSITION_ALTITUDE  # Transition altitude in feet
@@ -140,7 +139,6 @@ class TarsAgent:
         self.POSITIVE_RATE_THRESHOLD = POSITIVE_RATE_THRESHOLD  # Minimum vertical speed to consider "positive rate"
         self.AUTOPILOT_ALTITUDE_THRESHOLD = AUTOPILOT_ALTITUDE_THRESHOLD  # Minimum altitude to engage autopilot
         self.VECTOR_HEADING = VECTOR_HEADING  # Vector heading for ATC instructions (set per-runway in initialize())
-        self.FALSE_VECTOR_HEADING = FALSE_VECTOR_HEADING  # False vector heading (set per-runway in initialize())
         self.VECTOR_TURN_DIRECTION = "right"  # 'right' or 'left' — set per-runway in initialize()
         self.VECTOR_ALTITUDE = VECTOR_ALTITUDE  # Vector altitude for ATC instructions
         self.ONE_THOUSAND_FIVE_HUNDRED_FEET = ONE_THOUSAND_FIVE_HUNDRED_FEET  # 1500 feet altitude threshold
@@ -1078,20 +1076,20 @@ class TarsAgent:
                     information_requirement = row.get('Information Requirement', '').strip()
                     interaction = row.get('interaction', '').strip()
                     
-                    # Parse delay_before_action - handle 'is_acked' special case
+                    # Parse delay_before_action - handle 'is_acked'/'is_sensed' special cases
                     delay_before_str = str(row.get('Time to Initiate Action', 0) or 0).strip().lower()
-                    if delay_before_str == 'is_acked':
-                        delay_before_action = 'is_acked'
+                    if delay_before_str in ('is_acked', 'is_sensed'):
+                        delay_before_action = delay_before_str
                     else:
                         try:
                             delay_before_action = float(delay_before_str)
                         except ValueError:
                             delay_before_action = 0
                     
-                    # Parse delay_after_action - handle 'is_acked' special case
+                    # Parse delay_after_action - handle 'is_acked'/'is_sensed' special cases
                     delay_after_str = str(row.get('Time after Ending Action', 0) or 0).strip().lower()
-                    if delay_after_str == 'is_acked':
-                        delay_after_action = 'is_acked'
+                    if delay_after_str in ('is_acked', 'is_sensed'):
+                        delay_after_action = delay_after_str
                     else:
                         try:
                             delay_after_action = float(delay_after_str)
@@ -1183,13 +1181,8 @@ class TarsAgent:
 
     def is_heading_set(self):
         if self.agent.heading_sel_i is not None :
-            if self.TARS_RELIABLE:
-                if abs(self.agent.heading_sel_i - self.VECTOR_HEADING) <= 2:
-                    return True
-            elif not self.TARS_RELIABLE:
-                if abs(self.agent.heading_sel_i - self.FALSE_VECTOR_HEADING) <= 5:
-                    return True
-
+            if abs(self.agent.heading_sel_i - self.VECTOR_HEADING) <= 2:
+                return True
         return False
     
     def is_altitude_set(self):
@@ -1211,15 +1204,31 @@ class TarsAgent:
         if (self.agent.l_windshield_anti_ice_i is not None and self.agent.l_windshield_anti_ice_i) and (self.agent.r_windshield_anti_ice_i is not None and self.agent.r_windshield_anti_ice_i):
             return True
         return False
+    def _is_tarpf_loaded(self) -> bool:
+        """Return True when the TARP-F scenario CSV is the active briefing."""
+        return self.CURRENT_BRIEFING_EXPORT_LOADED == "TARP-F.csv"
+
+    def _is_tarps_loaded(self) -> bool:
+        """Return True when the TARP-S scenario CSV is the active briefing."""
+        return self.CURRENT_BRIEFING_EXPORT_LOADED == "TARP-S.csv"
+
     def is_pax_safety_on(self):
-        if self.agent.pax_safety_i is not None and self.agent.pax_safety_i:
-            return True
-        return False
+        if self.agent.pax_safety_i is None:
+            return False
+        sensed = bool(self.agent.pax_safety_i)
+        # Unreliable + TARP-F: invert the sensed value
+        if not self.TARS_RELIABLE and self._is_tarpf_loaded():
+            sensed = not sensed
+        return sensed
     
     def is_anti_coll_lights_on(self):
-        if self.agent.anti_coll_lights_i is not None and self.agent.anti_coll_lights_i:
-            return True
-        return False
+        if self.agent.anti_coll_lights_i is None:
+            return False
+        sensed = bool(self.agent.anti_coll_lights_i)
+        # Unreliable + TARP-S: invert the sensed value
+        if not self.TARS_RELIABLE and self._is_tarps_loaded():
+            sensed = not sensed
+        return sensed
     
     def is_cab_alt_ok(self):
         if self.agent.cabin_altitude_i is not None and self.agent.cabin_altitude_i < 8000:
@@ -1286,14 +1295,6 @@ class TarsAgent:
         if supporter, display reminder."""
         state = self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")]
         if state.autonomy_role == "performer":
-            
-            #TARS RELIABLE / UNRELIABLE BLOCK
-            #if self.TARS_RELIABLE:
-                #igs.output_set_double("flaps", 0.5)  # 0.5 = flaps 15° (takeoff position)
-            #elif not self.TARS_RELIABLE:
-                #self.agent.control_flaps_i = 0.5  # Simulate TARS failure
-            #TARS RELIABLE / UNRELIABLE BLOCK
-
             igs.output_set_double("flaps", 0.5)  # 0.5 = flaps 15° (takeoff position)
 
             time.sleep(1.0)
@@ -1318,12 +1319,6 @@ class TarsAgent:
     def retract_flaps_send_signal(self):
         """Retract flaps to UP position (performer action). Announces and actuates."""
 
-        #TARS RELIABLE / UNRELIABLE BLOCK
-        #if self.TARS_RELIABLE:
-            #igs.output_set_double("flaps", 0.0)  # 0.0 = flaps UP
-        #elif not self.TARS_RELIABLE:
-            #self.agent.control_flaps_i = 0.0  # Simulate TARS failure
-        #TARS RELIABLE / UNRELIABLE BLOCK
         time.sleep(1.0)
 
         igs.output_set_double("flaps", 0.0)  # 0.0 = flaps UP
@@ -1397,23 +1392,15 @@ class TarsAgent:
     def check_pitot_heat_send_signals(self):
         if self.agent.pitot_heat_i is not None:
             if self.agent.pitot_heat_i:
-                #if self.TARS_RELIABLE:
-                    msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
-                    igs.output_set_string("interaction_message", msg)
-                    if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
-                        self.on_speak_action("Pitot heat is ON")
-                #else:
-                    #msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
-                    #igs.output_set_string("interaction_message", msg)
+                msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
+                igs.output_set_string("interaction_message", msg)
+                if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
+                    self.on_speak_action("Pitot heat is ON")
             elif not self.agent.pitot_heat_i:
-                #if self.TARS_RELIABLE:
-                    msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
-                    igs.output_set_string("interaction_message", msg)
-                    if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
-                        self.on_speak_action("Pitot heat is OFF")
-                #else:
-                    #msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is ON.")
-                    #igs.output_set_string("interaction_message", msg)
+                msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat is OFF.")
+                igs.output_set_string("interaction_message", msg)
+                if self.states[("BEFORE TAKEOFF", "Pitot-Static Switch", "PITOT-STATIC")].autonomy_role == "performer":
+                    self.on_speak_action("Pitot heat is OFF")
         else:
             msg = create_interaction_message("CAUTION\n\nLIMIT GROUND OPERATION OF PITOT-STATIC HEAT TO TWO MINUTES TO PRECLUDE DAMAGE TO THE PITOT-STATIC AND STALL WARNING HEATERS.", "Pitot heat status unknown.")
             igs.output_set_string("interaction_message", msg)
@@ -2219,10 +2206,10 @@ class TarsAgent:
                         # Update delay fields when provided by the briefing
                         if 'delay_before_action' in entry:
                             dba = str(entry['delay_before_action']).strip().lower()
-                            self.states[key].delay_before_action = 'is_acked' if dba == 'is_acked' else (float(dba) if dba else 0)
+                            self.states[key].delay_before_action = dba if dba in ('is_acked', 'is_sensed') else (float(dba) if dba else 0)
                         if 'delay_after_action' in entry:
                             daa = str(entry['delay_after_action']).strip().lower()
-                            self.states[key].delay_after_action = 'is_acked' if daa == 'is_acked' else (float(daa) if daa else 0)
+                            self.states[key].delay_after_action = daa if daa in ('is_acked', 'is_sensed') else (float(daa) if daa else 0)
                         updated += 1
                 print(f"✅ update_allocation applied: {updated}/{len(allocation_list)} states patched")
             except (json.JSONDecodeError, KeyError) as e:
@@ -2958,32 +2945,26 @@ class TarsAgent:
         self.on_speak_action("Do you want me to set the heading and altitude following ATC vectors?")
     
     def set_heading_action(self):
-        if self.agent.autopilot_heading_set_i is not None and self.VECTOR_HEADING is not None and self.FALSE_VECTOR_HEADING is not None and self.agent.heading_i is not None:
-            if self.TARS_RELIABLE:
-                target = self.VECTOR_HEADING
-                current_hdg = self.agent.heading_i
-                # Step 1: nudge ±1° to force autopilot into the correct turn direction
-                nudge = current_hdg + (1.0 if self.VECTOR_TURN_DIRECTION == "right" else -1.0)
-                igs.output_set_double("autopilot_heading_set", nudge % 360)
-                time.sleep(0.5)
-                # Step 2: set half-bearing for a smoother arc
-                # Compute angular difference respecting turn direction
-                diff = (target - current_hdg) % 360
-                if self.VECTOR_TURN_DIRECTION == "left":
-                    diff = diff - 360 if diff > 0 else diff  # force negative
-                half_brg = (current_hdg + diff / 2) % 360
-                igs.output_set_double("autopilot_heading_set", half_brg)
-                time.sleep(1)
-                # Step 3: set final target heading
-                igs.output_set_double("autopilot_heading_set", target)
-                self.on_speak_action(f"Setting heading to {target} degrees.")
-                msg = create_interaction_message("", f"Heading set to {target}°.")
-                igs.output_set_string("interaction_message", msg)
-            else:
-                igs.output_set_double("autopilot_heading_set", self.FALSE_VECTOR_HEADING)
-                self.on_speak_action(f"Setting heading to {self.FALSE_VECTOR_HEADING} degrees.")
-                msg = create_interaction_message("", f"Heading set to {self.FALSE_VECTOR_HEADING}°.")
-                igs.output_set_string("interaction_message", msg)
+        if self.agent.autopilot_heading_set_i is not None and self.VECTOR_HEADING is not None and self.agent.heading_i is not None:
+            target = self.VECTOR_HEADING
+            current_hdg = self.agent.heading_i
+            # Step 1: nudge ±1° to force autopilot into the correct turn direction
+            nudge = current_hdg + (1.0 if self.VECTOR_TURN_DIRECTION == "right" else -1.0)
+            igs.output_set_double("autopilot_heading_set", nudge % 360)
+            time.sleep(0.5)
+            # Step 2: set half-bearing for a smoother arc
+            # Compute angular difference respecting turn direction
+            diff = (target - current_hdg) % 360
+            if self.VECTOR_TURN_DIRECTION == "left":
+                diff = diff - 360 if diff > 0 else diff  # force negative
+            half_brg = (current_hdg + diff / 2) % 360
+            igs.output_set_double("autopilot_heading_set", half_brg)
+            time.sleep(1)
+            # Step 3: set final target heading
+            igs.output_set_double("autopilot_heading_set", target)
+            self.on_speak_action(f"Setting heading to {target} degrees.")
+            msg = create_interaction_message("", f"Heading set to {target}°.")
+            igs.output_set_string("interaction_message", msg)
     
     def set_altitude_action(self):
         if self.follow_vectors_status[0] == ApprovalStatus.DENIED:
@@ -3127,18 +3108,12 @@ class TarsAgent:
                 # Wait for ATC response (interruptible)
                 if not self.atc_stop_event.wait(timeout=38):
                     # Timeout completed - send readback
-                    if self.states[("DECLARE PANPAN", "ATC", "READBACK")].autonomy_role == "performer" and self.TARS_RELIABLE:
+                    if self.states[("DECLARE PANPAN", "ATC", "READBACK")].autonomy_role == "performer":
                         hdg_speech = self._heading_to_speech(self.VECTOR_HEADING)
                         turn = self.VECTOR_TURN_DIRECTION
                         alt_speech = f"{self.VECTOR_ALTITUDE:,}".replace(",", " ")
                         rwy_speech = self._runway_to_speech(self.RUNWAY_NUMBER)
                         self.on_speak_action(f"Turning {turn} heading {hdg_speech}, descending to {alt_speech}, expect ILS runway {rwy_speech}, C-POLY.")
-                    elif self.states[("DECLARE PANPAN", "ATC", "READBACK")].autonomy_role == "performer" and not self.TARS_RELIABLE:
-                        false_hdg_speech = self._heading_to_speech(self.FALSE_VECTOR_HEADING)
-                        false_turn = "left" if self.VECTOR_TURN_DIRECTION == "right" else "right"
-                        false_alt_speech = f"{self.VECTOR_ALTITUDE:,}".replace(",", " ")
-                        false_rwy_speech = self._runway_to_speech(self.RUNWAY_NUMBER)
-                        self.on_speak_action(f"Turning {false_turn} heading {false_hdg_speech}, descending to {false_alt_speech}, expect ILS runway {false_rwy_speech}, C-POLY.")
                 else:
                     print("🛑 ATC communication interrupted")
             
@@ -3217,9 +3192,8 @@ class TarsAgent:
             vec = _VECTOR_TABLE.get(self.RUNWAY_NUMBER)
         if vec:
             self.VECTOR_HEADING = vec["heading"]
-            self.FALSE_VECTOR_HEADING = vec["false_heading"]
             self.VECTOR_TURN_DIRECTION = vec["turn"]
-            print(f"🧭 [initialize] Vector: {self.VECTOR_TURN_DIRECTION} turn to {self.VECTOR_HEADING}° (unreliable: {self.FALSE_VECTOR_HEADING}°)")
+            print(f"🧭 [initialize] Vector: {self.VECTOR_TURN_DIRECTION} turn to {self.VECTOR_HEADING}°")
 
         # 3. Sync wind from Ingescape inputs if available
         if self.agent.wind_dir_i is not None:
@@ -3397,6 +3371,8 @@ class TarsAgent:
         temp_dew: str = "05/04",
         altimeter: str = "A2992",
         decoded: bool = False,
+        wind_dir_true_override: float | None = None,
+        wind_mag_override: float | None = None,
     ) -> str:
         """Generate a METAR string using current UTC time and live wind data.
 
@@ -3407,6 +3383,8 @@ class TarsAgent:
             temp_dew: Temperature/dewpoint in °C as 'TT/DD' (e.g. '05/04').
             altimeter: Altimeter setting (e.g. 'A2992').
             decoded: If True, return a field-by-field explanation; if False, return raw METAR.
+            wind_dir_true_override: If set, use this true wind direction instead of live data.
+            wind_mag_override: If set, use this wind magnitude instead of live data.
 
         Returns:
             Raw METAR string, or decoded METAR with per-field explanation.
@@ -3414,8 +3392,8 @@ class TarsAgent:
         now = datetime.now(timezone.utc)
         time_str = f"{now.day:02d}{now.hour:02d}{now.minute:02d}Z"
 
-        wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
-        wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
+        wind_dir_true = wind_dir_true_override if wind_dir_true_override is not None else (self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360)
+        wind_mag = wind_mag_override if wind_mag_override is not None else (self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag)
         wind_str = f"{int(wind_dir_true):03d}{int(wind_mag):02d}KT"
 
         raw = f"{identifier} {time_str} {wind_str} {visibility} {clouds} {temp_dew} {altimeter}"
@@ -3426,6 +3404,7 @@ class TarsAgent:
         # --- Decoded field explanations ---
         _identifier_names = {
             "CYUL": "Montréal-Pierre Elliott Trudeau International Airport, Canada",
+            "CYHU": "Saint-Hubert Airport, Canada",
         }
         identifier_desc = _identifier_names.get(identifier, identifier)
 
@@ -3487,12 +3466,27 @@ class TarsAgent:
             f"{altimeter} = {alt_desc}",
         ])
 
+    def _compute_opposite_crosswind_dir(self, wind_dir_mag: int, runway_hdg: float) -> int:
+        """Return a magnetic wind direction that produces the same crosswind magnitude
+        but from the opposite side of the runway.  The direction is reflected across
+        the runway heading axis: flipped = (2 * runway_hdg - wind_dir) % 360."""
+        return int((2 * runway_hdg - wind_dir_mag) % 360)
+
     def check_winds_send_signal(self):
         # Use live wind inputs if available, otherwise fall back to internal values
         wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
         wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
         wind_dir_mag = int((wind_dir_true + MAGNETIC_VARIATION) % 360)
         runway_hdg = float(self.RUNWAY_HEADING or 0)
+
+        # --- Unreliable TARS: simulate wrong METAR from CYHU (opposite crosswind) ---
+        if not self.TARS_RELIABLE:
+            wind_dir_mag = self._compute_opposite_crosswind_dir(wind_dir_mag, runway_hdg)
+            wind_dir_true = (wind_dir_mag - MAGNETIC_VARIATION) % 360
+            metar_id = "CYHU"
+        else:
+            metar_id = "CYUL"
+
         crosswind_kt, headwind_kt, side = self.compute_wind_components(wind_dir_true, wind_mag, runway_hdg)
         wind_extra = {
             "runway_heading": int(runway_hdg),
@@ -3500,7 +3494,7 @@ class TarsAgent:
             "initial_wind_mag": int(wind_mag),
         }
         role = self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role
-        metar_header = self.INTERACTION_WINDS_HEADER
+        metar_header = f"WIND REPORT:\n\nMETAR: {self.generate_metar(identifier=metar_id, wind_dir_true_override=wind_dir_true, wind_mag_override=wind_mag)}\nRMK CU OVC BASE 002 TOPS 050 MSL CI BASE 250 TOP 270 DRY RWY"
         wind_data = (
             f"WIND {wind_dir_mag:03d}° (mag) / {int(wind_mag):02d} kt\n"
             f"Crosswind Component: {crosswind_kt:.1f} kt from the {side} < Max Crosswind (25 knots)\n"
@@ -3620,16 +3614,19 @@ class TarsAgent:
         
         
     def check_pax_safety_send_signal(self):
-        if self.agent.pax_safety_i is not None and self.agent.pax_safety_i < 1:
-            interaction_json = create_interaction_message("", "PAX SAFETY Switch is OFF")
+        if self.agent.pax_safety_i is not None:
+            actual_on = self.agent.pax_safety_i >= 1
+            # Unreliable + TARP-F: TARS reports the inverted state
+            if not self.TARS_RELIABLE and self._is_tarpf_loaded():
+                displayed_on = not actual_on
+            else:
+                displayed_on = actual_on
+
+            status_text = "ON" if displayed_on else "OFF"
+            interaction_json = create_interaction_message("", f"PAX SAFETY Switch is {status_text}")
             igs.output_set_string("interaction_message", interaction_json)
             if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
-                self.on_speak_action("PAX SAFETY Switch is OFF")
-        elif self.agent.pax_safety_i is not None and self.agent.pax_safety_i >= 1:
-            interaction_json = create_interaction_message("", "PAX SAFETY Switch is ON")
-            igs.output_set_string("interaction_message", interaction_json)
-            if self.states[("BEFORE TAKEOFF", "PAX SAFETY Switch", "PAX SAFETY")].autonomy_role == "performer":
-                self.on_speak_action("PAX SAFETY Switch is ON")
+                self.on_speak_action(f"PAX SAFETY Switch is {status_text}")
         else:
             interaction_json = create_interaction_message("", "PAX SAFETY Switch state is UNKNOWN")
             igs.output_set_string("interaction_message", interaction_json)
@@ -3651,16 +3648,19 @@ class TarsAgent:
                     self.on_speak_action("FADEC NORMAL")
     
     def check_anti_coll_lights_send_signal(self):
-        if self.agent.anti_coll_lights_i is not None and self.agent.anti_coll_lights_i == False:
-            interaction_json = create_interaction_message("", "ANTI-COLLISION Lights are OFF")
+        if self.agent.anti_coll_lights_i is not None:
+            actual_on = bool(self.agent.anti_coll_lights_i)
+            # Unreliable + TARP-S: TARS reports the inverted state
+            if not self.TARS_RELIABLE and self._is_tarps_loaded():
+                displayed_on = not actual_on
+            else:
+                displayed_on = actual_on
+
+            status_text = "ON" if displayed_on else "OFF"
+            interaction_json = create_interaction_message("", f"ANTI-COLLISION Lights are {status_text}")
             igs.output_set_string("interaction_message", interaction_json)
             if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role == "performer":
-                self.on_speak_action("ANTI-COLLISION Lights are OFF")
-        elif self.agent.anti_coll_lights_i is not None and self.agent.anti_coll_lights_i == True:
-            interaction_json = create_interaction_message("", "ANTI-COLLISION Lights are ON")
-            igs.output_set_string("interaction_message", interaction_json)
-            if self.states[("BEFORE TAKEOFF", "ANTI-COLL Light Switch", "ON")].autonomy_role == "performer":
-                self.on_speak_action("ANTI-COLLISION Lights are ON")
+                self.on_speak_action(f"ANTI-COLLISION Lights are {status_text}")
         else:
             interaction_json = create_interaction_message("", "ANTI-COLLISION Lights state is UNKNOWN")
             igs.output_set_string("interaction_message", interaction_json)
@@ -3861,10 +3861,7 @@ class TarsAgent:
     INTERACTION_SHOW_V_ENR = "Set speed to VEnr = {V_ENR} knots"
     
     def get_interaction_set_heading(self) -> str:
-        if self.TARS_RELIABLE:
-            return f"Set heading to {VECTOR_HEADING} degrees"
-        else:
-            return f"Set heading to {FALSE_VECTOR_HEADING} degrees"
+        return f"Set heading to {VECTOR_HEADING} degrees"
 
     INTERACTION_SET_HEADING = f"Set heading to {VECTOR_HEADING} degrees"
     INTERACTION_SET_ALTITUDE = f"Set altitude to {VECTOR_ALTITUDE} feet"
@@ -3893,19 +3890,11 @@ class TarsAgent:
     def get_vectors_prompt(self) -> str:
         turn = self.VECTOR_TURN_DIRECTION  # 'right' or 'left'
         runway = self.RUNWAY_NUMBER or "24R"
-        if self.TARS_RELIABLE:
-            return (
-                f"ATC has instructed to turn {turn} heading {self.VECTOR_HEADING} degrees, "
-                f"descend and maintain {self.VECTOR_ALTITUDE} feet. "
-                f"Expect ILS approach runway {runway}.\n\nDo you want me to set the heading and altitude?"
-            )
-        else:
-            false_turn = "left" if turn == "right" else "right"
-            return (
-                f"ATC has instructed to turn {false_turn} heading {self.FALSE_VECTOR_HEADING} degrees, "
-                f"descend and maintain {self.VECTOR_ALTITUDE} feet. "
-                f"Expect ILS approach runway {runway}.\n\nDo you want me to set the heading and altitude?"
-            )
+        return (
+            f"ATC has instructed to turn {turn} heading {self.VECTOR_HEADING} degrees, "
+            f"descend and maintain {self.VECTOR_ALTITUDE} feet. "
+            f"Expect ILS approach runway {runway}.\n\nDo you want me to set the heading and altitude?"
+        )
     # Display Messages
     INTERACTION_DISPLAY_TRIM_RUDDER = "Adjusting rudder trim for single-engine operation"
     INTERACTION_DISPLAY_ALARM = "Alarm: Engine Fire"

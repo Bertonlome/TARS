@@ -566,9 +566,6 @@ class GUIAgent(QObject):
             self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
             self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
             self._wind_edit_initial_mag    = button_config.get("initial_wind_mag", 4)
-            if mid_text == "ENTER WIND" and getattr(self, "_pending_wind_dialog_open", False):
-                self._pending_wind_dialog_open = False
-                self._open_wind_edit_dialog()
             for container_name in ("int_panel_button_container", "int_panel_button_container_flight"):
                 container = getattr(self.main_window.ui, container_name, None)
                 if container is None:
@@ -775,9 +772,6 @@ class GUIAgent(QObject):
 
         # Call MainWindow's update_state method
         self.main_window.update_state(state)
-
-        if is_wind_check and state.autonomy_role == "supporter":
-            self._pending_wind_dialog_open = True
 
         if self._show_chrono_button:
             if self._chrono_autonomy_role == "performer":
