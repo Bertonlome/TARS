@@ -60,9 +60,11 @@ class GUIAgent(QObject):
         # Dynamic middle-button tracking (for winds supporter panel)
         self._middle_buttons = []  # list of dynamically inserted QPushButton widgets
         # Cached wind-editor parameters (set when interaction message arrives)
-        self._wind_edit_runway_heading = 237
-        self._wind_edit_initial_dir    = 0
-        self._wind_edit_initial_mag    = 0
+        self._wind_edit_runway_heading  = 237
+        self._wind_edit_initial_dir     = 0
+        self._wind_edit_initial_mag     = 0
+        self._wind_edit_metar_text      = ""
+        self._wind_edit_metar_reliable  = True
         # Set True in _on_state_changed; cleared + dialog opened in _on_interaction_message
         self._pending_wind_dialog_open: bool = False
         self._wind_edit_dlg = None  # Live reference; closed on external state advance
@@ -336,7 +338,8 @@ class GUIAgent(QObject):
             # Extract wind-editor metadata and middle_button if present
             if "middle_button" in msg_data:
                 button_config["middle_button"] = msg_data["middle_button"]
-            for key in ("runway_heading", "initial_wind_dir", "initial_wind_mag"):
+            for key in ("runway_heading", "initial_wind_dir", "initial_wind_mag",
+                        "metar_text", "metar_reliable"):
                 if key in msg_data:
                     button_config[key] = msg_data[key]
             
@@ -537,9 +540,11 @@ class GUIAgent(QObject):
                     if p: p.int_panel_left_button.hide()
             elif lbt in ("EDIT", "LISTEN TO ATIS", "OVERRIDE"):
                 # Cache wind metadata for later use by the dialog / ATIS request
-                self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
-                self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
-                self._wind_edit_initial_mag    = button_config.get("initial_wind_mag", 4)
+                self._wind_edit_runway_heading  = button_config.get("runway_heading", 57)
+                self._wind_edit_initial_dir     = button_config.get("initial_wind_dir", 90)
+                self._wind_edit_initial_mag     = button_config.get("initial_wind_mag", 4)
+                self._wind_edit_metar_text      = button_config.get("metar_text", "")
+                self._wind_edit_metar_reliable  = button_config.get("metar_reliable", True)
                 for p in (home_page, flight_page):
                     if p is None:
                         continue
@@ -563,9 +568,11 @@ class GUIAgent(QObject):
 
         # ---- middle button (dynamic) ----
         if mid_text:
-            self._wind_edit_runway_heading = button_config.get("runway_heading", 57)
-            self._wind_edit_initial_dir    = button_config.get("initial_wind_dir", 90)
-            self._wind_edit_initial_mag    = button_config.get("initial_wind_mag", 4)
+            self._wind_edit_runway_heading  = button_config.get("runway_heading", 57)
+            self._wind_edit_initial_dir     = button_config.get("initial_wind_dir", 90)
+            self._wind_edit_initial_mag     = button_config.get("initial_wind_mag", 4)
+            self._wind_edit_metar_text      = button_config.get("metar_text", "")
+            self._wind_edit_metar_reliable  = button_config.get("metar_reliable", True)
             for container_name in ("int_panel_button_container", "int_panel_button_container_flight"):
                 container = getattr(self.main_window.ui, container_name, None)
                 if container is None:
@@ -576,6 +583,9 @@ class GUIAgent(QObject):
                 btn = self._make_middle_button(container, mid_text)
                 layout.insertWidget(1, btn)   # slot 1 = between left (0) and right (last)
                 self._middle_buttons.append(btn)
+            # Auto-open the wind editor for the supporter (ENTER WIND)
+            if mid_text in ("ENTER WIND", "EDIT"):
+                self._open_wind_edit_dialog()
 
         # ---- right button ----
         if "right_button" in button_config:
@@ -690,6 +700,8 @@ class GUIAgent(QObject):
             runway_heading=runway_hdg,
             initial_dir=initial_dir,
             initial_mag=initial_mag,
+            metar_text=self._wind_edit_metar_text,
+            metar_reliable=self._wind_edit_metar_reliable,
         )
         dlg.confirmed.connect(self._on_wind_edit_confirmed)
         self._wind_edit_dlg = dlg

@@ -49,9 +49,10 @@ class TTSAgent:
             tts.speak_wait(value)
 
     def on_tts_stop(self, ioType, name, valueType, value, myData):
-        """Called when a stop impulsion is received - mute TTS persistently"""
-        print("🔊 TTS stop received - muting playback")
-        tts.mute()
+        """Called when a stop impulsion is received - mute TTS persistently and flush queue"""
+        print("🔊 TTS stop received - muting playback and draining queue")
+        tts.mute()          # interrupt current sentence + set mute flag
+        tts.drain_queue()   # discard every already-queued sentence
         igs.output_set_bool("is_speaking", False)
         igs.output_set_string("current_text", "")
 
@@ -129,8 +130,10 @@ def main():
     igs.observe_input("string_to_save_mp3", tts_agent.on_string_to_save_mp3, None)
     igs.mapping_add("text_to_speak", "TARS_Agent", "tts_request")
     igs.mapping_add("tts_stop", "Shared Interface", "tts_stop")
+    igs.mapping_add("tts_stop", "TARS_Agent", "tts_stop")
     igs.mapping_add("repeat_sentence", "Shared Interface", "repeat_sentence")
     igs.mapping_add("tts_unmute", "Shared Interface", "tts_unmute")
+    igs.mapping_add("tts_unmute", "TARS_Agent", "tts_unmute")
     igs.mapping_add("is_atc_speaking", "ATC_Agent", "is_speaking")
     
     # Start Ingescape with device fallback

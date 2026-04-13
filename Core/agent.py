@@ -187,7 +187,8 @@ class TarsAgent:
             self.states[("IDLE", "Idle", "WAITING")],
             self.states[("CREW BRIEFING", "START", "BRIEFING")],
             self.is_started,
-            self.dummy_action))
+            transition_action=lambda: self.initialize(),
+            action= self.dummy_action))
 
         self.fsm.add_transition(Transition(
             self.states[("CREW BRIEFING", "START", "BRIEFING")],
@@ -231,7 +232,7 @@ class TarsAgent:
             self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")], 
             self.is_acked, 
             action=lambda: self.request_takeoff_clearance_action() if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role in ("performer", "supporter") else self.dummy_action(),
-            transition_action = lambda: self.on_speak_action(f"I will now request takeoff clearance to montreal tower on {self.TOWER_FREQUENCY}, runway {self.RUNWAY_NUMBER} for straight out departure.") if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role == "performer" else self.dummy_action()))
+            transition_action=lambda: (self.interrupt_tts(), self.on_speak_action(f"I will now request takeoff clearance to montreal tower on {self.TOWER_FREQUENCY}, runway {self.RUNWAY_NUMBER} for straight out departure.")) if self.states[("BEFORE TAKEOFF", "Takeoff clearance", "CONFIRM")].autonomy_role == "performer" else self.interrupt_tts()))
         
         ###----------------------------------------------------------------------------------------------------------------###
         #------------------------------------------ BEFORE TAKEOFF  ---------------------------------------------------------#
@@ -310,7 +311,7 @@ class TarsAgent:
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
             self.is_acked, 
             action= lambda: self.select_altitude_action() if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role in ("performer", "supporter") else self.dummy_action(),
-            transition_action = self.on_speak_action(f"I am setting autopilot altitude preset to {self.CLEARED_ALTITUDE} feet as cleared by ATC.") if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer" else self.dummy_action()))
+            transition_action= lambda: self.on_speak_action(f"I am setting autopilot altitude preset to {self.CLEARED_ALTITUDE} feet as cleared by ATC.") if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
@@ -649,7 +650,7 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Test", "FIRE WARN")], 
             self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")], 
-            lambda: self.is_test_knob_turned() if self.states[("ENGINE FIRE", "Test", "FIRE WARN")].autonomy_role == "performer" else self.is_acked(),
+            lambda: self.is_test_knob_turned() if self.states[("ENGINE FIRE", "Test", "FIRE WARN")].autonomy_role in ("performer","supporter") else self.is_acked(),
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")].callout) if self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
         
@@ -2419,6 +2420,8 @@ class TarsAgent:
         
         # TTS Agent communication
         igs.output_create("tts_request", igs.STRING_T, None)  # Text to send to TTS agent
+        igs.output_create("tts_stop", igs.IMPULSION_T, None)   # Interrupt current TTS playback (also mutes)
+        igs.output_create("tts_unmute", igs.IMPULSION_T, None) # Re-enable TTS after stop
         igs.output_create("allocation_reloaded", igs.STRING_T, None)  # JSON: {csv, states_count} after load_csv
 
         igs.input_create("Reset", igs.IMPULSION_T, None)
@@ -2778,6 +2781,12 @@ class TarsAgent:
         #igs.output_set_string("current_task_human_role", "")
         igs.output_set_impulsion("end_signal")
 
+    def interrupt_tts(self):
+        """Stop current TTS playback then immediately unmute so future requests work."""
+        igs.output_set_impulsion("tts_stop")
+        time.sleep(0.05)  # brief gap to let the stop propagate
+        igs.output_set_impulsion("tts_unmute")
+
     def on_speak_action(self, speak_message=None, sleep=True):
         print(f"Action: {self.fsm.current_state}")
         if speak_message:
@@ -2838,8 +2847,16 @@ class TarsAgent:
         - Ensure PIT mode (deactivate SPD mode if armed)
         - Adjust pitch reference to 10° ± 0.1 via nose_up / nose_down
         """
-        # 1. Activate Flight Director
-        igs.output_set_double("flight_director", 1)
+        # 1. Activate Flight Director (only if not already active)
+        fd = self.agent.flight_director_i
+        if fd == 2:
+            # AP + FD already on — no point toggling FD
+            print("[TARS] set_fd_to_mode: FD+AP already active (mode=2), skipping FD activation")
+        elif fd == 1:
+            # FD already on (AP off) — nothing to do
+            print("[TARS] set_fd_to_mode: FD already on (mode=1), skipping FD activation")
+        else:
+            igs.output_set_double("flight_director", 1)
 
         # 2. Set heading bug to 237° if not already set
         if self.RUNWAY_HEADING is not None:
@@ -3488,13 +3505,16 @@ class TarsAgent:
             metar_id = "CYUL"
 
         crosswind_kt, headwind_kt, side = self.compute_wind_components(wind_dir_true, wind_mag, runway_hdg)
+        metar_str = self.generate_metar(identifier=metar_id, wind_dir_true_override=wind_dir_true, wind_mag_override=wind_mag)
         wind_extra = {
             "runway_heading": int(runway_hdg),
             "initial_wind_dir": wind_dir_mag,
             "initial_wind_mag": int(wind_mag),
+            "metar_text": f"[{metar_id}] {metar_str}",
+            "metar_reliable": self.TARS_RELIABLE,
         }
         role = self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role
-        metar_header = f"WIND REPORT:\n\nMETAR: {self.generate_metar(identifier=metar_id, wind_dir_true_override=wind_dir_true, wind_mag_override=wind_mag)}\nRMK CU OVC BASE 002 TOPS 050 MSL CI BASE 250 TOP 270 DRY RWY"
+        metar_header = f"WIND REPORT:\n\nMETAR: {metar_str}\nRMK CU OVC BASE 002 TOPS 050 MSL CI BASE 250 TOP 270 DRY RWY"
         wind_data = (
             f"WIND {wind_dir_mag:03d}° (mag) / {int(wind_mag):02d} kt\n"
             f"Crosswind Component: {crosswind_kt:.1f} kt from the {side} < Max Crosswind (25 knots)\n"

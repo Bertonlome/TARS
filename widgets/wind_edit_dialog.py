@@ -280,11 +280,12 @@ class WindEditDialog(QDialog):
     confirmed = Signal(int, int)   # direction °, magnitude kt
 
     def __init__(self, parent=None, runway_heading: int = 237,
-                 initial_dir: int = 0, initial_mag: int = 0):
+                 initial_dir: int = 0, initial_mag: int = 0,
+                 metar_text: str = "", metar_reliable: bool = True):
         super().__init__(parent)
         self.setWindowTitle("WIND EDITOR")
         self.setModal(True)
-        self.setFixedSize(800, 620)
+        self.setFixedSize(800, 660 if metar_text else 620)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {_BG_MID};
@@ -293,6 +294,8 @@ class WindEditDialog(QDialog):
         """)
 
         self._runway_heading = runway_heading
+        self._metar_text     = metar_text
+        self._metar_reliable = metar_reliable
 
         # 6 digit boxes: [dir_h, dir_t, dir_u, mag_h, mag_t, mag_u]
         self._boxes: list[_DigitBox] = [_DigitBox(self) for _ in range(6)]
@@ -348,6 +351,23 @@ class WindEditDialog(QDialog):
         self._wind_info_label.setFont(QFont("JetBrains Mono", 9, QFont.Bold))
         self._wind_info_label.setStyleSheet(f"color: {_WHITE};")
         right.addWidget(self._wind_info_label)
+
+        # ---- METAR source label (shown only when data was provided) ----
+        if self._metar_text:
+            metar_color = _GREEN
+            metar_lbl = QLabel(self._metar_text)
+            metar_lbl.setAlignment(Qt.AlignCenter)
+            metar_lbl.setWordWrap(True)
+            metar_lbl.setFont(QFont("JetBrains Mono", 10))
+            metar_lbl.setStyleSheet(
+                f"color: {metar_color}; "
+                f"background-color: {_BG_DEEP}; "
+                f"border: 1px solid {metar_color}; "
+                "border-radius: 4px; "
+                "padding: 4px 6px;"
+            )
+            right.addWidget(metar_lbl)
+
         right.addStretch()
         content.addLayout(right)
 

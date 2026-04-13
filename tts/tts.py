@@ -537,6 +537,11 @@ def _drain_queue():
         print(f"🗑️  TTS queue drained: {drained} item(s) discarded")
 
 
+def drain_queue():
+    """Public wrapper — discard all pending TTS items from the queue."""
+    _drain_queue()
+
+
 def repeat_last():
     """Replay the last spoken sentence from cache.
 

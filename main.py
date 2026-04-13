@@ -155,6 +155,10 @@ class MainWindow(QMainWindow):
         # Start Rudder Trim Agent subprocess
         self.rudder_trim_process: subprocess.Popen | None = None
         self.start_rudder_trim_subprocess()
+
+        # Start Eye Tracking Calibration subprocess
+        self.eye_tracking_process: subprocess.Popen | None = None
+        self.start_eye_tracking_subprocess()
         
         # Phase 6: FSM Worker and threading removed - TARS Agent now runs independently
         # All FSM logic is handled by TARS Agent subprocess
@@ -1490,6 +1494,85 @@ class MainWindow(QMainWindow):
             finally:
                 self.rudder_trim_process = None
 
+    def start_eye_tracking_subprocess(self):
+        """Start the Eye Tracking Calibration agent as a subprocess."""
+        try:
+            project_root = Path(__file__).parent
+            eye_script = project_root / "utilities" / "eye_tracking_calibration.py"
+
+            if not eye_script.exists():
+                print(f"⚠️  Eye Tracking Calibration script not found at {eye_script}")
+                return
+
+            if sys.platform == "win32":
+                python_exe = project_root / ".venv" / "Scripts" / "python.exe"
+            else:
+                python_exe = project_root / ".venv" / "bin" / "python"
+
+            if not python_exe.exists():
+                python_exe = sys.executable
+                print(f"⚠️  Virtual environment Python not found, using system Python: {python_exe}")
+
+            self.eye_tracking_process = subprocess.Popen(
+                [str(python_exe), "-u", str(eye_script)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                bufsize=1,
+                cwd=str(project_root),
+            )
+
+            print(f"👁️  Eye Tracking Calibration subprocess started (PID: {self.eye_tracking_process.pid})")
+            self.start_eye_tracking_monitor()
+
+        except Exception as e:
+            print(f"❌ Failed to start Eye Tracking Calibration subprocess: {e}")
+            import traceback
+            traceback.print_exc()
+            self.eye_tracking_process = None
+
+    def start_eye_tracking_monitor(self):
+        """Start a background thread to monitor Eye Tracking subprocess output."""
+        def monitor():
+            if not self.eye_tracking_process or not self.eye_tracking_process.stdout:
+                return
+            print("📊 Eye Tracking monitor thread started")
+            try:
+                for line in iter(self.eye_tracking_process.stdout.readline, ""):
+                    if line:
+                        print(f"[EYE] {line.rstrip()}")
+                    if self.eye_tracking_process.poll() is not None:
+                        break
+                exit_code = self.eye_tracking_process.poll()
+                if exit_code not in (0, None):
+                    print(f"⚠️  Eye Tracking Calibration subprocess crashed with exit code {exit_code}")
+                else:
+                    print("✅ Eye Tracking Calibration subprocess exited normally")
+            except Exception as e:
+                print(f"❌ Error in Eye Tracking monitor thread: {e}")
+
+        threading.Thread(target=monitor, daemon=True).start()
+
+    def stop_eye_tracking_subprocess(self):
+        """Stop the Eye Tracking Calibration subprocess gracefully."""
+        if self.eye_tracking_process:
+            try:
+                print("🛑 Stopping Eye Tracking Calibration subprocess...")
+                self.eye_tracking_process.terminate()
+                try:
+                    self.eye_tracking_process.wait(timeout=5)
+                    print("✅ Eye Tracking Calibration subprocess stopped")
+                except subprocess.TimeoutExpired:
+                    print("⚠️  Eye Tracking Calibration subprocess didn't stop gracefully, forcing...")
+                    self.eye_tracking_process.kill()
+                    self.eye_tracking_process.wait()
+                    print("✅ Eye Tracking Calibration subprocess killed")
+            except Exception as e:
+                print(f"❌ Error stopping Eye Tracking Calibration subprocess: {e}")
+            finally:
+                self.eye_tracking_process = None
+
     def stop_tars_subprocess(self):
         """Stop the TARS Agent subprocess gracefully"""
         if self.tars_process:
@@ -1584,6 +1667,9 @@ class MainWindow(QMainWindow):
 
         # Stop Rudder Trim Agent subprocess
         self.stop_rudder_trim_subprocess()
+
+        # Stop Eye Tracking Calibration subprocess
+        self.stop_eye_tracking_subprocess()
 
         event.accept()
 
