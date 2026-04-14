@@ -36,7 +36,7 @@ elif platform.system() == "Windows":
 else:
     DEFAULT_DEVICE = "wlps"
 
-CURRENT_BRIEFING_EXPORT_LOADED = "TARP-S.csv"
+CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_20260414_115640.csv"
 #CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF.csv"
 ### PARAMETERS ###
 ALLOW_PARALLEL_ATC = True  # Enable/disable parallel ATC thread execution
@@ -643,14 +643,14 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Illuminated BOTTLE ARMED Switch", "PUSH")], 
             self.states[("ENGINE FIRE", "Test", "FIRE WARN")], 
-            lambda: self.is_bottle_pushed() if self.states[("ENGINE FIRE", "Illuminated BOTTLE ARMED Switch", "PUSH")].autonomy_role == "performer" else self.is_acked(), 
+            lambda: self.is_bottle_pushed() if self.states[("ENGINE FIRE", "Illuminated BOTTLE ARMED Switch", "PUSH")].autonomy_role == "performer" or self.is_acked() else self.is_acked(), 
             action=lambda: self._run_check_with_live_updates(self.check_fire_warn_test_send_signals, ("ENGINE FIRE", "Test", "FIRE WARN")) if self.states[("ENGINE FIRE", "Test", "FIRE WARN")].autonomy_role == "supporter" else self.dummy_action(),
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Test", "FIRE WARN")].callout) if self.states[("ENGINE FIRE", "Test", "FIRE WARN")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
         
         self.fsm.add_transition(Transition(
             self.states[("ENGINE FIRE", "Test", "FIRE WARN")], 
             self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")], 
-            lambda: self.is_test_knob_turned() if self.states[("ENGINE FIRE", "Test", "FIRE WARN")].autonomy_role in ("performer","supporter") else self.is_acked(),
+            lambda: self.is_test_knob_turned() if self.states[("ENGINE FIRE", "Test", "FIRE WARN")].autonomy_role in ("performer","supporter") or self.is_acked() else self.is_acked(),
             self.dummy_action,
             transition_action=lambda: self.on_speak_action(self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")].callout) if self.states[("ENGINE FIRE", "Engine fire lights", "Check both illuminate")].autonomy_role in ("supporter", "performer") else self.dummy_action()))
         

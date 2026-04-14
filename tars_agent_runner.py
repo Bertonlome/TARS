@@ -149,19 +149,15 @@ def main():
             
             # Publish current state
             # Determine transition condition kind for this state
+            # sensing = TARS is performer with a real sensor condition
+            # waiting = triggered by is_acked, or autonomy_role is None/supporter
             transition_kind = "waiting"  # Default: waiting for pilot acknowledgment
-            if tars_agent is not None:
+            if tars_agent is not None and state.autonomy_role == "performer":
                 for transition in tars_agent.fsm.transitions:
                     if transition is None:
                         continue
                     if transition.from_state == state:
-                        if transition.condition is tars_agent.is_acked:
-                            transition_kind = "waiting"
-                        elif transition.condition is tars_agent.allow_transition:
-                            transition_kind = "waiting"
-                        elif state.autonomy_role not in ("performer", "supporter"):
-                            transition_kind = "waiting"
-                        else:
+                        if transition.condition is not tars_agent.is_acked and transition.condition is not tars_agent.allow_transition:
                             transition_kind = "sensing"
                         break
             

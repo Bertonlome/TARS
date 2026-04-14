@@ -968,8 +968,8 @@ class BriefingPage(BasePage):
 
         # Delay lookup tables keyed by (procedure, task_object, value)
         # Loaded from Core CSVs during setup_interdependence_analysis
-        self._delays_slow: dict = {}  # TARS_PERF_AND_SUPPORT_DELAYS.csv (S = slow)
-        self._delays_fast: dict = {}  # TARS_PERF_AND_SUPPORT_NO_DELAYS.csv (F = fast)
+        self._delays_slow: dict = {}  # TARP-S.csv (S = slow)
+        self._delays_fast: dict = {}  # TARP-F.csv (F = fast)
 
         # Per-category per-tab state for the radio button toggles
         self._cat_current_performer: dict = {}  # {cat: {tab: "HUMAN"|"TARS"|None}}
@@ -1018,8 +1018,8 @@ class BriefingPage(BasePage):
                 
             # Load delay lookup tables from Core CSVs
             core_dir = Path(__file__).parent.parent / "Core"
-            self._delays_slow = self._load_delay_lookup(core_dir / "TARS_PERF_AND_SUPPORT_DELAYS.csv")
-            self._delays_fast = self._load_delay_lookup(core_dir / "TARS_PERF_AND_SUPPORT_NO_DELAYS.csv")
+            self._delays_slow = self._load_delay_lookup(core_dir / "TARP-S.csv")
+            self._delays_fast = self._load_delay_lookup(core_dir / "TARP-F.csv")
 
         except Exception as e:
             print(f"Error setting up interdependence analysis: {e}")
@@ -1935,8 +1935,9 @@ class BriefingPage(BasePage):
             if hasattr(task, 'extra_fields'):
                 export_row.update(task.extra_fields)
 
-            # For TARS performer tasks: override delay fields from the chosen speed CSV
-            if performer == "TARS":
+            # Override delay fields based on TARS role
+            if autonomy_role == "performer":
+                # TARS is performer: use delays from the chosen speed CSV (TARP-S or TARP-F)
                 if task.classification == 'NORM':
                     speed = self.normal_interdependence_scene.tars_speed.get(normal_task_index, "S")
                 else:
@@ -1948,6 +1949,10 @@ class BriefingPage(BasePage):
                     export_row['time_to_initiate_action'] = delay_info.get('delay_before', export_row.get('time_to_initiate_action', '0'))
                     export_row['time_after_ending_action'] = delay_info.get('delay_after', export_row.get('time_after_ending_action', '0'))
                 export_row['tars_speed'] = speed
+            elif autonomy_role == "supporter":
+                # TARS is supporter: no delays (pilot checks directly)
+                export_row['time_to_initiate_action'] = '0'
+                export_row['time_after_ending_action'] = '0'
 
             export_data.append(export_row)
         
