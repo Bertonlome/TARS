@@ -583,8 +583,8 @@ class GUIAgent(QObject):
                 btn = self._make_middle_button(container, mid_text)
                 layout.insertWidget(1, btn)   # slot 1 = between left (0) and right (last)
                 self._middle_buttons.append(btn)
-            # Auto-open the wind editor for the supporter (ENTER WIND)
-            if mid_text in ("ENTER WIND", "EDIT"):
+            # Auto-open the wind editor for the supporter only (ENTER WIND)
+            if mid_text == "ENTER WIND":
                 self._open_wind_edit_dialog()
 
         # ---- right button ----

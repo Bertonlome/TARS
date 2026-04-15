@@ -120,7 +120,9 @@ class TarsAgent:
         self.TOWER_FREQUENCY = TOWER_FREQUENCY
         self.DEPARTURE_FREQUENCY = DEPARTURE_FREQUENCY
         self.TARS_RELIABLE: bool = TARS_RELIABLE  # Can be toggled at runtime via Ingescape
+        self.failure_type: str = ""  # Active failure mode: "winds", "altitude", "flaps", or "" for none
         self.popup_active: bool = False  # True while GUI has a modal dialog open; blocks joystick task_acknowledged
+        self._wind_edit_opened: bool = False  # Sticky flag: True once wind edit dialog opened during Winds CHECK; requires ACK to proceed
         # Editable wind values (updated by the wind-edit dialog in the GUI)
         self._wind_dir: int = 190   # degrees (magnetic)
         self._wind_mag: int = 8       # knots
@@ -309,9 +311,9 @@ class TarsAgent:
         self.fsm.add_transition(Transition(
             self.states[("LINE-UP AND HOLD", "Winds", "CHECK")], 
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
-            self.is_acked, 
+            lambda: (self.allow_transition() if not self._wind_edit_opened else self.is_acked()) if self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role == "performer" else self.is_acked(), 
             action= lambda: self.select_altitude_action() if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role in ("performer", "supporter") else self.dummy_action(),
-            transition_action= lambda: self.on_speak_action(f"I am setting autopilot altitude preset to {self.CLEARED_ALTITUDE} feet as cleared by ATC.") if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer" else self.dummy_action()))
+            transition_action= lambda: self.on_speak_action(f"I am setting autopilot altitude preset to {3000 if (not self.TARS_RELIABLE and self.failure_type == 'altitude') else self.CLEARED_ALTITUDE} feet as cleared by ATC.") if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer" else self.dummy_action()))
 
         self.fsm.add_transition(Transition(
             self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")], 
@@ -1216,20 +1218,12 @@ class TarsAgent:
     def is_pax_safety_on(self):
         if self.agent.pax_safety_i is None:
             return False
-        sensed = bool(self.agent.pax_safety_i)
-        # Unreliable + TARP-F: invert the sensed value
-        if not self.TARS_RELIABLE and self._is_tarpf_loaded():
-            sensed = not sensed
-        return sensed
+        return bool(self.agent.pax_safety_i)
     
     def is_anti_coll_lights_on(self):
         if self.agent.anti_coll_lights_i is None:
             return False
-        sensed = bool(self.agent.anti_coll_lights_i)
-        # Unreliable + TARP-S: invert the sensed value
-        if not self.TARS_RELIABLE and self._is_tarps_loaded():
-            sensed = not sensed
-        return sensed
+        return bool(self.agent.anti_coll_lights_i)
     
     def is_cab_alt_ok(self):
         if self.agent.cabin_altitude_i is not None and self.agent.cabin_altitude_i < 8000:
@@ -1296,7 +1290,9 @@ class TarsAgent:
         if supporter, display reminder."""
         state = self.states[("BEFORE TAKEOFF", "FLAPS", "SET FOR TAKEOFF")]
         if state.autonomy_role == "performer":
-            igs.output_set_double("flaps", 0.5)  # 0.5 = flaps 15° (takeoff position)
+            # Flaps failure: announce but do NOT actually move flaps
+            if not (not self.TARS_RELIABLE and self.failure_type == "flaps"):
+                igs.output_set_double("flaps", 0.5)  # 0.5 = flaps 15° (takeoff position)
 
             time.sleep(1.0)
             self.on_speak_action("Flaps set")
@@ -1386,6 +1382,11 @@ class TarsAgent:
             
     
     def check_flaps_send_signals(self):
+        # Flaps failure: falsely report flaps already at takeoff position (15°)
+        if not self.TARS_RELIABLE and self.failure_type == "flaps":
+            tars_input = "FLAP HANDLE is currently set to TAKEOFF position (15°)"
+            igs.output_set_string("interaction_message", create_interaction_message("", tars_input))
+            return
         if self.agent.control_flaps_i is not None:
             tars_input = self.get_interaction_flaps()
             igs.output_set_string("interaction_message", create_interaction_message("", tars_input))
@@ -1644,6 +1645,8 @@ class TarsAgent:
     
     def is_flaps_takeoff_pos(self):
         """Return True when flaps are at takeoff position (0.5 = 15°)."""
+        if not self.TARS_RELIABLE and self.failure_type == "flaps":
+            return True
         if self.agent.control_flaps_i is not None and self.agent.control_flaps_i >= 0.5:
             return True
         return False
@@ -1967,6 +1970,10 @@ class TarsAgent:
         elif name == "popup_active":
             self.popup_active = value
             print(f"{'🔒' if value else '🔓'} popup_active = {value}")
+            # Track if wind edit dialog was opened during Winds CHECK state
+            if value and self.fsm.current_state == self.states.get(("LINE-UP AND HOLD", "Winds", "CHECK")):
+                self._wind_edit_opened = True
+                print("📝 Wind edit dialog opened — will require ACK to proceed")
 
         # Simulator inputs
         elif name == "On_Off":
@@ -2108,7 +2115,17 @@ class TarsAgent:
         assert isinstance(agent_object, Echo)
         
         # GUI Agent → TARS Agent string inputs (Phase 6)
-        if name == "load_csv":
+        if name == "failure_type":
+            value_lower = value.strip().lower() if value else ""
+            if value_lower in ("winds", "altitude", "flaps"):
+                self.failure_type = value_lower
+                print(f"⚠️  failure_type set to '{self.failure_type}'")
+            else:
+                self.failure_type = ""
+                print(f"⚠️  failure_type cleared (received '{value}')")
+            return
+
+        elif name == "load_csv":
             # Reload all task allocation states from a new CSV file
             import os
             # Append .csv extension if not already present (allows sending bare condition names)
@@ -2505,6 +2522,7 @@ class TarsAgent:
         igs.input_create("update_allocation", igs.STRING_T, None)  # Briefing role-allocation update (JSON list)
         igs.input_create("load_csv", igs.STRING_T, None)  # Reload all states from a new CSV filename
         igs.input_create("tars_reliable", igs.BOOL_T, None)  # Toggle TARS reliability (True=real data, False=inverted/unreliable)
+        igs.input_create("failure_type", igs.STRING_T, None)  # Failure mode: "winds", "altitude", "flaps"
         igs.input_create("popup_active", igs.BOOL_T, None)  # GUI dialog is open; block joystick task_acknowledged
         
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
@@ -2584,6 +2602,7 @@ class TarsAgent:
         igs.observe_input("update_allocation", self.string_input_callback, self.agent)
         igs.observe_input("load_csv", self.string_input_callback, self.agent)
         igs.observe_input("tars_reliable", self.bool_input_callback, self.agent)
+        igs.observe_input("failure_type", self.string_input_callback, self.agent)
         igs.observe_input("popup_active", self.bool_input_callback, self.agent)
 
         # Map Aircraft outputs → our inputs
@@ -3490,16 +3509,20 @@ class TarsAgent:
         return int((2 * runway_hdg - wind_dir_mag) % 360)
 
     def check_winds_send_signal(self):
+        self._wind_edit_opened = False  # Reset sticky flag each time wind action fires
         # Use live wind inputs if available, otherwise fall back to internal values
         wind_dir_true = self.agent.wind_dir_i if self.agent.wind_dir_i is not None else (self._wind_dir - MAGNETIC_VARIATION) % 360
         wind_mag = self.agent.wind_magn_i if self.agent.wind_magn_i is not None else self._wind_mag
         wind_dir_mag = int((wind_dir_true + MAGNETIC_VARIATION) % 360)
         runway_hdg = float(self.RUNWAY_HEADING or 0)
 
-        # --- Unreliable TARS: simulate wrong METAR from CYHU (opposite crosswind) ---
-        if not self.TARS_RELIABLE:
-            wind_dir_mag = self._compute_opposite_crosswind_dir(wind_dir_mag, runway_hdg)
+        # --- Unreliable TARS (winds failure): simulate wrong METAR from CYHU ---
+        # Opposite crosswind + 90° rotation → tailwind, doubled magnitude
+        winds_failure = not self.TARS_RELIABLE and self.failure_type == "winds"
+        if winds_failure:
+            wind_dir_mag = (self._compute_opposite_crosswind_dir(wind_dir_mag, runway_hdg) + 90) % 360
             wind_dir_true = (wind_dir_mag - MAGNETIC_VARIATION) % 360
+            wind_mag = wind_mag * 2
             metar_id = "CYHU"
         else:
             metar_id = "CYUL"
@@ -3511,7 +3534,7 @@ class TarsAgent:
             "initial_wind_dir": wind_dir_mag,
             "initial_wind_mag": int(wind_mag),
             "metar_text": f"[{metar_id}] {metar_str}",
-            "metar_reliable": self.TARS_RELIABLE,
+            "metar_reliable": not winds_failure,
         }
         role = self.states[("LINE-UP AND HOLD", "Winds", "CHECK")].autonomy_role
         metar_header = f"WIND REPORT:\n\nMETAR: {metar_str}\nRMK CU OVC BASE 002 TOPS 050 MSL CI BASE 250 TOP 270 DRY RWY"
@@ -3530,7 +3553,7 @@ class TarsAgent:
             igs.output_set_string("interaction_message", msg)
             wind_dir_speech = self._heading_to_speech(wind_dir_mag)
             if int(wind_mag) == 0:
-                callout = f"Wind report from METAR: wind calm"
+                callout = "Wind report from METAR: wind calm"
             else:
                 callout = f"Wind report from METAR: {wind_dir_speech} degrees at {int(wind_mag)} knots"
             self.on_speak_action(callout)
@@ -3539,7 +3562,7 @@ class TarsAgent:
             msg = create_interaction_message(
                 metar_header, supporter_data,
                 left_button="LISTEN TO ATIS",
-                middle_button="ENTER WIND",
+                middle_button="" if winds_failure else "ENTER WIND",
                 right_button="CHECK",
                 extra_data=wind_extra
             )
@@ -3635,13 +3658,7 @@ class TarsAgent:
         
     def check_pax_safety_send_signal(self):
         if self.agent.pax_safety_i is not None:
-            actual_on = self.agent.pax_safety_i >= 1
-            # Unreliable + TARP-F: TARS reports the inverted state
-            if not self.TARS_RELIABLE and self._is_tarpf_loaded():
-                displayed_on = not actual_on
-            else:
-                displayed_on = actual_on
-
+            displayed_on = self.agent.pax_safety_i >= 1
             status_text = "ON" if displayed_on else "OFF"
             interaction_json = create_interaction_message("", f"PAX SAFETY Switch is {status_text}")
             igs.output_set_string("interaction_message", interaction_json)
@@ -3669,13 +3686,7 @@ class TarsAgent:
     
     def check_anti_coll_lights_send_signal(self):
         if self.agent.anti_coll_lights_i is not None:
-            actual_on = bool(self.agent.anti_coll_lights_i)
-            # Unreliable + TARP-S: TARS reports the inverted state
-            if not self.TARS_RELIABLE and self._is_tarps_loaded():
-                displayed_on = not actual_on
-            else:
-                displayed_on = actual_on
-
+            displayed_on = bool(self.agent.anti_coll_lights_i)
             status_text = "ON" if displayed_on else "OFF"
             interaction_json = create_interaction_message("", f"ANTI-COLLISION Lights are {status_text}")
             igs.output_set_string("interaction_message", interaction_json)
@@ -3688,15 +3699,20 @@ class TarsAgent:
                 self.on_speak_action("ANTI-COLLISION Lights state is UNKNOWN")
     
     def select_altitude_action(self):
+        # Altitude failure: suggest/set wrong altitude (3000 instead of cleared 5000)
+        alt_failure = not self.TARS_RELIABLE and self.failure_type == "altitude"
+        displayed_alt = 3000 if alt_failure else self.CLEARED_ALTITUDE
+
         if self.states[("LINE-UP AND HOLD", "Select Altitude", "PRESET AS CLEARED")].autonomy_role == "performer":
-            igs.output_set_int("alt_sel", self.CLEARED_ALTITUDE)
-            #time.sleep(1)  # Wait a moment
-            msg = create_interaction_message("", f"Cleared to altitude {self.CLEARED_ALTITUDE} ft from ATC.")
+            igs.output_set_int("alt_sel", displayed_alt)
+            msg = create_interaction_message("", f"Cleared to altitude {displayed_alt} ft from ATC.")
             igs.output_set_string("interaction_message", msg)
-            #time.sleep(2)
             self.on_speak_action("Altitude set.")
         else:
-            igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_ALT_PRESET)) 
+            if alt_failure:
+                igs.output_set_string("interaction_message", create_interaction_message("", f"CLEARED TO ALTITUDE {displayed_alt} FT FROM ATC"))
+            else:
+                igs.output_set_string("interaction_message", create_interaction_message("", self.INTERACTION_ALT_PRESET)) 
 
     # ===================================================================
     # String - String Database for display on the GUI
