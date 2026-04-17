@@ -462,7 +462,7 @@ class MainWindow(QMainWindow):
                 
                 # Determine spinner kwargs based on transition condition kind
                 transition_kind = getattr(state_obj, 'transition_kind', 'waiting')
-                spin_kw = {"then_sense": True} if transition_kind == "sensing" else {"then_spin": True}
+                spin_kw = {"then_sense": True} if transition_kind in ("sensing", "sensing_ack") else {"then_spin": True}
                 
                 # Get delay_after_action and convert to int for timer
                 delay_after = state_obj.delay_after_action
@@ -799,6 +799,8 @@ class MainWindow(QMainWindow):
         if has_numeric_delay:
             # Task with countdown delay - show the circular countdown and start timer
             # This applies to ANY task (human performer, TARS performer, supporter) with delays
+            self.ui.check_radio_button.setVisible(True)
+            self.ui.int_panel_right_button.setVisible(True)
             if home_page.current_circular_countdown:
                 home_page.current_circular_countdown.show()
             if flight_page.current_circular_countdown:
@@ -815,15 +817,21 @@ class MainWindow(QMainWindow):
             # Human task with no numeric delay - show spinner (agent waiting for pilot)
             # Choose spinner mode based on transition condition kind
             transition_kind = getattr(current_state_obj, 'transition_kind', 'waiting')
+            is_sensing = transition_kind in ("sensing", "sensing_ack")
+            # Hide CHECK/acknowledge buttons only for pure sensing tasks
+            # (sensing_ack means a sensor fires automatically but pilot can also ack)
+            hide_check = (transition_kind == "sensing")
+            self.ui.check_radio_button.setVisible(not hide_check)
+            self.ui.int_panel_right_button.setVisible(not hide_check)
             if home_page.current_circular_countdown:
                 home_page.current_circular_countdown.show()
-                if transition_kind == "sensing":
+                if is_sensing:
                     home_page.current_circular_countdown.set_sensing()
                 else:
                     home_page.current_circular_countdown.set_spinning()
             if flight_page.current_circular_countdown:
                 flight_page.current_circular_countdown.show()
-                if transition_kind == "sensing":
+                if is_sensing:
                     flight_page.current_circular_countdown.set_sensing()
                 else:
                     flight_page.current_circular_countdown.set_spinning()
@@ -832,6 +840,8 @@ class MainWindow(QMainWindow):
             self.ui.c_t_s_value_2.setText("Human")
         else:
             # TARS task with 0 or no delay - immediate completion with animations
+            self.ui.check_radio_button.setVisible(True)
+            self.ui.int_panel_right_button.setVisible(True)
             if home_page.current_circular_countdown:
                 home_page.current_circular_countdown.show()
             if flight_page.current_circular_countdown:

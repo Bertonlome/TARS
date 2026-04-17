@@ -9,6 +9,8 @@ import sys
 import os
 import time
 import threading
+import inspect
+import re
 from pathlib import Path
 import soundfile as sf
 import sounddevice as sd
@@ -31,6 +33,139 @@ else:
 # Global agent instance for signal handling
 tars_agent = None
 is_interrupted = False
+
+
+# ---------------------------------------------------------------------------
+# Transition-kind inference
+# Determines whether the outgoing transition condition, evaluated for the
+# current autonomy_role, resolves to only is_acked() ("waiting") or requires
+# a real environmental/sensor check ("sensing").
+# ---------------------------------------------------------------------------
+
+def _expr_is_acked_only(expr: str) -> bool:
+    """Return True if *expr* contains only is_acked() and/or allow_transition()."""
+    cleaned = re.sub(r'self\.is_acked\s*\(\s*\)', '', expr)
+    cleaned = re.sub(r'self\.allow_transition\s*\(\s*\)', '', cleaned)
+    cleaned = re.sub(r'\b(?:and|or|not|if|else)\b', '', cleaned)
+    # Any remaining `word(` means a real sensor/check function — do NOT strip
+    # parentheses before this check, otherwise the search always misses.
+    return not bool(re.search(r'\w+\s*\(', cleaned))
+
+
+def _extract_ternary_true_expr(body: str):
+    """
+    Extract the true-expression from a Python ternary  TRUE_EXPR if COND else FALSE_EXPR.
+    Returns the substring before the first top-level ' if ', or None if not found.
+    """
+    depth = 0
+    for i, ch in enumerate(body):
+        if ch in '([':
+            depth += 1
+        elif ch in ')]':
+            depth -= 1
+        elif depth == 0 and body[i:i + 4] == ' if ':
+            return body[:i].strip()
+    return None
+
+
+def _role_satisfies_if_branch(body: str, role) -> bool:
+    """
+    Return True if *role* would evaluate the "if" (true) branch of the ternary
+    in *body*, i.e. the autonomy_role check in the lambda is True for this role.
+    """
+    if role == "performer":
+        if '== "performer"' in body or "== 'performer'" in body:
+            return True
+        if '"performer", "supporter"' in body or '"supporter", "performer"' in body:
+            return True
+    if role == "supporter":
+        if '== "supporter"' in body or "== 'supporter'" in body:
+            return True
+        if '"performer", "supporter"' in body or '"supporter", "performer"' in body:
+            return True
+    return False
+
+
+def _classify_condition_source(src: str, role) -> str:
+    """
+    Given the raw source text of a transition condition and the current
+    autonomy_role, return 'waiting' or 'sensing'.
+    """
+    # Collapse multi-line / indentation noise
+    body_line = ' '.join(src.split())
+
+    # Strip everything up to 'lambda:'
+    m = re.search(r'lambda\s*:\s*(.*)', body_line)
+    if not m:
+        return "waiting"
+    body = m.group(1).strip().rstrip(',').rstrip(')')
+
+    # No autonomy_role branching — evaluate the whole expression
+    if 'autonomy_role' not in body:
+        return _classify_expr(body)
+
+    # Role does NOT satisfy the if-condition → else branch applies.
+    # In every pattern used in this codebase the else branch is self.is_acked().
+    if not _role_satisfies_if_branch(body, role):
+        return "waiting"
+
+    # Role takes the if-branch — extract the true-expression and analyse it
+    true_expr = _extract_ternary_true_expr(body)
+    if true_expr is None:
+        # No top-level ternary found: 'autonomy_role' appears inside data lookups
+        # (e.g. self.states[...].autonomy_role == "x") rather than as a ternary
+        # guard.  Classify the whole body expression directly.
+        return _classify_expr(body)
+    return _classify_expr(true_expr)
+
+
+def _classify_expr(expr: str) -> str:
+    """Return 'waiting', 'sensing', or 'sensing_ack' for a single expression.
+
+    - 'waiting'     : only is_acked / allow_transition
+    - 'sensing_ack' : a real sensor function AND is_acked() as a fallback
+    - 'sensing'     : a real sensor function with no is_acked() fallback
+    """
+    if _expr_is_acked_only(expr):
+        return "waiting"
+    has_acked = bool(
+        re.search(r'self\.is_acked\s*\(', expr)
+        or re.search(r'self\.allow_transition\s*\(', expr)
+    )
+    return "sensing_ack" if has_acked else "sensing"
+
+
+def determine_transition_kind(agent, state) -> str:
+    """
+    Return 'waiting' if the only way out of *state* (for its current
+    autonomy_role) is pilot acknowledgment (is_acked), or 'sensing' if TARS
+    must poll an environmental condition.
+    """
+    if agent is None:
+        return "waiting"
+
+    role = state.autonomy_role
+
+    for transition in agent.fsm.transitions:
+        if transition is None or transition.from_state is not state:
+            continue
+
+        condition = transition.condition
+
+        # Direct bound-method references (not wrapped in a lambda)
+        if condition is agent.is_acked or condition is agent.allow_transition:
+            return "waiting"
+
+        # Lambda / other callable — inspect source
+        try:
+            src = inspect.getsource(condition).strip()
+        except (OSError, TypeError):
+            # Cannot inspect: conservative — performers/supporters get 'sensing'
+            return "sensing" if role in ("performer", "supporter") else "waiting"
+
+        return _classify_condition_source(src, role)
+
+    return "waiting"
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
@@ -148,18 +283,9 @@ def main():
             threading.Thread(target=play_swipe_sound, daemon=True).start()
             
             # Publish current state
-            # Determine transition condition kind for this state
-            # sensing = TARS is performer with a real sensor condition
-            # waiting = triggered by is_acked, or autonomy_role is None/supporter
-            transition_kind = "waiting"  # Default: waiting for pilot acknowledgment
-            if tars_agent is not None and state.autonomy_role == "performer":
-                for transition in tars_agent.fsm.transitions:
-                    if transition is None:
-                        continue
-                    if transition.from_state == state:
-                        if transition.condition is not tars_agent.is_acked and transition.condition is not tars_agent.allow_transition:
-                            transition_kind = "sensing"
-                        break
+            # Determine transition condition kind: 'waiting' if the only exit is
+            # is_acked() for the current autonomy_role, else 'sensing'.
+            transition_kind = determine_transition_kind(tars_agent, state)
             
             state_json = encode_state_to_json(state, transition_kind=transition_kind)
             igs.output_set_string("current_state", state_json)
@@ -233,22 +359,9 @@ def main():
         """Publish action about to fire notification via Ingescape"""
         from Core.message_protocol import encode_state_to_json
         try:
-            # Determine transition condition kind for this state
-            transition_kind = "waiting"
-            if tars_agent is not None:
-                for transition in tars_agent.fsm.transitions:
-                    if transition is None:
-                        continue
-                    if transition.from_state == state:
-                        if transition.condition is tars_agent.is_acked:
-                            transition_kind = "waiting"
-                        elif transition.condition is tars_agent.allow_transition:
-                            transition_kind = "waiting"
-                        elif state.autonomy_role not in ("performer", "supporter"):
-                            transition_kind = "waiting"
-                        else:
-                            transition_kind = "sensing"
-                        break
+            # Determine transition condition kind: 'waiting' if the only exit is
+            # is_acked() for the current autonomy_role, else 'sensing'.
+            transition_kind = determine_transition_kind(tars_agent, state)
             
             state_json = encode_state_to_json(state, transition_kind=transition_kind)
             import ingescape as igs
