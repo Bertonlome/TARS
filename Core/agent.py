@@ -1955,6 +1955,7 @@ class TarsAgent:
         elif name == "tars_reliable":
             self.TARS_RELIABLE = value
             print(f"📡 TARS_RELIABLE set to {value} ({'reliable' if value else 'unreliable'})")
+            igs.output_set_bool("tars_reliable", value)
         elif name == "popup_active":
             self.popup_active = value
             print(f"{'🔒' if value else '🔓'} popup_active = {value}")
@@ -2111,6 +2112,7 @@ class TarsAgent:
             else:
                 self.failure_type = ""
                 print(f"⚠️  failure_type cleared (received '{value}')")
+            igs.output_set_string("failure_type", self.failure_type)
             return
 
         elif name == "load_csv":
@@ -2511,6 +2513,8 @@ class TarsAgent:
         igs.input_create("load_csv", igs.STRING_T, None)  # Reload all states from a new CSV filename
         igs.input_create("tars_reliable", igs.BOOL_T, None)  # Toggle TARS reliability (True=real data, False=inverted/unreliable)
         igs.input_create("failure_type", igs.STRING_T, None)  # Failure mode: "winds", "altitude", "flaps"
+        igs.output_create("tars_reliable", igs.BOOL_T, None)  # Passthrough: mirrors tars_reliable input
+        igs.output_create("failure_type", igs.STRING_T, None)  # Passthrough: mirrors failure_type input
         igs.input_create("popup_active", igs.BOOL_T, None)  # GUI dialog is open; block joystick task_acknowledged
         
         igs.observe_input("On_Off", self.bool_input_callback, self.agent)
