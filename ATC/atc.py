@@ -273,13 +273,13 @@ def integer_input_callback(io_type, name, value_type, value, my_data):
                     print("🚫 request_vectors: initial delay cancelled by Reset")
                     return
                 if active_runway == "24R":
-                    agent_object.speech_output_o = f"C-POLY, Montréal-Tower, roger. Turn right heading 330 for vectors to runway {active_runway}."
+                    agent_object.speech_output_o = f"C-POLY, Montréal-Tower, roger. Turn right heading 330 descend to 3000 feet expect ILS runway {active_runway}."
                     play_audio_async(_VECTORS_AUDIO["24R"])
                 elif active_runway == "24L":
-                    agent_object.speech_output_o = f"C-POLY, Montréal-Tower, roger. Turn left heading 150 for vectors to runway {active_runway}."
+                    agent_object.speech_output_o = f"C-POLY, Montréal-Tower, roger. Turn left heading 150 descend to 3000 feet expect ILS runway {active_runway}."
                     play_audio_async(_VECTORS_AUDIO["24L"])
                 elif active_runway == "06R":
-                    agent_object.speech_output_o = f"C-POLY, Montréal-Tower, roger. Turn right heading 150 for vectors to runway {active_runway}."
+                    agent_object.speech_output_o = f"C-POLY, Montréal-Tower, roger. Turn right heading 150 descend to 3000 feet expect ILS runway {active_runway}."
                     play_audio_async(_VECTORS_AUDIO["06R"])
             elif name == "request_takeoff_clearance":
                 print(f"📡 Received: {name} with delay={value}s (runway={active_runway})")

@@ -36,7 +36,7 @@ elif platform.system() == "Windows":
 else:
     DEFAULT_DEVICE = "wlps"
 
-CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_20260414_115640.csv"
+CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_20260424_121306.csv"
 #CURRENT_BRIEFING_EXPORT_LOADED = "briefing_export_FULL_TARS_PERF.csv"
 ### PARAMETERS ###
 ALLOW_PARALLEL_ATC = True  # Enable/disable parallel ATC thread execution
