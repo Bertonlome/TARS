@@ -189,7 +189,7 @@ class TarsAgent:
             self.states[("IDLE", "Idle", "WAITING")],
             self.states[("CREW BRIEFING", "START", "BRIEFING")],
             self.is_started,
-            transition_action=lambda: self.initialize(),
+            transition_action=lambda: (self.initialize(), igs.output_set_double("session_epoch", time.time())),
             action= self.dummy_action))
 
         self.fsm.add_transition(Transition(
@@ -2381,6 +2381,7 @@ class TarsAgent:
         igs.observe_agent_events(self.on_agent_event_callback, self.agent)
         igs.observe_freeze(self.on_freeze_callback, self.agent)
 
+        igs.output_create("session_epoch", igs.DOUBLE_T, None)  # Unix epoch timestamp (s) when session starts
         igs.output_create("pax_safety", igs.DOUBLE_T, None)  # 0 is off, 1 is on
         igs.output_create("flight_director", igs.DOUBLE_T, None)  # Not sure how to set FD up using a comm
         igs.output_create("speed_mode", igs.DOUBLE_T, None)  # Mustang/airspeedmach
